@@ -6,7 +6,7 @@
 
 # To activate ENV
 1. cd backend
-2. source env/bin/activate
+2. source venv/bin/activate
 3. pip3 install -r requirements.txt
 
 # Checking
