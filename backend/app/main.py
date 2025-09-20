@@ -1,11 +1,28 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from app.api.analyzer import router as analyzer_router
 
 app = FastAPI()
 
-@app.get("/")
-async def root():
-    return {"message": "Hello from CodeWorld FastAPI"}
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:3000",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://localhost:5173",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
-@app.get("/health")
+app.include_router(analyzer_router, prefix="/api")
+@app.get("/healthz")
 async def health_check():
-    return {"status": "ok"} 
+    return {"status": "ok"}
+
+if __name__ == "__main__":
+    import uvicorn
+
+    uvicorn.run(app, host="0.0.0.0", port=8000)

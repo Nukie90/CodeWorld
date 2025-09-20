@@ -10,5 +10,5 @@
 3. pip3 install -r requirements.txt
 
 # Checking
-1. cd backend/app
-2. uvicorn main:app --reload
+1. cd backend
+2. ``` uvicorn app.main:app --reload```
