@@ -1,1 +1,1 @@
-from .lizard_services import analyze_code
+from .lizard_services import analyze_js

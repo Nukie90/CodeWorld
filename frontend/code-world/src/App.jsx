@@ -23,6 +23,8 @@ function App() {
   const [status, setStatus] = useState('idle')
   const [statusMessage, setStatusMessage] = useState('')
   const [progress, setProgress] = useState(0)
+  const [analysisResult, setAnalysisResult] = useState(null)
+  const [view, setView] = useState('upload')
 
   const handleFileSelection = (file) => {
     if (!file) {
@@ -85,10 +87,13 @@ function App() {
       )
 
       setProgress(100)
+      const payload = response?.data || null
       setStatus('success')
-      setStatusMessage(
-        response?.data?.message || 'Upload complete! Your file is ready.',
-      )
+      setStatusMessage('Upload complete!')
+      setAnalysisResult(payload)
+      if (payload) {
+        setView('results')
+      }
     } catch (error) {
       setStatus('error')
       setStatusMessage(
@@ -105,6 +110,12 @@ function App() {
     setStatus('idle')
     setProgress(0)
     setStatusMessage('')
+    setAnalysisResult(null)
+    setView('upload')
+  }
+
+  const handleReturnToUpload = () => {
+    handleRemoveFile()
   }
 
   useEffect(() => {
@@ -119,7 +130,7 @@ function App() {
     return () => URL.revokeObjectURL(url)
   }, [selectedFile])
 
-  return (
+  const renderUploadView = () => (
     <div className="upload-page">
       <header className="upload-header">
         <h1>Upload a file</h1>
@@ -210,6 +221,89 @@ function App() {
       </main>
     </div>
   )
+
+  const renderResultsView = () => {
+    if (!analysisResult) {
+      return null
+    }
+
+    const { filename, analysis } = analysisResult
+    const summaryItems = [
+      { label: 'Total lines', value: analysis?.total_loc },
+      { label: 'Logical LOC', value: analysis?.total_nloc },
+      { label: 'Functions', value: analysis?.function_count },
+      { label: 'Avg. complexity', value: analysis?.complexity_avg },
+      { label: 'Max complexity', value: analysis?.complexity_max },
+      { label: 'Language', value: analysis?.language },
+    ]
+
+    const functions = (analysis?.functions || []).map((fn) => ({
+      name: fn.name,
+      startLine: fn.start_line,
+      nloc: fn.nloc,
+      complexity: fn.cyclomatic_complexity,
+    }))
+
+    return (
+      <div className="results-page">
+        <header className="results-header">
+          <h1>Analysis results</h1>
+          <p>
+            Metrics for <span className="results-filename">{analysis?.filename || filename}</span>
+          </p>
+          <button type="button" className="secondary-button" onClick={handleReturnToUpload}>
+            Upload another file
+          </button>
+        </header>
+
+        <main className="results-content">
+          <section className="results-card">
+            <h2>File summary</h2>
+            <div className="metrics-grid">
+              {summaryItems.map((item) => (
+                <div key={item.label} className="metric">
+                  <span className="metric-label">{item.label}</span>
+                  <span className="metric-value">{item.value ?? '—'}</span>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="results-card">
+            <h2>Function breakdown</h2>
+            {functions.length ? (
+              <div className="function-table-wrapper">
+                <table className="function-table">
+                  <thead>
+                    <tr>
+                      <th scope="col">Function</th>
+                      <th scope="col">Start line</th>
+                      <th scope="col">Logical LOC</th>
+                      <th scope="col">Cyclomatic complexity</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {functions.map((fn) => (
+                      <tr key={`${fn.name}-${fn.startLine}`}>
+                        <td>{fn.name}</td>
+                        <td>{fn.startLine}</td>
+                        <td>{fn.nloc}</td>
+                        <td>{fn.complexity}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <p className="empty-state">No functions detected in this file.</p>
+            )}
+          </section>
+        </main>
+      </div>
+    )
+  }
+
+  return view === 'results' ? renderResultsView() : renderUploadView()
 }
 
 export default App

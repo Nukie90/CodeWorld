@@ -1,53 +1,48 @@
-from lizard import analyze_file
-from typing import Any, Dict, List, Optional
+from fastapi.responses import JSONResponse
+import lizard
+from app.model.analyzer_model import FileMetrics, FunctionMetric
 
-def analyze_code(code: str) -> Dict[str, Any]:
-    if not code:
-        return {
-            "nloc": 0,
-            "token_count": 0,
-            "function_count": 0,
-            "functions": [],
-            "summary": {
-                "characters": 0,
-                "average_line_length": 0,
-            },
-        }
+def analyze_js(code: str, filename: str) -> FileMetrics:
+    # lizard supports analyzing source strings
+    result = lizard.analyze_file.analyze_source_code(filename, code)
 
-    analysis = analyze_file.analyze_source_code("uploaded_file", code)
+    # Aggregate
+    funcs = []
+    cc_sum = 0
+    cc_max = 0
+    for f in result.function_list:
+        cc = int(f.cyclomatic_complexity)
+        nloc = int(f.nloc)
+        if f.name in ("(anonymous)", "&&", "?"):
+            continue
+        else:
+            funcs.append(FunctionMetric(
+            name=f.name,
+            start_line=int(f.start_line),
+            nloc=nloc,
+            cyclomatic_complexity=cc
+        ))
+        cc_sum += cc
+        if cc > cc_max:
+            cc_max = cc
 
-    return {
-        "nloc": getattr(analysis, "nloc", 0),
-        "token_count": getattr(analysis, "token_count", 0),
-        "function_count": len(getattr(analysis, "function_list", [])),
-        "functions": serialize_functions(getattr(analysis, "function_list", [])),
-    }
+    function_count = len(funcs)
+    complexity_avg = round(cc_sum / function_count, 2) if function_count else 0.0
 
-def get_function_start_line(func) -> Optional[int]:
-    """Helper to extract the start line from a function object."""
-    for attr in ("start_line", "long_name_start_line", "line", "start_point"):
-        if hasattr(func, attr):
-            try:
-                val = getattr(func, attr)
-                if isinstance(val, tuple) and len(val) >= 1:
-                    return int(val[0])
-                else:
-                    return int(val)
-            except Exception:
-                continue
-    return None
+    # lizard gives:
+    #  - nloc: logical LOC
+    #  - result.nloc: total logical LOC for file
+    # It does not track physical LOC, we can compute simple physical LOC:
+    total_loc = len(code.splitlines())
+    total_nloc = int(result.nloc)
 
-def serialize_functions(functions) -> List[Dict[str, Any]]:
-    serialized = []
-    for func in functions:
-        start_line = get_function_start_line(func)
-        serialized.append(
-            {
-                "name": getattr(func, "name", "<anonymous>"),
-                "nloc": getattr(func, "nloc", 0),
-                "cyclomatic_complexity": getattr(func, "cyclomatic_complexity", 0),
-                "parameters": getattr(func, "parameter_count", 0),
-                "start_line": start_line,
-            }
-        )
-    return serialized
+    return FileMetrics(
+        filename=filename,
+        language="JavaScript",
+        total_loc=total_loc,
+        total_nloc=total_nloc,
+        function_count=function_count,
+        complexity_avg=complexity_avg,
+        complexity_max=cc_max,
+        functions=funcs
+    )

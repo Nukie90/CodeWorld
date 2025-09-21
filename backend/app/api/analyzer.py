@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 
-from app.services.lizard_services import analyze_code
+from app.services.lizard_services import analyze_js
 
 router = APIRouter(tags=["analysis"])
 
@@ -35,8 +35,8 @@ async def upload_file(file: UploadFile = File(...)):
             detail="Uploaded file must be UTF-8 encoded text.",
         ) from exc
 
-    analysis = analyze_code(text)
-
+    analysis = analyze_js(text, filename)
+    
     return {
         "filename": filename,
         "analysis": analysis,
