@@ -15,3 +15,17 @@ class FileMetrics(BaseModel):
     complexity_avg: float
     complexity_max: int
     functions: list[FunctionMetric]
+
+class FolderMetrics(BaseModel):
+    folder_name: str
+    total_files: int
+    total_loc: int                # total lines across all files
+    total_nloc: int               # total logical LOC across all files
+    total_functions: int
+    complexity_avg: float
+    complexity_max: int
+    files: list[FileMetrics]
+
+class FolderAnalysisResult(BaseModel):
+    folder_metrics: FolderMetrics
+    individual_files: list[FileMetrics]
