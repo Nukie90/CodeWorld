@@ -19,7 +19,7 @@
 1. npm install
 2. npm run dev
 
-or using nvm
+## or using nvm
 1. nvm list 
 2. nvm use 23
 3. npm install
