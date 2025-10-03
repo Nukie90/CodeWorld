@@ -3,18 +3,19 @@ from pydantic import BaseModel
 class FunctionMetric(BaseModel):
     name: str
     start_line: int
-    nloc: int                     # logical LOC in function
+    nloc: int
     cyclomatic_complexity: int
 
 class FileMetrics(BaseModel):
     filename: str
-    language: str
-    total_loc: int                # total lines (physical)
-    total_nloc: int               # logical LOC (lizard)
+    language: str | None
+    total_loc: int
+    total_nloc: int
     function_count: int
     complexity_avg: float
     complexity_max: int
     functions: list[FunctionMetric]
+
 
 class FolderMetrics(BaseModel):
     folder_name: str
