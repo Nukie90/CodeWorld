@@ -1,15 +1,15 @@
-from typing import Union
-
 from fastapi import FastAPI
+from fastapi import APIRouter
+from app.api.routes_analysis import router as analysis_router
 
-app = FastAPI()
+app = FastAPI(title="Project Analyzer API")
 
+api_router = APIRouter(prefix="/api")
+
+api_router.include_router(analysis_router, prefix="/analyze", tags=["analysis"])
+
+app.include_router(api_router)
 
 @app.get("/")
-async def read_root():
-    return {"Hello": "World"}
-
-
-@app.get("/items/{item_id}")
-async def read_item(item_id: int, q: Union[str, None] = None):
-    return {"item_id": item_id, "q": q}
+def root():
+    return {"message": "Project Analyzer API is running"}
