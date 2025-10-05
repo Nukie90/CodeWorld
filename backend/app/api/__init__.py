@@ -1,1 +1,0 @@
-from .analyzer import router as analyzer_router

@@ -423,7 +423,13 @@ main {
   font-weight: 500;
 }
 
-.function-complexity {
+.function-sub {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+
+.function-sub {
   color: #64748b;
   font-size: 0.8rem;
 }

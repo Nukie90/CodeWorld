@@ -72,7 +72,7 @@ function UploadView({
                 id="file-input"
                 className="file-input"
                 type="file"
-                accept=".js,.jsx"
+                // accept=".js,.jsx"
                 onChange={handleFileInput}
               />
             )}
@@ -107,14 +107,14 @@ function UploadView({
                 </div>
                 <p>
                   {uploadType === 'folder' 
-                    ? 'Click to select a folder containing JavaScript files'
-                    : 'Drag and drop a JavaScript file here, or click to browse'
+                    // ? 'Click to select a folder containing JavaScript files'
+                    // : 'Drag and drop a JavaScript file here, or click to browse'
                   }
                 </p>
                 <span>
                   {uploadType === 'folder' 
-                    ? 'Supports folders with .js and .jsx files'
-                    : 'Supports .js and .jsx files'
+                    // ? 'Supports folders with .js and .jsx files'
+                    // : 'Supports .js and .jsx files'
                   }
                 </span>
               </div>

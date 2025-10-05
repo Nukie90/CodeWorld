@@ -1,10 +1,14 @@
 from pydantic import BaseModel
 
 class FunctionMetric(BaseModel):
-    name: str
-    start_line: int
-    nloc: int
     cyclomatic_complexity: int
+    nloc: int
+    token_count: int
+    name: str
+    long_name: str
+    start_line: int
+    end_line: int
+    max_nesting_depth: int    
 
 class FileMetrics(BaseModel):
     filename: str

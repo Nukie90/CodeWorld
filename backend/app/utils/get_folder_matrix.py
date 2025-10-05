@@ -1,52 +1,13 @@
 from fastapi.responses import JSONResponse
-import lizard
 import tempfile
 import os
 import zipfile
 import io
 from typing import List
 from app.model.analyzer_model import FileMetrics, FunctionMetric, FolderMetrics, FolderAnalysisResult
+from app.utils.get_file_matrix import get_file_matrix
 
-def analyze_js(code: str, filename: str) -> FileMetrics:
-    """
-    Use Lizard directly on source text. 
-    IMPORTANT: Do not hard-filter function names (keep "(anonymous)", "&&", "?").
-    This preserves parity for JS/JSX where anonymous functions are common.
-    """
-    result = lizard.analyze_file.analyze_source_code(filename, code)
-
-    funcs: list[FunctionMetric] = []
-    cc_sum = 0
-    cc_max = 0
-
-    for f in result.function_list:
-        cc = int(f.cyclomatic_complexity)
-        nloc = int(f.nloc)
-        funcs.append(FunctionMetric(
-            name=f.name,                  # may be "(anonymous)" and that’s okay
-            start_line=int(f.start_line),
-            nloc=nloc,
-            cyclomatic_complexity=cc
-        ))
-        cc_sum += cc
-        if cc > cc_max:
-            cc_max = cc
-
-    function_count = len(funcs)
-    complexity_avg = round(cc_sum / function_count, 2) if function_count else 0.0
-
-    return FileMetrics(
-        filename=filename,
-        language=getattr(result, "language", None),
-        total_loc=int(getattr(result, "nloc", 0) + getattr(result, "comment_lines", 0)),
-        total_nloc=int(getattr(result, "nloc", 0)),
-        function_count=function_count,
-        complexity_avg=complexity_avg,
-        complexity_max=cc_max,
-        functions=funcs
-    )
-
-def analyze_folder(zip_content: bytes, folder_name: str) -> FolderAnalysisResult:
+def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnalysisResult:
     """Analyze a folder uploaded as a zip file"""
     
     # Create temporary directory to extract files
@@ -59,10 +20,9 @@ def analyze_folder(zip_content: bytes, folder_name: str) -> FolderAnalysisResult
         js_files = []
         for root, dirs, files in os.walk(temp_dir):
             for file in files:
-                if file.lower().endswith(('.js', '.jsx')):
-                    file_path = os.path.join(root, file)
-                    relative_path = os.path.relpath(file_path, temp_dir)
-                    js_files.append((file_path, relative_path))
+                file_path = os.path.join(root, file)
+                relative_path = os.path.relpath(file_path, temp_dir)
+                js_files.append((file_path, relative_path))
         
         # Analyze each file
         file_metrics_list: List[FileMetrics] = []
@@ -77,7 +37,7 @@ def analyze_folder(zip_content: bytes, folder_name: str) -> FolderAnalysisResult
                 with open(file_path, 'r', encoding='utf-8') as f:
                     content = f.read()
                 
-                file_metrics = analyze_js(content, relative_path)
+                file_metrics = get_file_matrix(content, relative_path)
                 file_metrics_list.append(file_metrics)
                 
                 # Aggregate folder metrics

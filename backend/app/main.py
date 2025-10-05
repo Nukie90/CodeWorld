@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.analyzer import router as analyzer_router
+from app.routes.analyzer_routes import router as analyzer_router
 
 app = FastAPI()
 
@@ -16,6 +16,11 @@ app.add_middleware(
 )
 
 app.include_router(analyzer_router, prefix="/api")
+
+@app.get("/")
+async def home():
+    return {"message": "Welcome to CodeWorld"}
+
 @app.get("/health")
 async def health_check():
     return {"status": "ok"}

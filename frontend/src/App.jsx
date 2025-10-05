@@ -51,9 +51,7 @@ function App() {
       
       files.forEach(file => {
         const relativePath = file.webkitRelativePath.substring(folderName.length + 1)
-        if (relativePath && (file.name.endsWith('.js') || file.name.endsWith('.jsx'))) {
-          zip.file(relativePath, file)
-        }
+        zip.file(relativePath, file)
       })
 
       // Generate zip blob
