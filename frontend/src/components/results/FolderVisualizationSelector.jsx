@@ -3,7 +3,8 @@ import React from 'react'
 const visualizationTypes = [
   { id: 'circle', label: 'Circle Packing' },
   { id: 'treemap', label: 'Treemap' },
-  { id: 'tree', label: 'Interactive Tree' }
+  { id: 'tree', label: 'Interactive Tree' },
+  { id: 'flower', label: 'Flower Tree' }
 ]
 
 function FolderVisualizationSelector({ currentType, onTypeChange }) {
