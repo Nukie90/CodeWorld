@@ -1,13 +1,15 @@
 import React from 'react'
 import CirclePackingVisualization from './visualizations/CirclePackingVisualization'
 import TreemapVisualization from './visualizations/TreemapVisualization'
+import ForceTreeVisualization from './visualizations/ForceTreeVisualization'
 import FolderVisualizationSelector from './FolderVisualizationSelector'
 import InfoTip from '../common/InfoTip'
 import './FolderVisualization.css'
 
 const VISUALIZATION_HELP = {
   circle: "Circle packing visualization: The large hollow circle represents the folder. Inner circles represent files, sized by logical LOC (nloc) and colored by average complexity (green: low, red: high). Hover for details.",
-  treemap: "Treemap visualization: Each rectangle represents a file, where the size shows the logical LOC and the color indicates average complexity (green: low, red: high). Hover for details."
+  treemap: "Treemap visualization: Each rectangle represents a file, where the size shows the logical LOC and the color indicates average complexity (green: low, red: high). Hover for details.",
+  tree: "Interactive tree visualization: Shows folder structure with files and functions. Nodes can be dragged, zoomed, and expanded/collapsed. Icons indicate type (📁 folder, 📄 file, ƒ function). Colors show complexity."
 }
 
 function FolderVisualization({ individualFiles, folderName }) {
@@ -25,6 +27,13 @@ function FolderVisualization({ individualFiles, folderName }) {
       case 'treemap':
         return (
           <TreemapVisualization
+            individualFiles={individualFiles}
+            folderName={folderName}
+          />
+        )
+      case 'tree':
+        return (
+          <ForceTreeVisualization
             individualFiles={individualFiles}
             folderName={folderName}
           />
