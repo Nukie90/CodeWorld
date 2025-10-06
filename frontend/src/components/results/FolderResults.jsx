@@ -1,6 +1,7 @@
-import React, { useRef, useEffect } from 'react'
+import React, { useRef, useEffect, useState } from 'react'
 import * as d3 from 'd3'
 import InfoTip from '../common/InfoTip'
+import ComplexityBarChart from './ComplexityBarChart'
 
 const FOLDER_METRIC_HELP = {
   'Total files': 'Number of JavaScript files analyzed within the folder.',
@@ -18,17 +19,28 @@ function FolderResults({ analysisResult, onBack }) {
   const { folder_metrics, individual_files } = analysis
 
   const chartRef = useRef(null)
-  const tooltipRef = useRef(null)
+  const [activeTab, setActiveTab] = useState('circle')
+  const circleTabId = 'visualization-tab-circle'
+  const barTabId = 'visualization-tab-bar'
+  const panelId = 'visualization-tab-panel'
 
   useEffect(() => {
-    if (!individual_files?.length) return
+    if (!chartRef.current) {
+      d3.selectAll('.d3-tooltip').remove()
+      return
+    }
+
+    const container = d3.select(chartRef.current)
+    container.html('')
+
+    if (!individual_files?.length || activeTab !== 'circle') {
+      d3.selectAll('.d3-tooltip').remove()
+      return
+    }
 
     const width = 800
     const height = 600
     const margin = 20
-
-    const container = d3.select(chartRef.current)
-    container.html('')
 
     const svg = container.append('svg')
       .attr('width', width)
@@ -77,7 +89,6 @@ function FolderResults({ analysisResult, onBack }) {
 
     const rootNode = pack(hierarchy)
 
-    // Draw file circles
     svg.selectAll('circle')
       .data(rootNode.children)
       .enter()
@@ -102,7 +113,6 @@ function FolderResults({ analysisResult, onBack }) {
           .style('opacity', 0)
       })
 
-    // Draw folder hollow circle
     svg.append('circle')
       .attr('cx', rootNode.x + margin)
       .attr('cy', rootNode.y + margin)
@@ -139,7 +149,7 @@ function FolderResults({ analysisResult, onBack }) {
       svg.remove()
       tooltip.remove()
     }
-  }, [analysisResult])
+  }, [activeTab, individual_files, folder_name])
 
   const folderSummaryItems = [
     { label: 'Total files', value: folder_metrics?.total_files },
@@ -183,9 +193,55 @@ function FolderResults({ analysisResult, onBack }) {
 
         {individual_files?.length > 0 && (
           <section className="results-card">
-            <h2>Complexity Visualization</h2>
-            <InfoTip text="Circle packing visualization: The large hollow circle represents the folder. Inner circles represent files, sized by logical LOC (nloc) and colored by average complexity (green: low, red: high). Hover for details." ariaLabel="Help: Complexity Visualization" />
-            <div ref={chartRef} className="chart-container" style={{ width: '800px', height: '600px', margin: '0 auto' }}></div>
+            <div className="results-card-header">
+              <h2>Complexity Visualization</h2>
+              <InfoTip
+                text="Compare folder complexity with circle packing or bar chart views. Circle packing uses circle size for LOC and color for complexity; the bar chart uses height for LOC, width for function count, and color for average complexity."
+                ariaLabel="Help: Complexity Visualization"
+              />
+            </div>
+
+            <div className="visualization-tabs" role="tablist" aria-label="Complexity visualizations">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'circle'}
+                id={circleTabId}
+                aria-controls={panelId}
+                tabIndex={activeTab === 'circle' ? 0 : -1}
+                className={`visualization-tab-button ${activeTab === 'circle' ? 'active' : ''}`}
+                onClick={() => setActiveTab('circle')}
+              >
+                Circle Packing
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'bar'}
+                id={barTabId}
+                aria-controls={panelId}
+                tabIndex={activeTab === 'bar' ? 0 : -1}
+                className={`visualization-tab-button ${activeTab === 'bar' ? 'active' : ''}`}
+                onClick={() => setActiveTab('bar')}
+              >
+                Complexity Bars
+              </button>
+            </div>
+
+            <div
+              className="visualization-tab-panel"
+              role="tabpanel"
+              id={panelId}
+              aria-labelledby={activeTab === 'circle' ? circleTabId : barTabId}
+            >
+              {activeTab === 'circle' ? (
+                <div ref={chartRef} className="chart-container" style={{ width: '800px', height: '600px', margin: '0 auto' }}></div>
+              ) : (
+                <div className="chart-container" style={{ overflowX: 'auto' }}>
+                  <ComplexityBarChart files={individual_files} />
+                </div>
+              )}
+            </div>
           </section>
         )}
 
@@ -206,7 +262,7 @@ function FolderResults({ analysisResult, onBack }) {
                       <span>Max Complexity: {file.complexity_max}</span>
                     </div>
                   </div>
-                  
+
                   {file.functions?.length > 0 && (
                     <details className="function-details">
                       <summary>Functions ({file.functions.length})</summary>

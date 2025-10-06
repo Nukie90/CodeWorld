@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react'
 import * as d3 from 'd3'
-import InfoTip from '../common/InfoTip'
 
 function CirclePacking({ data }) {
   const ref = useRef()
@@ -13,7 +12,7 @@ function CirclePacking({ data }) {
 
     const colorScale = d3.scaleLinear()
       .domain([0, 10, 20]) // adjust based on typical CC ranges
-      .range(["green", "yellow", "red"])
+      .range(['green', 'yellow', 'red'])
 
     // Build a hierarchy from files/functions
     const root = d3.hierarchy(data)
@@ -27,27 +26,27 @@ function CirclePacking({ data }) {
     pack(root)
 
     const svg = d3.select(ref.current)
-      .attr("viewBox", [0, 0, width, height])
-      .attr("text-anchor", "middle")
-      .style("font-family", "sans-serif")
-      .style("font-size", 10)
+      .attr('viewBox', [0, 0, width, height])
+      .attr('text-anchor', 'middle')
+      .style('font-family', 'sans-serif')
+      .style('font-size', 10)
 
-    svg.selectAll("*").remove() // clear previous render
+    svg.selectAll('*').remove() // clear previous render
 
-    const node = svg.append("g")
-      .selectAll("circle")
+    const node = svg.append('g')
+      .selectAll('circle')
       .data(root.descendants())
-      .join("g")
-      .attr("transform", d => `translate(${d.x},${d.y})`)
+      .join('g')
+      .attr('transform', d => `translate(${d.x},${d.y})`)
 
     // Draw circles
-    node.append("circle")
-      .attr("r", d => d.r)
-      .attr("fill", d => d.children ? "none" : colorScale(d.data.complexity || 0))
-      .attr("stroke", d => d.children ? "#555" : "none")
+    node.append('circle')
+      .attr('r', d => d.r)
+      .attr('fill', d => (d.children ? 'none' : colorScale(d.data.complexity || 0)))
+      .attr('stroke', d => (d.children ? '#555' : 'none'))
 
     // Tooltip
-    node.append("title")
+    node.append('title')
       .text(d => {
         if (d.data.filename) {
           return `${d.data.filename}\nLOC: ${d.data.nloc}\nAvg CC: ${d.data.complexity}`
@@ -55,7 +54,7 @@ function CirclePacking({ data }) {
         if (d.data.name) {
           return `${d.data.name}\nLOC: ${d.data.nloc}\nCC: ${d.data.cyclomatic_complexity}`
         }
-        return "Folder"
+        return 'Folder'
       })
   }, [data])
 

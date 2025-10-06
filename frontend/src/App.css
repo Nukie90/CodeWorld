@@ -290,6 +290,13 @@ main {
   gap: 1.5rem;
 }
 
+.results-card-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
 .results-card h2 {
   margin: 0;
   font-size: 1.35rem;
@@ -352,6 +359,50 @@ main {
 .empty-state {
   margin: 0;
   color: #64748b;
+}
+
+.visualization-tabs {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.visualization-tab-button {
+  border: 1px solid #cbd5f5;
+  background: #f8fafc;
+  color: #475569;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.visualization-tab-button:hover,
+.visualization-tab-button:focus-visible {
+  border-color: #3b82f6;
+  color: #1d4ed8;
+}
+
+.visualization-tab-button.active {
+  background: #3b82f6;
+  border-color: #3b82f6;
+  color: #ffffff;
+}
+
+.visualization-tab-panel {
+  display: block;
+}
+
+.complexity-bar-chart {
+  display: block;
+  max-width: 100%;
+}
+
+.complexity-bar-chart .bar-label {
+  fill: #1f2937;
+  font-size: 0.8rem;
+  font-weight: 500;
 }
 
 .files-grid {
