@@ -418,6 +418,151 @@ main {
   border-bottom: none;
 }
 
+.results-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .results-card-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+  }
+}
+
+.results-card-title {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.chart-tab-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.chart-tab-button {
+  border: 1px solid #cbd5f5;
+  background: #f8fafc;
+  color: #1e293b;
+  font-weight: 600;
+  padding: 0.5rem 1rem;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.chart-tab-button:hover,
+.chart-tab-button:focus-visible {
+  border-color: #3b82f6;
+  color: #1d4ed8;
+  background: #e0f2fe;
+}
+
+.chart-tab-button.active {
+  border-color: #1d4ed8;
+  background: #1d4ed8;
+  color: #ffffff;
+  box-shadow: 0 10px 20px rgba(29, 78, 216, 0.2);
+}
+
+.chart-tab-panel {
+  margin-top: 1rem;
+}
+
+.circle-packing-container,
+.three-d-bar-wrapper {
+  width: 100%;
+  max-width: 840px;
+  margin: 0 auto;
+  position: relative;
+}
+
+.circle-packing-container {
+  height: 600px;
+}
+
+.three-d-bar-wrapper {
+  height: 480px;
+}
+
+.chart-tooltip {
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.15);
+  border-radius: 12px;
+  box-shadow: 0 15px 35px rgba(15, 23, 42, 0.18);
+  padding: 0.75rem 1rem;
+  color: #0f172a;
+  font-size: 0.9rem;
+  line-height: 1.4;
+  min-width: 220px;
+  backdrop-filter: blur(4px);
+}
+
+.chart-tooltip h4 {
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+}
+
+.chart-tooltip p {
+  margin: 0.25rem 0;
+}
+
+.chart-tooltip .tooltip-list {
+  margin-top: 0.5rem;
+  display: grid;
+  gap: 0.35rem;
+}
+
+.chart-tooltip .tooltip-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.axis-label,
+.axis-title,
+.bar-label,
+.bar-value,
+.legend-label {
+  font-family: 'Inter', sans-serif;
+  fill: #475569;
+}
+
+.axis-label {
+  font-size: 0.75rem;
+}
+
+.axis-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.bar-label {
+  font-size: 0.8rem;
+  fill: #1e293b;
+}
+
+.bar-value {
+  font-size: 0.75rem;
+  fill: #1e293b;
+  font-weight: 600;
+}
+
+.chart-legend {
+  font-size: 0.75rem;
+  fill: #475569;
+}
+
+.legend-label {
+  dominant-baseline: middle;
+}
+
 .function-name {
   color: #1e293b;
   font-weight: 500;

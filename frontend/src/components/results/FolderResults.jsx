@@ -1,6 +1,7 @@
-import React, { useRef, useEffect } from 'react'
-import * as d3 from 'd3'
+import React, { useMemo, useState } from 'react'
 import InfoTip from '../common/InfoTip'
+import FolderCirclePackingChart from './FolderCirclePackingChart'
+import Complexity3DBarChart from './Complexity3DBarChart'
 
 const FOLDER_METRIC_HELP = {
   'Total files': 'Number of JavaScript files analyzed within the folder.',
@@ -17,129 +18,22 @@ function FolderResults({ analysisResult, onBack }) {
   const { folder_name, analysis } = analysisResult
   const { folder_metrics, individual_files } = analysis
 
-  const chartRef = useRef(null)
-  const tooltipRef = useRef(null)
+  const [activeTab, setActiveTab] = useState('circle')
 
-  useEffect(() => {
-    if (!individual_files?.length) return
+  const chartTabs = useMemo(
+    () => [
+      { id: 'circle', label: 'Circle packing' },
+      { id: 'bars', label: '3D complexity bars' },
+    ],
+    []
+  )
 
-    const width = 800
-    const height = 600
-    const margin = 20
+  const hasFiles = Boolean(individual_files?.length)
 
-    const container = d3.select(chartRef.current)
-    container.html('')
-
-    const svg = container.append('svg')
-      .attr('width', width)
-      .attr('height', height)
-
-    const tooltip = d3.select('body').append('div')
-      .attr('class', 'd3-tooltip')
-      .style('position', 'absolute')
-      .style('opacity', 0)
-      .style('background', 'white')
-      .style('border', '1px solid black')
-      .style('padding', '10px')
-      .style('border-radius', '5px')
-      .style('pointer-events', 'none')
-      .style('max-width', '300px')
-      .style('box-shadow', '0 2px 10px rgba(0,0,0,0.1)')
-
-    const complexities = individual_files
-      .map(f => f.complexity_avg)
-      .filter(Boolean)
-    const minComplexity = complexities.length > 0 ? Math.min(...complexities) : 1
-    const maxComplexity = complexities.length > 0 ? Math.max(...complexities) : 10
-
-    const colorScale = d3.scaleLinear()
-      .domain([minComplexity, maxComplexity])
-      .range(['green', 'red'])
-
-    const data = {
-      name: folder_name,
-      children: individual_files.map(file => ({
-        name: file.filename.split('/').pop(),
-        total_nloc: file.total_nloc || 0,
-        complexity_avg: file.complexity_avg || 0,
-        complexity_max: file.complexity_max || 0,
-        function_count: file.function_count || 0,
-        functions: file.functions || []
-      }))
-    }
-
-    const hierarchy = d3.hierarchy(data)
-      .sum(d => d.total_nloc)
-
-    const pack = d3.pack()
-      .size([width - margin * 2, height - margin * 2])
-      .padding(10)
-
-    const rootNode = pack(hierarchy)
-
-    // Draw file circles
-    svg.selectAll('circle')
-      .data(rootNode.children)
-      .enter()
-      .append('circle')
-      .attr('cx', d => d.x + margin)
-      .attr('cy', d => d.y + margin)
-      .attr('r', d => d.r)
-      .attr('fill', d => colorScale(d.data.complexity_avg))
-      .attr('stroke', 'white')
-      .attr('stroke-width', 1)
-      .on('mouseover', function(event, d) {
-        tooltip.transition()
-          .duration(200)
-          .style('opacity', 0.9)
-        tooltip.html(generateTooltipHtml(d.data))
-          .style('left', (event.pageX + 10) + 'px')
-          .style('top', (event.pageY - 28) + 'px')
-      })
-      .on('mouseout', function() {
-        tooltip.transition()
-          .duration(500)
-          .style('opacity', 0)
-      })
-
-    // Draw folder hollow circle
-    svg.append('circle')
-      .attr('cx', rootNode.x + margin)
-      .attr('cy', rootNode.y + margin)
-      .attr('r', rootNode.r)
-      .attr('fill', 'none')
-      .attr('stroke', 'black')
-      .attr('stroke-width', 2)
-
-    function generateTooltipHtml(d) {
-      let html = `
-        <h4 style="margin: 0 0 10px 0;">${d.name}</h4>
-        <p><strong>Logical LOC:</strong> ${d.total_nloc}</p>
-        <p><strong>Functions:</strong> ${d.function_count}</p>
-        <p><strong>Avg. Complexity:</strong> ${d.complexity_avg}</p>
-        <p><strong>Max. Complexity:</strong> ${d.complexity_max}</p>
-      `
-      if (d.functions.length > 0) {
-        html += `<details style="margin-top: 10px;"><summary>Functions (${d.functions.length})</summary>`
-        d.functions.forEach(fn => {
-          html += `
-            <div style="margin: 5px 0; padding: 2px; border-left: 2px solid #ccc;">
-              <span style="font-weight: bold;">${fn.name}</span>
-              <span style="margin-left: 10px;">nloc: ${fn.nloc}</span>
-              <span style="margin-left: 10px;">CC: ${fn.cyclomatic_complexity}</span>
-            </div>
-          `
-        })
-        html += '</details>'
-      }
-      return html
-    }
-
-    return () => {
-      svg.remove()
-      tooltip.remove()
-    }
-  }, [analysisResult])
+  const tabDescription =
+    activeTab === 'circle'
+      ? 'Circle packing visualization: The outer ring represents the folder. Inner circles show files sized by logical LOC and colored by average complexity.'
+      : '3D bar visualization: Bar height represents logical LOC, width encodes function count, and color reflects average cyclomatic complexity.'
 
   const folderSummaryItems = [
     { label: 'Total files', value: folder_metrics?.total_files },
@@ -181,11 +75,35 @@ function FolderResults({ analysisResult, onBack }) {
           </div>
         </section>
 
-        {individual_files?.length > 0 && (
+        {hasFiles && (
           <section className="results-card">
-            <h2>Complexity Visualization</h2>
-            <InfoTip text="Circle packing visualization: The large hollow circle represents the folder. Inner circles represent files, sized by logical LOC (nloc) and colored by average complexity (green: low, red: high). Hover for details." ariaLabel="Help: Complexity Visualization" />
-            <div ref={chartRef} className="chart-container" style={{ width: '800px', height: '600px', margin: '0 auto' }}></div>
+            <div className="results-card-header">
+              <div className="results-card-title">
+                <h2>Complexity Visualization</h2>
+                <InfoTip text={tabDescription} ariaLabel="Help: Complexity Visualization" />
+              </div>
+              <div className="chart-tab-buttons" role="tablist" aria-label="Complexity visualizations">
+                {chartTabs.map((tab) => (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === tab.id}
+                    className={`chart-tab-button ${activeTab === tab.id ? 'active' : ''}`}
+                    onClick={() => setActiveTab(tab.id)}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="chart-tab-panel" role="tabpanel">
+              {activeTab === 'circle' ? (
+                <FolderCirclePackingChart folderName={folder_name} files={individual_files} />
+              ) : (
+                <Complexity3DBarChart files={individual_files} />
+              )}
+            </div>
           </section>
         )}
 
