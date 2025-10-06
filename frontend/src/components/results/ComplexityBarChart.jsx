@@ -72,8 +72,10 @@ function ComplexityBarChart({ files = [] }) {
           </rect>
           <text
             x={bar.width / 2}
-            y={bar.height + 16}
-            textAnchor="middle"
+            y={bar.height + 18}
+            textAnchor="start"
+            dominantBaseline="hanging"
+            transform={`rotate(45 ${bar.width / 2} ${bar.height + 18})`}
             className="bar-label"
           >
             {bar.label.split('/').pop()}
