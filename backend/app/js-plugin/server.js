@@ -76,65 +76,65 @@ function calculateMetrics(code) {
         });
 
         return metrics;
-} catch (error) {
+    } catch (error) {
         console.error('Error parsing code:', error);
         throw error;
     }
 }
 
 function calculateCC(functionCode) {
-    let complexity = 1;
+  let complexity = 1;
+  try {
+    let src = String(functionCode).trim();
 
-    try {
-        // Wrap the function code in a block to ensure valid parsing
-        const wrappedCode = `{ ${functionCode} }`;
-        const ast = parser.parse(wrappedCode, {
-            sourceType: 'module',
-            plugins: ['jsx', 'typescript', 'classProperties', 'objectRestSpread'],
-            presets: ['@babel/preset-react'],
-            locations: true,
-            ranges: true,
-            allowImportExportEverywhere: true,
-            allowReturnOutsideFunction: true,
-            allowSuperOutsideMethod: true,
-            allowUndeclaredExports: true
-        });
-
-        traverse(ast, {
-            enter(path) {
-                switch (path.type) {
-                    case 'IfStatement':
-                    case 'ConditionalExpression':
-                    case 'ForStatement':
-                    case 'ForInStatement':
-                    case 'ForOfStatement':
-                    case 'WhileStatement':
-                    case 'DoWhileStatement':
-                    case 'CatchClause':
-                        complexity++;
-                        break;
-                    case 'LogicalExpression':
-                        if (path.node.operator === '&&' || path.node.operator === '||') {
-                            complexity++;
-                        }
-                        break;
-                    case 'SwitchCase':
-                        if (path.node.test) { // Don't count 'default' case
-                            complexity++;
-                        }
-                        break;
-                }
-            }
-        });
-
-        return complexity;
-    } catch (error) {
-        console.error('Error calculating cyclomatic complexity:', error);
-        console.error('Function code causing error:', functionCode);
-        console.error('Function code type:', typeof functionCode);
-        return 1; // Return base complexity on error
+    // If it starts with 'async function' or 'function', wrap to make it an expression
+    if (/^(async\s+)?function\b/.test(src)) {
+      src = `(${src})`;
     }
+    // Class/Object method shorthand like "foo() { ... }" → wrap into object
+    else if (/^\w+\s*\([^)]*\)\s*\{/.test(src)) {
+      src = `({ ${src} })`;
+    }
+
+    // Arrow functions are already expressions; leave them as-is
+    // Now parse in expression position (no extra block!)
+    const ast = parser.parse(`${src};`, {
+      sourceType: 'module',
+      plugins: ['jsx', 'typescript', 'classProperties', 'objectRestSpread'],
+      allowReturnOutsideFunction: true
+    });
+
+    traverse(ast, {
+      enter(path) {
+        switch (path.type) {
+          case 'IfStatement':
+          case 'ConditionalExpression':
+          case 'ForStatement':
+          case 'ForInStatement':
+          case 'ForOfStatement':
+          case 'WhileStatement':
+          case 'DoWhileStatement':
+          case 'CatchClause':
+            complexity++;
+            break;
+          case 'LogicalExpression':
+            if (path.node.operator === '&&' || path.node.operator === '||') complexity++;
+            break;
+          case 'SwitchCase':
+            if (path.node.test) complexity++;
+            break;
+        }
+      }
+    });
+
+    return complexity;
+  } catch (error) {
+    console.error('Error calculating cyclomatic complexity:', error);
+    console.error('Function code causing error:', functionCode);
+    return 1;
+  }
 }
+
 
 function analyzeFile(filePath) {
     try {
@@ -167,117 +167,125 @@ function cleanupDirectory(directory) {
 
 // --- add these helpers near the top (after other functions) ---
 function topLevelName(entryName) {
-  // normalize and take the first component before '/'
-  const clean = entryName.replace(/^\.\/+/, '');
-  const parts = clean.split('/');
-  return parts[0] || '';
+    // normalize and take the first component before '/'
+    const clean = entryName.replace(/^\.\/+/, '');
+    const parts = clean.split('/');
+    return parts[0] || '';
 }
 
 function detectZipRootFolder(zip) {
-  // Collect top-level names for all non-empty entries
-  const counts = new Map();
-  let hasTopLevelFiles = false;
+    // Collect top-level names for all non-empty entries
+    const counts = new Map();
+    let hasTopLevelFiles = false;
 
-  for (const e of zip.getEntries()) {
-    // skip directory-only entries with empty name or __MACOSX noise
-    if (!e.entryName || e.isDirectory) continue;
-    const top = topLevelName(e.entryName);
-    if (!top || top === '__MACOSX') continue;
+    for (const e of zip.getEntries()) {
+        // skip directory-only entries with empty name or __MACOSX noise
+        if (!e.entryName || e.isDirectory) continue;
+        const top = topLevelName(e.entryName);
+        if (!top || top === '__MACOSX') continue;
 
-    // If a file appears directly at top level (no slash), mark it
-    if (!e.entryName.includes('/')) hasTopLevelFiles = true;
+        // If a file appears directly at top level (no slash), mark it
+        if (!e.entryName.includes('/')) hasTopLevelFiles = true;
 
-    counts.set(top, (counts.get(top) || 0) + 1);
-  }
+        counts.set(top, (counts.get(top) || 0) + 1);
+    }
 
-  // If there are files at top-level, there's no single root folder
-  if (hasTopLevelFiles) return null;
+    // If there are files at top-level, there's no single root folder
+    if (hasTopLevelFiles) return null;
 
-  // If exactly one top-level folder dominates, use it
-  if (counts.size === 1) {
-    for (const name of counts.keys()) return name; // the only key
-  }
+    // If exactly one top-level folder dominates, use it
+    if (counts.size === 1) {
+        for (const name of counts.keys()) return name; // the only key
+    }
 
-  // Otherwise, ambiguous/mixed layout
-  return null;
+    // Otherwise, ambiguous/mixed layout
+    return null;
 }
 
 function isCodeFile(file) {
-  return file.endsWith('.jsx') || file.endsWith('.js'); // extend if needed
+    return file.endsWith('.jsx') || file.endsWith('.js'); // extend if needed
 }
 
 function analyzeFileAt(filePath, rootPathForRel) {
-  // like your analyzeFile, but preserves path relative to detected root
-  try {
-    const code = fs.readFileSync(filePath, 'utf8');
-    const rel = rootPathForRel ? path.relative(rootPathForRel, filePath) : path.basename(filePath);
-    return {
-      fileName: rel.replaceAll(path.sep, '/'),
-      metrics: calculateMetrics(code)
-    };
-  } catch (error) {
-    const rel = rootPathForRel ? path.relative(rootPathForRel, filePath) : path.basename(filePath);
-    return {
-      fileName: rel.replaceAll(path.sep, '/'),
-      error: error.message
-    };
-  }
+    // like your analyzeFile, but preserves path relative to detected root
+    try {
+        const code = fs.readFileSync(filePath, 'utf8');
+        const rel = rootPathForRel ? path.relative(rootPathForRel, filePath) : path.basename(filePath);
+        return {
+            fileName: rel.replaceAll(path.sep, '/'),
+            metrics: calculateMetrics(code)
+        };
+    } catch (error) {
+        const rel = rootPathForRel ? path.relative(rootPathForRel, filePath) : path.basename(filePath);
+        return {
+            fileName: rel.replaceAll(path.sep, '/'),
+            error: error.message
+        };
+    }
 }
 
 app.post('/analyze-zip', upload.single('file'), (req, res) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
-
-  try {
-    console.log('Received file:', req.file.originalname);
-    const zip = new AdmZip(req.file.path);
-    const extractPath = path.join('uploads', 'extracted_' + Date.now());
-
-    // Create extraction directory
-    if (!fs.existsSync(extractPath)) fs.mkdirSync(extractPath);
-
-    // Detect root folder from entries BEFORE extract
-    const detectedRoot = detectZipRootFolder(zip);
-
-    // Extract the zip file
-    zip.extractAllTo(extractPath, true);
-
-    // Decide actual root path to traverse
-    const rootPath = detectedRoot
-      ? path.join(extractPath, detectedRoot)
-      : extractPath;
-
-    // Traverse from the chosen root
-    const results = [];
-    (function processDirectory(directory) {
-      fs.readdirSync(directory).forEach(file => {
-        const fullPath = path.join(directory, file);
-        const stat = fs.statSync(fullPath);
-        if (stat.isDirectory()) {
-          processDirectory(fullPath);
-        } else if (isCodeFile(file)) {
-          results.push(analyzeFileAt(fullPath, rootPath));
-        }
-      });
-    })(rootPath);
-
-    // Clean up uploaded file and extracted contents
-    fs.unlinkSync(req.file.path);
-    cleanupDirectory(extractPath);
-
-    res.json({
-      rootFolder: detectedRoot || null,
-      totalFiles: results.length,
-      results
-    });
-  } catch (error) {
-    // Clean up on error
-    if (req.file && fs.existsSync(req.file.path)) {
-      fs.unlinkSync(req.file.path);
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
     }
-    res.status(500).json({ error: error.message });
-  }
+
+    try {
+        console.log('Received file:', req.file.originalname);
+        const zip = new AdmZip(req.file.path);
+        const extractPath = path.join('uploads', 'extracted_' + Date.now());
+
+        // Create extraction directory
+        if (!fs.existsSync(extractPath)) fs.mkdirSync(extractPath);
+
+        // Detect root folder from entries BEFORE extract
+        const detectedRoot = detectZipRootFolder(zip);
+
+        // Extract the zip file
+        zip.extractAllTo(extractPath, true);
+
+        // Decide actual root path to traverse
+        const rootPath = detectedRoot
+            ? path.join(extractPath, detectedRoot)
+            : extractPath;
+
+        // Traverse from the chosen root
+        const results = [];
+
+        (function processDirectory(directory) {
+            fs.readdirSync(directory).forEach(file => {
+                const fullPath = path.join(directory, file);
+                const stat = fs.statSync(fullPath);
+
+                // ✅ Skip node_modules and other heavy/irrelevant folders
+                if (stat.isDirectory()) {
+                    if (file === 'node_modules' || file.startsWith('.git') || file === 'dist' || file === 'build') {
+                        console.log(`Skipping ignored folder: ${fullPath}`);
+                        return;
+                    }
+                    processDirectory(fullPath);
+                } else if (isCodeFile(file)) {
+                    results.push(analyzeFileAt(fullPath, rootPath));
+                }
+            });
+        })(rootPath);
+
+
+        // Clean up uploaded file and extracted contents
+        fs.unlinkSync(req.file.path);
+        cleanupDirectory(extractPath);
+
+        res.json({
+            rootFolder: detectedRoot || null,
+            totalFiles: results.length,
+            results
+        });
+    } catch (error) {
+        // Clean up on error
+        if (req.file && fs.existsSync(req.file.path)) {
+            fs.unlinkSync(req.file.path);
+        }
+        res.status(500).json({ error: error.message });
+    }
 });
 
 // Keep the original single file endpoint
