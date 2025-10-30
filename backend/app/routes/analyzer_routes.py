@@ -12,3 +12,4 @@ async def upload_file(file: UploadFile = File(...)):
 @router.post("/uploadfolder")
 async def upload_folder(file: UploadFile = File(...)):
     return await analyze_folder(file)
+

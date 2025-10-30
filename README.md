@@ -15,6 +15,11 @@
 1. cd backend
 2. uvicorn app.main:app --reload
 
+# Next Start JS Server port 3001
+1. cd app/js-plugin
+2. npm install
+3. npm start
+
 ## Frontend
 1. npm install
 2. npm run dev

@@ -1,36 +1,41 @@
+# models.py
 from pydantic import BaseModel
+from typing import List, Optional
 
 class FunctionMetric(BaseModel):
-    cyclomatic_complexity: int
-    nloc: int
-    token_count: int
     name: str
-    long_name: str
-    start_line: int
-    end_line: int
-    max_nesting_depth: int    
+    start_line: Optional[int]
+    nloc: int
+    cyclomatic_complexity: int
 
 class FileMetrics(BaseModel):
     filename: str
-    language: str | None
+    language: Optional[str]
     total_loc: int
     total_nloc: int
     function_count: int
     complexity_avg: float
     complexity_max: int
-    functions: list[FunctionMetric]
-
+    functions: List[FunctionMetric]
 
 class FolderMetrics(BaseModel):
     folder_name: str
     total_files: int
-    total_loc: int                # total lines across all files
-    total_nloc: int               # total logical LOC across all files
+    total_loc: int
+    total_nloc: int
     total_functions: int
     complexity_avg: float
     complexity_max: int
-    files: list[FileMetrics]
+    files: List[FileMetrics]
+
+class FolderAnalysis(BaseModel):
+    folder_name: str
+    analysis: dict
 
 class FolderAnalysisResult(BaseModel):
     folder_metrics: FolderMetrics
     individual_files: list[FileMetrics]
+
+class CodeRequest(BaseModel):
+    filename: str = "snippet.jsx"
+    code: str

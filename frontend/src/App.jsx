@@ -96,7 +96,8 @@ function App() {
     const formData = new FormData()
     formData.append('file', fileToUpload)
 
-    const endpoint = uploadType === 'folder' ? 'uploadfolder' : 'uploadfile'
+    // const endpoint = uploadType === 'folder' ? 'uploadfolder' : 'metrics/analyze-file'
+    const endpoint = uploadType === 'folder' ? 'metrics/analyze-zip' : 'metrics/analyze-file'
 
     setStatus('uploading')
     setStatusMessage(uploadType === 'folder' ? 'Analyzing your folder...' : 'Uploading your file...')
@@ -126,6 +127,7 @@ function App() {
       setStatus('success')
       setStatusMessage('Analysis complete!')
       setAnalysisResult(payload)
+      console.log('Analysis Result:', payload)
       if (payload) {
         setView('results')
       }
