@@ -1,0 +1,11 @@
+/* If any parent uses display:flex, allow children to shrink so scroll can appear */
+.results-content,
+.results-card,
+.visualization-tab-panel {
+  min-width: 0;
+}
+
+/* Prevent global responsive rules from shrinking the chart */
+.complexity-bar-chart {
+  max-width: none !important;
+}

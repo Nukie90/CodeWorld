@@ -28,10 +28,6 @@ class FolderMetrics(BaseModel):
     complexity_max: int
     files: List[FileMetrics]
 
-class FolderAnalysis(BaseModel):
-    folder_name: str
-    analysis: dict
-
 class FolderAnalysisResult(BaseModel):
     folder_metrics: FolderMetrics
     individual_files: list[FileMetrics]
