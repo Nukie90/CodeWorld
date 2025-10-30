@@ -96,8 +96,7 @@ function App() {
     const formData = new FormData()
     formData.append('file', fileToUpload)
 
-    // const endpoint = uploadType === 'folder' ? 'uploadfolder' : 'metrics/analyze-file'
-    const endpoint = uploadType === 'folder' ? 'metrics/analyze-zip' : 'metrics/analyze-file'
+    const endpoint = uploadType === 'folder' ? 'analyze-zip' : 'analyze-file'
 
     setStatus('uploading')
     setStatusMessage(uploadType === 'folder' ? 'Analyzing your folder...' : 'Uploading your file...')

@@ -35,7 +35,3 @@ class FolderAnalysis(BaseModel):
 class FolderAnalysisResult(BaseModel):
     folder_metrics: FolderMetrics
     individual_files: list[FileMetrics]
-
-class CodeRequest(BaseModel):
-    filename: str = "snippet.jsx"
-    code: str
