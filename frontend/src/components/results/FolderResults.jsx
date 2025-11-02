@@ -162,15 +162,7 @@ function FolderResults({ analysisResult, onBack }) {
 
   return (
     <div className="results-page">
-      <header className="results-header">
-        <h1>Folder Analysis Results</h1>
-        <p>
-          Metrics for folder <span className="results-filename">{folder_name}</span>
-        </p>
-        <button type="button" className="secondary-button" onClick={onBack}>
-          Analyze another folder
-        </button>
-      </header>
+      <FolderHeader folderName={folder_name} onBack={onBack} />
 
       <main className="results-content">
         <section className="results-card">
