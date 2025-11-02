@@ -18,6 +18,14 @@ function UploadView({
   handleRemoveFile,
   getSelectedFileName,
   getSelectedFileSize,
+  // github props
+  repoUrl,
+  setRepoUrl,
+  token,
+  setToken,
+  handleGithubLogin,
+  handleGithubLogout,
+  handleAnalyzeRepo,
 }) {
   return (
     <div className="upload-page">
@@ -26,7 +34,7 @@ function UploadView({
         <p>Upload JavaScript files or folders for complexity analysis.</p>
         
         <div className="upload-type-selector">
-          <button 
+          <button
             type="button"
             className={`type-button ${uploadType === 'folder' ? 'active' : ''}`}
             onClick={() => {
@@ -35,6 +43,16 @@ function UploadView({
             }}
           >
             Upload Folder
+          </button>
+          <button
+            type="button"
+            className={`type-button ${uploadType === 'github' ? 'active' : ''}`}
+            onClick={() => {
+              setUploadType('github')
+              handleRemoveFile()
+            }}
+          >
+            GitHub Repo
           </button>
         </div>
       </header>
@@ -111,16 +129,53 @@ function UploadView({
             )}
           </label>
 
-          <button
-            className="upload-button"
-            type="submit"
-            disabled={!(selectedFile || selectedFolder) || status === 'uploading'}
-          >
-            {status === 'uploading' 
-              ? `Analyzing... ${progress}%` 
-              : `Analyze ${uploadType}`
-            }
-          </button>
+          {uploadType !== 'github' ? (
+            <button
+              className="upload-button"
+              type="submit"
+              disabled={!(selectedFile || selectedFolder) || status === 'uploading'}
+            >
+              {status === 'uploading'
+                ? `Analyzing... ${progress}%`
+                : `Analyze ${uploadType}`}
+            </button>
+          ) : (
+            <div className="github-actions">
+              <div className="github-login-row">
+                <button type="button" className="login-button" onClick={handleGithubLogin}>
+                  Login with GitHub
+                </button>
+                <button type="button" className="logout-button" onClick={handleGithubLogout}>
+                  Logout
+                </button>
+              </div>
+
+              <div className="github-inputs">
+                <input
+                  type="text"
+                  placeholder="https://github.com/owner/repo or git@github.com:owner/repo.git"
+                  value={repoUrl}
+                  onChange={(e) => setRepoUrl(e.target.value)}
+                  className="repo-input"
+                />
+                <input
+                  type="text"
+                  placeholder="Optional: Personal access token for private repos"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  className="token-input"
+                />
+                <button
+                  className="upload-button"
+                  type="button"
+                  onClick={handleAnalyzeRepo}
+                  disabled={!repoUrl || status === 'uploading'}
+                >
+                  {status === 'uploading' ? `Analyzing... ${progress}%` : 'Analyze Repo'}
+                </button>
+              </div>
+            </div>
+          )}
 
           {status === 'uploading' && (
             <div

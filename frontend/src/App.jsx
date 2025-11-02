@@ -15,6 +15,8 @@ function App() {
   const [progress, setProgress] = useState(0)
   const [analysisResult, setAnalysisResult] = useState(null)
   const [view, setView] = useState('upload')
+  const [repoUrl, setRepoUrl] = useState('')
+  const [token, setToken] = useState('')
 
   const handleFileSelection = (file) => {
     if (!file) {
@@ -142,6 +144,61 @@ function App() {
     }
   }
 
+  const handleGithubLogin = async () => {
+    try {
+      const resp = await axios.get('http://127.0.0.1:8000/api/auth/github/login')
+      const { auth_url } = resp.data || {}
+      if (auth_url) {
+        // redirect user to GitHub authorize page
+        window.location.href = auth_url
+      }
+    } catch (err) {
+      console.error('Login error', err)
+      setStatus('error')
+      setStatusMessage('Failed to start GitHub login')
+    }
+  }
+
+  const handleGithubLogout = async () => {
+    if (!token) {
+      setStatusMessage('No token to logout')
+      return
+    }
+    try {
+      await axios.post('http://127.0.0.1:8000/api/auth/logout', { token })
+      setToken('')
+      setStatus('idle')
+      setStatusMessage('Logged out')
+    } catch (err) {
+      console.error('Logout error', err)
+      setStatus('error')
+      setStatusMessage('Logout failed')
+    }
+  }
+
+  const handleAnalyzeRepo = async () => {
+    if (!repoUrl) return
+    setStatus('uploading')
+    setStatusMessage('Cloning and analyzing repository...')
+    setProgress(5)
+
+    try {
+      const resp = await axios.post('http://127.0.0.1:8000/api/analyze/repo', {
+        repo_url: repoUrl,
+        token: token || null,
+      })
+      setProgress(100)
+      setStatus('success')
+      setStatusMessage('Analysis complete!')
+      setAnalysisResult(resp.data)
+      setView('results')
+    } catch (err) {
+      console.error('Analyze repo error', err)
+      setStatus('error')
+      setStatusMessage(err?.response?.data?.detail || err.message || 'Failed to analyze repo')
+    }
+  }
+
   const handleRemoveFile = () => {
     setSelectedFile(null)
     setSelectedFolder(null)
@@ -211,6 +268,14 @@ function App() {
         handleRemoveFile={handleRemoveFile}
         getSelectedFileName={getSelectedFileName}
         getSelectedFileSize={getSelectedFileSize}
+        // github props
+        repoUrl={repoUrl}
+        setRepoUrl={setRepoUrl}
+        token={token}
+        setToken={setToken}
+        handleGithubLogin={handleGithubLogin}
+        handleGithubLogout={handleGithubLogout}
+        handleAnalyzeRepo={handleAnalyzeRepo}
       />
     )
   )

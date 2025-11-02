@@ -6,6 +6,7 @@ import io
 from typing import List
 from app.model.analyzer_model import FileMetrics, FunctionMetric, FolderMetrics, FolderAnalysisResult
 from app.utils.get_file_matrix import get_file_matrix
+from app.utils.ignore import build_ignore_checker
 
 def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnalysisResult:
     """Analyze a folder uploaded as a zip file"""
@@ -18,9 +19,17 @@ def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnalysisRes
         
         # Find all JS/JSX files
         js_files = []
+        # Build ignore checker from .gitignore if present and default rules
+        is_ignored = build_ignore_checker(temp_dir)
+
         for root, dirs, files in os.walk(temp_dir):
+            # allow os.walk to skip ignored directories early
+            dirs[:] = [d for d in dirs if not is_ignored(os.path.join(root, d))]
             for file in files:
                 file_path = os.path.join(root, file)
+                # skip ignored files
+                if is_ignored(file_path):
+                    continue
                 relative_path = os.path.relpath(file_path, temp_dir)
                 js_files.append((file_path, relative_path))
         

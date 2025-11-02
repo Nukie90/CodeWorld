@@ -5,3 +5,7 @@ node_modules/
 .vite/
 dist/
 package-lock.json
+.env
+
+temp_repos/
+.temp_repos/
