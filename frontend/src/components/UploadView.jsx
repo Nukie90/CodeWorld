@@ -36,16 +36,6 @@ function UploadView({
           >
             Upload Folder
           </button>
-          <button 
-            type="button"
-            className={`type-button ${uploadType === 'file' ? 'active' : ''}`}
-            onClick={() => {
-              setUploadType('file')
-              handleRemoveFile()
-            }}
-          >
-            Upload Single File
-          </button>
         </div>
       </header>
 

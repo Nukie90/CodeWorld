@@ -1,7 +1,6 @@
 from fastapi import APIRouter, UploadFile, File
 from app.adapter.factory import get_analysis_adapter
 from app.utils.normalize import normalize_node_metrics, normalize_node_zip
-from app.services.analyze_file import analyze_file
 from app.services.analyze_folder import analyze_folder
 
 router = APIRouter(tags=["analyzer"])
@@ -25,11 +24,6 @@ ADAPTER_TYPE = "js-plugin"
 #     node_json = await adapter.analyze_zip(file)
 #     folder_name = file.filename.rsplit(".", 1)[0]
 #     return normalize_node_zip(node_json, folder_name)
-
-
-@router.post("/uploadfile")
-async def upload_file(file: UploadFile = File(...)):
-    return await analyze_file(file)
 
 @router.post("/uploadfolder")
 async def upload_folder(file: UploadFile = File(...)):
