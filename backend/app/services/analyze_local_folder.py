@@ -8,13 +8,15 @@ from app.utils.ignore import build_ignore_checker
 def analyze_local_folder(path: str) -> FolderAnalysisResult:
     """Analyze a local folder on disk and return folder analysis result."""
     js_files = []
+    # build ignore checker from .gitignore if present at repository root
     is_ignored = build_ignore_checker(path)
 
     for root, dirs, files in os.walk(path):
-        # filter out ignored directories so we don't descend into them
+        # allow os.walk to skip ignored directories early
         dirs[:] = [d for d in dirs if not is_ignored(os.path.join(root, d))]
         for file in files:
             file_path = os.path.join(root, file)
+            # skip ignored files
             if is_ignored(file_path):
                 continue
             relative_path = os.path.relpath(file_path, path)

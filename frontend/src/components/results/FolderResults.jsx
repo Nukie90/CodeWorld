@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
+import axios from 'axios'
 import * as d3 from "d3";
 import InfoTip from "../common/InfoTip";
 import ComplexityBarChart from "./ComplexityBarChart";
@@ -17,19 +18,41 @@ const FOLDER_METRIC_HELP = {
     "Highest cyclomatic complexity among all functions across the folder.",
 };
 
-function FolderResults({ analysisResult, onBack }) {
-  if (!analysisResult) return null;
-
-  const { folder_name, analysis } = analysisResult;
-  const { folder_metrics, individual_files } = analysis;
+function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
+  // Hooks must be called unconditionally at top of the component
 
   const chartRef = useRef(null);
   const [activeTab, setActiveTab] = useState("circle");
+  const [branches, setBranches] = useState([])
+  const [currentBranch, setCurrentBranch] = useState("")
+  const [branchLoading, setBranchLoading] = useState(false)
   const circleTabId = "visualization-tab-circle";
   const barTabId = "visualization-tab-bar";
   const panelId = "visualization-tab-panel";
-
   useEffect(() => {
+    // fetch branches when this is a repo analysis
+    async function fetchBranches() {
+      if (!analysisResult?.repo_url) return
+      try {
+        const resp = await axios.get('http://127.0.0.1:8000/api/repo/branches', { params: { repo_url: analysisResult.repo_url, token } })
+        const data = resp.data || {}
+        const local = data.local || []
+        const remote = data.remote || []
+        const current = data.current || ''
+        // merge lists: prefer local branch names, but include remotes
+        const combined = [...local]
+        remote.forEach(r => { if (!combined.includes(r)) combined.push(r) })
+        setBranches(combined)
+        setCurrentBranch(current)
+      } catch (err) {
+        console.error('Failed to fetch branches', err)
+      }
+    }
+    fetchBranches()
+
+    const folder_name_local = analysisResult?.folder_name
+    const individual_files_local = analysisResult?.analysis?.individual_files || []
+
     if (!chartRef.current) {
       d3.selectAll(".d3-tooltip").remove();
       return;
@@ -38,7 +61,7 @@ function FolderResults({ analysisResult, onBack }) {
     const container = d3.select(chartRef.current);
     container.html("");
 
-    if (!individual_files?.length || activeTab !== "circle") {
+    if (!individual_files_local?.length || activeTab !== "circle") {
       d3.selectAll(".d3-tooltip").remove();
       return;
     }
@@ -66,7 +89,7 @@ function FolderResults({ analysisResult, onBack }) {
       .style("max-width", "300px")
       .style("box-shadow", "0 2px 10px rgba(0,0,0,0.1)");
 
-    const complexities = individual_files
+    const complexities = individual_files_local
       .map((f) => f.complexity_avg)
       .filter(Boolean);
     const minComplexity =
@@ -80,8 +103,8 @@ function FolderResults({ analysisResult, onBack }) {
       .range(["green", "red"]);
 
     const data = {
-      name: folder_name,
-      children: individual_files.map((file) => ({
+      name: folder_name_local,
+      children: individual_files_local.map((file) => ({
         name: file.filename.split("/").pop(),
         total_nloc: file.total_nloc || 0,
         complexity_avg: file.complexity_avg || 0,
@@ -159,7 +182,30 @@ function FolderResults({ analysisResult, onBack }) {
       svg.remove();
       tooltip.remove();
     };
-  }, [activeTab, individual_files, folder_name]);
+  }, [activeTab, analysisResult, token]);
+
+  const handleBranchChange = async (evt) => {
+    const branch = evt.target.value
+    if (!branch || !analysisResult?.repo_url) return
+    setBranchLoading(true)
+    try {
+      const resp = await axios.post('http://127.0.0.1:8000/api/repo/checkout', { repo_url: analysisResult.repo_url, branch, token })
+      // server returns a new analysis payload
+      if (resp.data) {
+        setAnalysisResult(resp.data)
+      }
+    } catch (err) {
+      console.error('Checkout failed', err)
+      // keep UI responsive
+    } finally {
+      setBranchLoading(false)
+    }
+  }
+
+  // safe accessors for analysis data
+  const folder_name_safe = analysisResult?.folder_name || ''
+  const folder_metrics = analysisResult?.analysis?.folder_metrics || {}
+  const individual_files = analysisResult?.analysis?.individual_files || []
 
   const folderSummaryItems = [
     { label: "Total files", value: folder_metrics?.total_files },
@@ -176,7 +222,18 @@ function FolderResults({ analysisResult, onBack }) {
         <h1>Folder Analysis Results</h1>
         <p>
           Metrics for folder{" "}
-          <span className="results-filename">{folder_name}</span>
+          <span className="results-filename">{folder_name_safe}</span>
+          {analysisResult?.repo_url && (
+            <span style={{ marginLeft: 16 }}>
+              <label style={{ marginRight: 8, fontSize: 12 }}>Branch</label>
+              <select value={currentBranch} onChange={handleBranchChange} disabled={branchLoading || branches.length === 0}>
+                <option value="">Select branch</option>
+                {branches.map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+              </select>
+            </span>
+          )}
         </p>
         <button type="button" className="secondary-button" onClick={onBack}>
           Analyze another folder

@@ -17,6 +17,17 @@ class RepoAnalyzeRequest(BaseModel):
     token: Optional[str] = None
 
 
+class RepoBranchRequest(BaseModel):
+    repo_url: str
+    token: Optional[str] = None
+
+
+class RepoCheckoutRequest(BaseModel):
+    repo_url: str
+    branch: str
+    token: Optional[str] = None
+
+
 @router.get("/auth/github/login")
 async def github_login():
     client_id = os.environ.get("GITHUB_CLIENT_ID")
@@ -92,10 +103,36 @@ async def analyze_repo(payload: RepoAnalyzeRequest):
     try:
         local_path = repo_manager.clone_repo(repo_url, token=token)
     except Exception as exc:
+        # If the error is due to invalid repo format, return a 400
+        if isinstance(exc, ValueError):
+            raise HTTPException(status_code=400, detail=str(exc))
         raise HTTPException(status_code=500, detail=f"Failed to clone repo: {str(exc)}")
 
     try:
         analysis = analyze_local_folder(local_path)
-        return {"folder_name": local_path, "analysis": analysis}
+        return {"repo_url": repo_url, "folder_name": local_path, "analysis": analysis}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to analyze repo: {str(exc)}")
+
+
+@router.get("/repo/branches")
+async def repo_branches(repo_url: str, token: Optional[str] = None):
+    try:
+        branches = repo_manager.list_branches(repo_url, token=token)
+        return branches
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to list branches: {str(exc)}")
+
+
+@router.post("/repo/checkout")
+async def repo_checkout(payload: RepoCheckoutRequest):
+    try:
+        local_path = repo_manager.checkout_branch(payload.repo_url, payload.branch, token=payload.token)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to checkout branch: {str(exc)}")
+
+    try:
+        analysis = analyze_local_folder(local_path)
+        return {"repo_url": payload.repo_url, "branch": payload.branch, "folder_name": local_path, "analysis": analysis}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to analyze after checkout: {str(exc)}")
