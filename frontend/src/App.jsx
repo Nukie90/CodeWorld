@@ -203,37 +203,48 @@ function App() {
   }, [selectedFile, uploadType])
 
   return (
-    view === 'results' ? (
-      <Results analysisResult={analysisResult} onBack={handleReturnToUpload} token={token} setAnalysisResult={setAnalysisResult} username={username} />
-    ) : (
-      <UploadView
-        uploadType={uploadType}
-        setUploadType={setUploadType}
-        selectedFile={selectedFile}
-        selectedFolder={selectedFolder}
-        previewUrl={previewUrl}
-        status={status}
-        statusMessage={statusMessage}
-        progress={progress}
-        handleFileInput={handleFileInput}
-        handleFolderInput={handleFolderInput}
-        handleDragOver={handleDragOver}
-        handleDrop={handleDrop}
-        handleUpload={handleUpload}
-        handleRemoveFile={handleRemoveFile}
-        getSelectedFileName={getSelectedFileName}
-        getSelectedFileSize={getSelectedFileSize}
-        // github props
-        repoUrl={repoUrl}
-        setRepoUrl={setRepoUrl}
-        token={token}
-        setToken={setToken}
-        handleGithubLogin={handleGithubLogin}
-        handleGithubLogout={handleGithubLogout}
-        handleAnalyzeRepo={handleAnalyzeRepo}
-        username={username}
-      />
-    )
+    <div style={{
+      minHeight: '100vh',
+      margin: 0,
+      padding: '3rem 1.5rem',
+      background: 'linear-gradient(160deg, #f3f4f6 0%, #e2e8f0 100%)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      boxSizing: 'border-box'
+    }}>
+      {view === 'results' ? (
+        <Results analysisResult={analysisResult} onBack={handleReturnToUpload} token={token} setAnalysisResult={setAnalysisResult} username={username} />
+      ) : (
+        <UploadView
+          uploadType={uploadType}
+          setUploadType={setUploadType}
+          selectedFile={selectedFile}
+          selectedFolder={selectedFolder}
+          previewUrl={previewUrl}
+          status={status}
+          statusMessage={statusMessage}
+          progress={progress}
+          handleFileInput={handleFileInput}
+          handleFolderInput={handleFolderInput}
+          handleDragOver={handleDragOver}
+          handleDrop={handleDrop}
+          handleUpload={handleUpload}
+          handleRemoveFile={handleRemoveFile}
+          getSelectedFileName={getSelectedFileName}
+          getSelectedFileSize={getSelectedFileSize}
+          // github props
+          repoUrl={repoUrl}
+          setRepoUrl={setRepoUrl}
+          token={token}
+          setToken={setToken}
+          handleGithubLogin={handleGithubLogin}
+          handleGithubLogout={handleGithubLogout}
+          handleAnalyzeRepo={handleAnalyzeRepo}
+          username={username}
+        />
+      )}
+    </div>
   )
 }
 
