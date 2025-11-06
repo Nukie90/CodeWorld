@@ -21,8 +21,6 @@ function UploadView({
   // github props
   repoUrl,
   setRepoUrl,
-  token,
-  setToken,
   handleGithubLogin,
   handleGithubLogout,
   handleAnalyzeRepo,
@@ -157,13 +155,6 @@ function UploadView({
                   value={repoUrl}
                   onChange={(e) => setRepoUrl(e.target.value)}
                   className="repo-input"
-                />
-                <input
-                  type="text"
-                  placeholder="Optional: Personal access token for private repos"
-                  value={token}
-                  onChange={(e) => setToken(e.target.value)}
-                  className="token-input"
                 />
                 <button
                   className="upload-button"

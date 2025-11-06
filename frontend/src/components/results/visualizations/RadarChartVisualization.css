@@ -1,0 +1,64 @@
+.radar-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  padding: 0 20px;
+}
+
+.zoom-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zoom-control input[type="range"] {
+  width: 150px;
+}
+
+.file-pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.file-pagination button {
+  padding: 5px 10px;
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.file-pagination button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.files-per-page {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.files-per-page select {
+  padding: 4px;
+  border-radius: 4px;
+}
+
+.radar-tooltip {
+  background-color: rgba(255, 255, 255, 0.95);
+  padding: 12px;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.radar-tooltip p {
+  margin: 2px 0;
+  font-size: 12px;
+}
+
+.radar-tooltip strong {
+  color: #333;
+}

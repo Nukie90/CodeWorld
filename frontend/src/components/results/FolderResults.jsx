@@ -8,6 +8,7 @@ import CirclePackingVisualization from "./visualizations/CirclePackingVisualizat
 import TreemapVisualization from "./visualizations/TreemapVisualization"
 import ForceTreeVisualization from "./visualizations/ForceTreeVisualization"
 import InteractiveCircleVisualization from "./visualizations/InteractiveCircleVisualization"
+import RadarChartVisualization from "./visualizations/RadarChartVisualization"
 
 const FOLDER_METRIC_HELP = {
   "Total files": "Number of JavaScript files analyzed within the folder.",
@@ -210,6 +211,9 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
               )}
               {activeTab === "interactive" && (
                 <InteractiveCircleVisualization individualFiles={individual_files} folderName={folder_name_safe} />
+              )}
+              {activeTab === "radar" && (
+                <RadarChartVisualization individualFiles={individual_files} />
               )}
             </div>
           </section>
