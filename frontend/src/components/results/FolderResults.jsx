@@ -1,9 +1,13 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from 'axios'
-import * as d3 from "d3";
 import InfoTip from "../common/InfoTip";
 import ComplexityBarChart from "./ComplexityBarChart";
 import "./result.css";
+import FolderVisualizationSelector from "./FolderVisualizationSelector"
+import CirclePackingVisualization from "./visualizations/CirclePackingVisualization"
+import TreemapVisualization from "./visualizations/TreemapVisualization"
+import ForceTreeVisualization from "./visualizations/ForceTreeVisualization"
+import InteractiveCircleVisualization from "./visualizations/InteractiveCircleVisualization"
 
 const FOLDER_METRIC_HELP = {
   "Total files": "Number of JavaScript files analyzed within the folder.",
@@ -21,7 +25,6 @@ const FOLDER_METRIC_HELP = {
 function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
   // Hooks must be called unconditionally at top of the component
 
-  const chartRef = useRef(null);
   const [activeTab, setActiveTab] = useState("circle");
   const [branches, setBranches] = useState([])
   const [currentBranch, setCurrentBranch] = useState("")
@@ -49,140 +52,7 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
       }
     }
     fetchBranches()
-
-    const folder_name_local = analysisResult?.folder_name
-    const individual_files_local = analysisResult?.analysis?.individual_files || []
-
-    if (!chartRef.current) {
-      d3.selectAll(".d3-tooltip").remove();
-      return;
-    }
-
-    const container = d3.select(chartRef.current);
-    container.html("");
-
-    if (!individual_files_local?.length || activeTab !== "circle") {
-      d3.selectAll(".d3-tooltip").remove();
-      return;
-    }
-
-    const width = 800;
-    const height = 600;
-    const margin = 20;
-
-    const svg = container
-      .append("svg")
-      .attr("width", width)
-      .attr("height", height);
-
-    const tooltip = d3
-      .select("body")
-      .append("div")
-      .attr("class", "d3-tooltip")
-      .style("position", "absolute")
-      .style("opacity", 0)
-      .style("background", "white")
-      .style("border", "1px solid black")
-      .style("padding", "10px")
-      .style("border-radius", "5px")
-      .style("pointer-events", "none")
-      .style("max-width", "300px")
-      .style("box-shadow", "0 2px 10px rgba(0,0,0,0.1)");
-
-    const complexities = individual_files_local
-      .map((f) => f.complexity_avg)
-      .filter(Boolean);
-    const minComplexity =
-      complexities.length > 0 ? Math.min(...complexities) : 1;
-    const maxComplexity =
-      complexities.length > 0 ? Math.max(...complexities) : 10;
-
-    const colorScale = d3
-      .scaleLinear()
-      .domain([minComplexity, maxComplexity])
-      .range(["green", "red"]);
-
-    const data = {
-      name: folder_name_local,
-      children: individual_files_local.map((file) => ({
-        name: file.filename.split("/").pop(),
-        total_nloc: file.total_nloc || 0,
-        complexity_avg: file.complexity_avg || 0,
-        complexity_max: file.complexity_max || 0,
-        function_count: file.function_count || 0,
-        functions: file.functions || [],
-      })),
-    };
-
-    const hierarchy = d3.hierarchy(data).sum((d) => d.total_nloc);
-
-    const pack = d3
-      .pack()
-      .size([width - margin * 2, height - margin * 2])
-      .padding(10);
-
-    const rootNode = pack(hierarchy);
-
-    svg
-      .selectAll("circle")
-      .data(rootNode.children)
-      .enter()
-      .append("circle")
-      .attr("cx", (d) => d.x + margin)
-      .attr("cy", (d) => d.y + margin)
-      .attr("r", (d) => d.r)
-      .attr("fill", (d) => colorScale(d.data.complexity_avg))
-      .attr("stroke", "white")
-      .attr("stroke-width", 1)
-      .on("mouseover", function (event, d) {
-        tooltip.transition().duration(200).style("opacity", 0.9);
-        tooltip
-          .html(generateTooltipHtml(d.data))
-          .style("left", event.pageX + 10 + "px")
-          .style("top", event.pageY - 28 + "px");
-      })
-      .on("mouseout", function () {
-        tooltip.transition().duration(500).style("opacity", 0);
-      });
-
-    svg
-      .append("circle")
-      .attr("cx", rootNode.x + margin)
-      .attr("cy", rootNode.y + margin)
-      .attr("r", rootNode.r)
-      .attr("fill", "none")
-      .attr("stroke", "black")
-      .attr("stroke-width", 2);
-
-    function generateTooltipHtml(d) {
-      let html = `
-        <h4 style="margin: 0 0 10px 0;">${d.name}</h4>
-        <p><strong>Logical LOC:</strong> ${d.total_nloc}</p>
-        <p><strong>Functions:</strong> ${d.function_count}</p>
-        <p><strong>Avg. Complexity:</strong> ${d.complexity_avg}</p>
-        <p><strong>Max. Complexity:</strong> ${d.complexity_max}</p>
-      `;
-      if (d.functions.length > 0) {
-        html += `<details style="margin-top: 10px;"><summary>Functions (${d.functions.length})</summary>`;
-        d.functions.forEach((fn) => {
-          html += `
-            <div style="margin: 5px 0; padding: 2px; border-left: 2px solid #ccc;">
-              <span style="font-weight: bold;">${fn.name}</span>
-              <span style="margin-left: 10px;">nloc: ${fn.nloc}</span>
-              <span style="margin-left: 10px;">CC: ${fn.cyclomatic_complexity}</span>
-            </div>
-          `;
-        });
-        html += "</details>";
-      }
-      return html;
-    }
-
-    return () => {
-      svg.remove();
-      tooltip.remove();
-    };
-  }, [activeTab, analysisResult, token]);
+  }, [analysisResult, token])
 
   const handleBranchChange = async (evt) => {
     const branch = evt.target.value
@@ -280,7 +150,8 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
               role="tablist"
               aria-label="Complexity visualizations"
             >
-              <button
+              <FolderVisualizationSelector currentType={activeTab} onTypeChange={(t) => setActiveTab(t)} />
+              {/* <button
                 type="button"
                 role="tab"
                 aria-selected={activeTab === "circle"}
@@ -307,7 +178,7 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
                 onClick={() => setActiveTab("bar")}
               >
                 Complexity Bars
-              </button>
+              </button> */}
             </div>
 
             <div
@@ -325,15 +196,20 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
                 paddingBottom: 8,
               }}
             >
-              {activeTab === "circle" ? (
-                <div
-                  ref={chartRef}
-                  className="chart-container"
-                  style={{ width: "800px", height: "600px", margin: "0 auto" }}
-                />
-              ) : (
-                /* no extra wrapper needed; the panel scrolls */
+              {activeTab === "circle" && (
+                <CirclePackingVisualization individualFiles={individual_files} folderName={folder_name_safe} />
+              )}
+              {activeTab === "bar" && (
                 <ComplexityBarChart files={individual_files} />
+              )}
+              {activeTab === "treemap" && (
+                <TreemapVisualization individualFiles={individual_files} folderName={folder_name_safe} />
+              )}
+              {activeTab === "tree" && (
+                <ForceTreeVisualization individualFiles={individual_files} folderName={folder_name_safe} />
+              )}
+              {activeTab === "interactive" && (
+                <InteractiveCircleVisualization individualFiles={individual_files} folderName={folder_name_safe} />
               )}
             </div>
           </section>
