@@ -306,6 +306,59 @@ app.post('/analyze', upload.single('file'), (req, res) => {
     }
 });
 
+app.post('/analyze-code', express.json(), (req, res) => {
+    const { code, filename } = req.body;
+
+    if (!code || !filename) {
+        return res.status(400).json({ error: 'Request must include "code" and "filename"' });
+    }
+
+    try {
+        const babelMetrics = calculateMetrics(code);
+
+        let complexity_sum = 0;
+        let complexity_max = 0;
+
+        const functions = babelMetrics.functions.map(f => {
+            const cc = f.CC;
+            complexity_sum += cc;
+            if (cc > complexity_max) {
+                complexity_max = cc;
+            }
+            return {
+                cyclomatic_complexity: cc,
+                nloc: f.NLOC,
+                token_count: 0, // Not available from babel parser
+                name: f.name,
+                long_name: f.name, // Use name as long_name
+                start_line: f.lineStart,
+                end_line: 0, // Not available
+                max_nesting_depth: 0, // Not available
+            };
+        });
+
+        const function_count = functions.length;
+        const complexity_avg = function_count > 0 ? parseFloat((complexity_sum / function_count).toFixed(2)) : 0.0;
+
+        const responseMetrics = {
+            filename: filename,
+            language: 'javascript', // Hardcode for this endpoint
+            total_loc: babelMetrics.LOC,
+            total_nloc: babelMetrics.NLOC,
+            function_count: function_count,
+            complexity_avg: complexity_avg,
+            complexity_max: complexity_max,
+            functions: functions,
+        };
+
+        res.json(responseMetrics);
+    } catch (error) {
+        console.error(`Error analyzing code for ${filename}:`, error);
+        res.status(500).json({ error: `Failed to analyze code: ${error.message}` });
+    }
+});
+
+
 const PORT = process.env.PORT || 3001;
 
 app.listen(PORT)

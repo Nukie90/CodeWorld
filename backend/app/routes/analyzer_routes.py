@@ -1,3 +1,4 @@
+from string import printable
 from fastapi import APIRouter, UploadFile, File
 from app.adapter.factory import get_analysis_adapter
 from app.utils.normalize import normalize_node_metrics, normalize_node_zip
@@ -27,4 +28,5 @@ ADAPTER_TYPE = "js-plugin"
 
 @router.post("/uploadfolder")
 async def upload_folder(file: UploadFile = File(...)):
+    print("IS USED")
     return await analyze_folder(file)

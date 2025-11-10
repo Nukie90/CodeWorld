@@ -1,13 +1,14 @@
 import os
 from typing import List
-from app.utils.get_file_matrix import get_file_matrix
-from app.model.analyzer_model import FileMetrics, FunctionMetric, FolderMetrics, FolderAnalysisResult
+from app.utils.get_file_matrix import get_file_matrix_lizard
+from app.utils.get_file_matrix_js import get_file_matrix_js
+from app.model.analyzer_model import FileMetrics, FolderMetrics, FolderAnalysisResult
 from app.utils.ignore import build_ignore_checker
 
 
 def analyze_local_folder(path: str) -> FolderAnalysisResult:
     """Analyze a local folder on disk and return folder analysis result."""
-    js_files = []
+    all_files = []
     # build ignore checker from .gitignore if present at repository root
     is_ignored = build_ignore_checker(path)
 
@@ -20,7 +21,7 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
             if is_ignored(file_path):
                 continue
             relative_path = os.path.relpath(file_path, path)
-            js_files.append((file_path, relative_path))
+            all_files.append((file_path, relative_path))
 
     file_metrics_list: List[FileMetrics] = []
     total_loc = 0
@@ -29,21 +30,34 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
     complexity_sum = 0
     complexity_max = 0
 
-    for file_path, relative_path in js_files:
+    for file_path, relative_path in all_files:
         try:
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
-            file_metrics = get_file_matrix(content, relative_path)
+
+            file_metrics = None
+            if relative_path.endswith(('.js', '.jsx')):
+                file_metrics = get_file_matrix_js(content, relative_path)
+            else:
+                file_metrics = get_file_matrix_lizard(content, relative_path)
+
+            if file_metrics is None:
+                # Skip file if analysis failed (e.g., service down or parse error)
+                continue
+
             file_metrics_list.append(file_metrics)
 
             total_loc += file_metrics.total_loc
             total_nloc += file_metrics.total_nloc
             total_functions += file_metrics.function_count
-            complexity_sum += file_metrics.complexity_avg * file_metrics.function_count
-            if file_metrics.complexity_max > complexity_max:
+            # Ensure complexity_avg and function_count are not None before multiplying
+            complexity_sum += (file_metrics.complexity_avg or 0) * (file_metrics.function_count or 0)
+            if (file_metrics.complexity_max or 0) > complexity_max:
                 complexity_max = file_metrics.complexity_max
-        except Exception:
-            # skip unreadable files
+
+        except Exception as e:
+            print(f"Skipping file {relative_path} due to error: {e}")
+            # skip unreadable files or other unexpected errors
             continue
 
     folder_complexity_avg = round(complexity_sum / total_functions, 2) if total_functions > 0 else 0.0

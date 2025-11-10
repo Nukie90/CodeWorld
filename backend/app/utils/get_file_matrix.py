@@ -3,7 +3,7 @@
 from app.model.analyzer_model import FileMetrics, FunctionMetric
 import lizard
 
-def get_file_matrix(code: str, filename: str) -> FileMetrics:
+def get_file_matrix_lizard(code: str, filename: str) -> FileMetrics:
     """
     Use Lizard directly on source text. 
     IMPORTANT: Do not hard-filter function names (keep "(anonymous)", "&&", "?").

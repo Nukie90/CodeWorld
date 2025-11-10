@@ -18,6 +18,7 @@ class JSPluginAdapter(AnalysisAdapter):
         return r.json()
 
     async def analyze_zip(self, file: UploadFile):
+        print("IS USED")
         content = await file.read()
         print("Forwarding zip file to Node server for analysis...")
         async with httpx.AsyncClient(timeout=300) as client:

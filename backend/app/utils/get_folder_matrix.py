@@ -5,7 +5,7 @@ import zipfile
 import io
 from typing import List
 from app.model.analyzer_model import FileMetrics, FunctionMetric, FolderMetrics, FolderAnalysisResult
-from app.utils.get_file_matrix import get_file_matrix
+# from app.utils.get_file_matrix import get_file_matrix
 from app.utils.ignore import build_ignore_checker
 
 def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnalysisResult:
