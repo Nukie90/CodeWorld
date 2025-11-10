@@ -90,10 +90,10 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
   return (
     <div className="results-page">
       <header className="results-header">
-        <h1>Folder Analysis Results</h1>
+        <h1>Analysis Results</h1>
         <p>
-          Metrics for folder{" "}
-          <span className="results-filename">{folder_name_safe}</span>
+          {/* Metrics for folder{" "} */}
+          {/* <span className="results-filename">{folder_name_safe}</span> */}
           {analysisResult?.repo_url && (
             <span style={{ marginLeft: 16 }}>
               <label style={{ marginRight: 8, fontSize: 12 }}>Branch</label>
@@ -107,7 +107,7 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
           )}
         </p>
         <button type="button" className="secondary-button" onClick={onBack}>
-          Analyze another folder
+          Analyze another Folder / Repo
         </button>
       </header>
 

@@ -34,11 +34,11 @@ function SingleFileResults({ analysisResult, onBack }) {
     <div className="results-page">
       <header className="results-header">
         <h1>Analysis results</h1>
-        <p>
+        {/* <p>
           Metrics for <span className="results-filename">{analysis?.filename || filename}</span>
-        </p>
+        </p> */}
         <button type="button" className="secondary-button" onClick={onBack}>
-          Analyze another file
+          Analyze another Folder / Repo
         </button>
       </header>
 
