@@ -33,6 +33,8 @@ def make_multiplier(n):
 def factorial(n):
     if n <= 1:
         return 1
+    elif n == 1:
+        return 5
     return n * factorial(n-1)
 
 # 9. Generator function (uses yield)
