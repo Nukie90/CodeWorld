@@ -40,7 +40,7 @@ function UploadView({
       )}
       <header className="upload-header">
         <h1>Code Analysis Tool</h1>
-        <p>Upload JavaScript files or folders for complexity analysis.</p>
+        <p>Upload folders / repo for complexity analysis.</p>
         
         <div className="upload-type-selector">
           <button

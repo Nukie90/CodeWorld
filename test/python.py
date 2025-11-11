@@ -40,7 +40,6 @@ def factorial(n):
 # 9. Generator function (uses yield)
 def countdown(start):
     while start > 0:
-        yield start
         start -= 1
 
 # 10. Higher-order function (takes function as argument)

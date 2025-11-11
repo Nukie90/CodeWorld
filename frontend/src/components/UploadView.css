@@ -85,9 +85,9 @@
   transition: background-color 0.2s;
 }
 
-.github-inputs .upload-button:hover:not(:disabled) {
+/* .github-inputs .upload-button:hover:not(:disabled) {
   background-color: #2c974b;
-}
+} */
 
 .github-inputs .upload-button:disabled {
   background-color: #94d3a2;
