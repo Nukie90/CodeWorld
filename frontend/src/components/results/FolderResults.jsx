@@ -209,9 +209,9 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
               {activeTab === "tree" && (
                 <ForceTreeVisualization individualFiles={individual_files} folderName={folder_name_safe} />
               )}
-              {activeTab === "interactive" && (
+              {/* {activeTab === "interactive" && (
                 <InteractiveCircleVisualization individualFiles={individual_files} folderName={folder_name_safe} />
-              )}
+              )} */}
               {activeTab === "radar" && (
                 <RadarChartVisualization individualFiles={individual_files} />
               )}

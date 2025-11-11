@@ -5,7 +5,7 @@ const visualizationTypes = [
   { id: 'bar', label: 'Complexity Bars'},
   { id: 'treemap', label: 'Treemap'},
   { id: 'tree', label: 'Force Tree' },
-  { id: 'interactive', label: 'Interactive Packing' },
+  // { id: 'interactive', label: 'Interactive Packing' },
   { id: 'radar', label: 'Radar Chart' }
 ]
 
