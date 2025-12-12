@@ -69,7 +69,7 @@ function calculateMetrics(code) {
                 metrics.functions.push({
                     name: functionName,
                     NLOC: functionCode.split('\n').filter(l => l.trim()).length,
-                    CC: calculateCC(functionCode),
+                    CC: calculateCognitiveComplexity(functionCode),
                     lineStart
                 });
             }
@@ -82,59 +82,141 @@ function calculateMetrics(code) {
     }
 }
 
-function calculateCC(functionCode) {
-  let complexity = 1;
-  try {
-    let src = String(functionCode).trim();
+// function calculateCC(functionCode) {
+//   let complexity = 1;
+//   try {
+//     let src = String(functionCode).trim();
 
-    // If it starts with 'async function' or 'function', wrap to make it an expression
+//     // If it starts with 'async function' or 'function', wrap to make it an expression
+//     if (/^(async\s+)?function\b/.test(src)) {
+//       src = `(${src})`;
+//     }
+//     // Class/Object method shorthand like "foo() { ... }" → wrap into object
+//     else if (/^\w+\s*\([^)]*\)\s*\{/.test(src)) {
+//       src = `({ ${src} })`;
+//     }
+
+//     // Arrow functions are already expressions; leave them as-is
+//     // Now parse in expression position (no extra block!)
+//     const ast = parser.parse(`${src};`, {
+//       sourceType: 'module',
+//       plugins: ['jsx', 'typescript', 'classProperties', 'objectRestSpread'],
+//       allowReturnOutsideFunction: true
+//     });
+
+//     traverse(ast, {
+//       enter(path) {
+//         switch (path.type) {
+//           case 'IfStatement':
+//           case 'ConditionalExpression':
+//           case 'ForStatement':
+//           case 'ForInStatement':
+//           case 'ForOfStatement':
+//           case 'WhileStatement':
+//           case 'DoWhileStatement':
+//           case 'CatchClause':
+//             complexity++;
+//             break;
+//           case 'LogicalExpression':
+//             if (path.node.operator === '&&' || path.node.operator === '||') complexity++;
+//             break;
+//           case 'SwitchCase':
+//             if (path.node.test) complexity++;
+//             break;
+//         }
+//       }
+//     });
+
+//     return complexity;
+//   } catch (error) {
+//     console.error('Error calculating cyclomatic complexity:', error);
+//     console.error('Function code causing error:', functionCode);
+//     return 1;
+//   }
+// }
+
+function calculateCognitiveComplexity(code) {
+    let complexity = 0;
+    let nesting = 0;
+
+    function addComplexity(increment = 1) {
+        complexity += increment + nesting;
+    }
+
+    let src = code.trim();
+
     if (/^(async\s+)?function\b/.test(src)) {
       src = `(${src})`;
-    }
-    // Class/Object method shorthand like "foo() { ... }" → wrap into object
-    else if (/^\w+\s*\([^)]*\)\s*\{/.test(src)) {
+    } else if (/^\w+\s*\([^)]*\)\s*\{/.test(src)) {
       src = `({ ${src} })`;
     }
 
-    // Arrow functions are already expressions; leave them as-is
-    // Now parse in expression position (no extra block!)
     const ast = parser.parse(`${src};`, {
-      sourceType: 'module',
-      plugins: ['jsx', 'typescript', 'classProperties', 'objectRestSpread'],
-      allowReturnOutsideFunction: true
+        sourceType: "module",
+        plugins: ["jsx", "typescript", "classProperties", "objectRestSpread"]
     });
 
     traverse(ast, {
-      enter(path) {
-        switch (path.type) {
-          case 'IfStatement':
-          case 'ConditionalExpression':
-          case 'ForStatement':
-          case 'ForInStatement':
-          case 'ForOfStatement':
-          case 'WhileStatement':
-          case 'DoWhileStatement':
-          case 'CatchClause':
-            complexity++;
-            break;
-          case 'LogicalExpression':
-            if (path.node.operator === '&&' || path.node.operator === '||') complexity++;
-            break;
-          case 'SwitchCase':
-            if (path.node.test) complexity++;
-            break;
+        enter(path) {
+            //
+            // CONTROL STRUCTURES
+            //
+            if (path.isIfStatement()) {
+                if (!path.parentPath?.isIfStatement()) {
+                    // not an else-if
+                    addComplexity();
+                }
+                nesting++;
+            }
+
+            else if (path.isForStatement() || path.isWhileStatement() || path.isDoWhileStatement()) {
+                addComplexity();
+                nesting++;
+            }
+
+            else if (path.isSwitchCase() && path.node.test) {
+                addComplexity();
+                nesting++;
+            }
+
+            else if (path.isCatchClause()) {
+                addComplexity();
+                nesting++;
+            }
+
+            //
+            // TERNARY ?:
+            //
+            else if (path.isConditionalExpression()) {
+                addComplexity();
+                nesting++;
+            }
+
+            //
+            // LOGICAL OPERATORS
+            //
+            else if (path.isLogicalExpression()) {
+                if (nesting > 0) addComplexity(); // Sonar rule: boolean ops add only when nested
+            }
+        },
+
+        exit(path) {
+            if (
+                path.isIfStatement() ||
+                path.isForStatement() ||
+                path.isWhileStatement() ||
+                path.isDoWhileStatement() ||
+                path.isSwitchCase() ||
+                path.isCatchClause() ||
+                path.isConditionalExpression()
+            ) {
+                nesting--;
+            }
         }
-      }
     });
 
     return complexity;
-  } catch (error) {
-    console.error('Error calculating cyclomatic complexity:', error);
-    console.error('Function code causing error:', functionCode);
-    return 1;
-  }
 }
-
 
 function analyzeFile(filePath) {
     try {
