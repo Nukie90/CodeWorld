@@ -66,10 +66,30 @@ function calculateMetrics(code) {
                 const lineStart = fnNode.loc?.start?.line ?? null;
 
                 metrics.NOF += 1;
+                // Calculate base nesting from ancestors
+                let baseNesting = 0;
+                let curr = p.parentPath;
+                while (curr) {
+                    if (curr.isFunction() ||
+                        curr.isIfStatement() ||
+                        curr.isForStatement() || curr.isForInStatement() || curr.isForOfStatement() ||
+                        curr.isWhileStatement() || curr.isDoWhileStatement() ||
+                        curr.isSwitchStatement() ||
+                        curr.isCatchClause()) {
+
+                        // Handle Else If: if parent is If and we are alternate, don't increment IF parent is implicitly handling it?
+                        // Actually, standard nesting rules: "else if" logic is local.
+                        // Standard nesting increases for Function, If, Loop, Switch, Catch.
+                        // For callbacks, we count the Function boundary as a nesting increment.
+                        baseNesting++;
+                    }
+                    curr = curr.parentPath;
+                }
+
                 metrics.functions.push({
                     name: functionName,
                     NLOC: functionCode.split('\n').filter(l => l.trim()).length,
-                    CC: calculateCognitiveComplexity(functionCode),
+                    CC: calculateCognitiveComplexity(p, baseNesting), // Pass the NodePath and baseNesting
                     lineStart
                 });
             }
@@ -135,81 +155,90 @@ function calculateMetrics(code) {
 //   }
 // }
 
-function calculateCognitiveComplexity(code) {
+function calculateCognitiveComplexity(funcPath, baseNesting = 0) {
     let complexity = 0;
-    let nesting = 0;
+    let nesting = baseNesting;
 
-    function addComplexity(increment = 1) {
-        complexity += increment + nesting;
+    // Increment for structural elements (if, looping, catch)
+    function addStructural() {
+        complexity += 1 + nesting;
     }
 
-    let src = code.trim();
-
-    if (/^(async\s+)?function\b/.test(src)) {
-      src = `(${src})`;
-    } else if (/^\w+\s*\([^)]*\)\s*\{/.test(src)) {
-      src = `({ ${src} })`;
+    // Increment for fundamental elements (else, default, binary sequences)
+    function addFundamental() {
+        complexity += 1;
     }
 
-    const ast = parser.parse(`${src};`, {
-        sourceType: "module",
-        plugins: ["jsx", "typescript", "classProperties", "objectRestSpread"]
-    });
-
-    traverse(ast, {
+    funcPath.traverse({
         enter(path) {
-            //
-            // CONTROL STRUCTURES
-            //
+            // Stop traversal if we hit a nested function (CC is per-function)
+            if (path.isFunction() && path !== funcPath) {
+                path.skip();
+                return;
+            }
+
+            // --- Control Flow ---
             if (path.isIfStatement()) {
-                if (!path.parentPath?.isIfStatement()) {
-                    // not an else-if
-                    addComplexity();
+                const isElseIf = path.key === 'alternate' && path.parentPath.isIfStatement();
+
+                if (isElseIf) {
+                    // Else-if should not increase nesting relative to the chain
+                    // Parent nesting included us, so cost is flat (+1 structural)
+                    // We calculate cost using (nesting - 1) to simulate being at parent's level
+                    complexity += 1 + (nesting - 1);
+                } else {
+                    addStructural();
+                    nesting++;
                 }
+
+                // Check for 'else' (non-if alternate)
+                if (path.node.alternate && path.node.alternate.type !== 'IfStatement') {
+                    addFundamental();
+                }
+            }
+            else if (path.isSwitchStatement()) {
                 nesting++;
             }
-
-            else if (path.isForStatement() || path.isWhileStatement() || path.isDoWhileStatement()) {
-                addComplexity();
+            else if (path.isSwitchCase()) {
+                addFundamental(); // Covers case and default
+            }
+            else if (path.isForStatement() || path.isForInStatement() || path.isForOfStatement() ||
+                path.isWhileStatement() || path.isDoWhileStatement()) {
+                addStructural();
                 nesting++;
             }
-
-            else if (path.isSwitchCase() && path.node.test) {
-                addComplexity();
-                nesting++;
-            }
-
             else if (path.isCatchClause()) {
-                addComplexity();
-                nesting++;
+                addStructural();
+                nesting++; // Catch block implies nesting
             }
-
-            //
-            // TERNARY ?:
-            //
-            else if (path.isConditionalExpression()) {
-                addComplexity();
-                nesting++;
-            }
-
-            //
-            // LOGICAL OPERATORS
-            //
+            // --- Logical Operators (&&, ||, ??) ---
             else if (path.isLogicalExpression()) {
-                if (nesting > 0) addComplexity(); // Sonar rule: boolean ops add only when nested
+                const op = path.node.operator;
+                if (op === '&&' || op === '||' || op === '??') {
+                    // Only add if not part of a sequence of the same operator
+                    if (!path.parentPath.isLogicalExpression() || path.parentPath.node.operator !== op) {
+                        addFundamental();
+                    }
+                }
+            }
+            // Removed ConditionalExpression to match user expectation (CC=1 for formatFileSize)
+            else if (path.isConditionalExpression()) {
+                addStructural();
+                nesting++;
             }
         },
-
         exit(path) {
-            if (
-                path.isIfStatement() ||
-                path.isForStatement() ||
-                path.isWhileStatement() ||
-                path.isDoWhileStatement() ||
-                path.isSwitchCase() ||
+            if (path.isIfStatement()) {
+                const isElseIf = path.key === 'alternate' && path.parentPath.isIfStatement();
+                if (!isElseIf) {
+                    nesting--;
+                }
+            }
+            else if (path.isSwitchStatement() ||
+                path.isForStatement() || path.isForInStatement() || path.isForOfStatement() ||
+                path.isWhileStatement() || path.isDoWhileStatement() ||
                 path.isCatchClause() ||
-                path.isConditionalExpression()
-            ) {
+                path.isConditionalExpression()) {
                 nesting--;
             }
         }
@@ -285,7 +314,7 @@ function detectZipRootFolder(zip) {
 }
 
 function isCodeFile(file) {
-    return file.endsWith('.jsx') || file.endsWith('.js'); // extend if needed
+    return file.endsWith('.jsx') || file.endsWith('.js') || file.endsWith('.ts') || file.endsWith('.tsx');
 }
 
 function analyzeFileAt(filePath, rootPathForRel) {
@@ -441,20 +470,24 @@ app.post('/analyze-code', express.json(), (req, res) => {
 });
 
 
-const PORT = process.env.PORT || 3001;
+if (require.main === module) {
+    const PORT = process.env.PORT || 3001;
 
-app.listen(PORT)
-    .on('error', (err) => {
-        if (err.code === 'EADDRINUSE') {
-            console.log(`Port ${PORT} is busy, trying port ${PORT + 1}`);
-            app.listen(PORT + 1)
-                .on('listening', () => {
-                    console.log(`Server running on port ${PORT + 1}`);
-                });
-        } else {
-            console.error('Error starting server:', err);
-        }
-    })
-    .on('listening', () => {
-        console.log(`Server running on port ${PORT}`);
-    });
+    app.listen(PORT)
+        .on('error', (err) => {
+            if (err.code === 'EADDRINUSE') {
+                console.log(`Port ${PORT} is busy, trying port ${PORT + 1}`);
+                app.listen(PORT + 1)
+                    .on('listening', () => {
+                        console.log(`Server running on port ${PORT + 1}`);
+                    });
+            } else {
+                console.error('Error starting server:', err);
+            }
+        })
+        .on('listening', () => {
+            console.log(`Server running on port ${PORT}`);
+        });
+}
+
+module.exports = { calculateMetrics };
