@@ -64,6 +64,7 @@ function calculateMetrics(code) {
                 const functionCode = code.slice(start, end);
 
                 const lineStart = fnNode.loc?.start?.line ?? null;
+                const lineEnd = fnNode.loc?.end?.line ?? null;
 
                 metrics.NOF += 1;
                 // Calculate base nesting from ancestors
@@ -90,7 +91,8 @@ function calculateMetrics(code) {
                     name: functionName,
                     NLOC: functionCode.split('\n').filter(l => l.trim()).length,
                     CC: calculateCognitiveComplexity(p, baseNesting), // Pass the NodePath and baseNesting
-                    lineStart
+                    lineStart,
+                    lineEnd
                 });
             }
         });
