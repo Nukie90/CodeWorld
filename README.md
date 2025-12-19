@@ -8,7 +8,9 @@
 
 # To activate ENV
 1. cd backend
-2. source venv/bin/activate
+2. source venv/bin/activate 
+windows -> Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+        -> venv\Scripts\activate
 3. pip3 install -r requirements.txt
 
 # Checking

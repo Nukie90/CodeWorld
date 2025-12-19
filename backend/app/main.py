@@ -9,9 +9,11 @@ try:
     import pathlib
 
     BASE_DIR = pathlib.Path(__file__).resolve().parent.parent
+    print("Loading env from", BASE_DIR / ".env")
     load_dotenv(BASE_DIR / ".env")
 except Exception:
     # If python-dotenv isn't installed or .env doesn't exist, continue silently.
+    print("env not loaded")
     pass
 
 

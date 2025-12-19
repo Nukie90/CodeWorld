@@ -9,3 +9,5 @@ package-lock.json
 
 temp_repos/
 .temp_repos/
+
+venv/
