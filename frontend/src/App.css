@@ -1,13 +1,4 @@
-#root {
-  min-height: 100vh;
-  margin: 0;
-  padding: 3rem 1.5rem;
-  background: linear-gradient(160deg, #f3f4f6 0%, #e2e8f0 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-sizing: border-box;
-}
+/* Remove the #root styles - they're now inline in App.jsx */
 
 .upload-page {
   width: min(720px, 100%);
@@ -554,10 +545,6 @@ main {
 }
 
 @media (max-width: 640px) {
-  #root {
-    padding: 2.5rem 1.25rem;
-  }
-
   .upload-type-selector {
     flex-direction: column;
     align-items: center;
