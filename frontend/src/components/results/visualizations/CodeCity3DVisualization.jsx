@@ -1,13 +1,11 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 
 function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
   const animationIdRef = useRef(null);
-  const controlsRef = useRef(null);
   const cameraRef = useRef(null);
   
   const [hoveredBlock, setHoveredBlock] = useState(null);
@@ -16,7 +14,6 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
   // WASD movement state
   const keysRef = useRef({});
   const moveSpeed = 0.5;
-  const rotateSpeed = 0.02;
 
   if (!individualFiles || individualFiles.length === 0) {
     return (
@@ -26,7 +23,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     );
   }
 
-  // Calculate complexity range for color scaling (same as BarChartVisualization)
+  // Calculate complexity range for color scaling
   const allComplexities = [];
   individualFiles.forEach(file => {
     const functions = file.functions || [];
@@ -43,13 +40,12 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
   // Color scale: green (low) to red (high)
   const getComplexityColor = (complexity) => {
     if (complexity === undefined || complexity === null) {
-      return 0x9ca3af; // gray for undefined
+      return 0x9ca3af;
     }
     if (maxComplexity === minComplexity) {
-      return 0x22c55e; // green if all same
+      return 0x22c55e;
     }
     const normalized = (complexity - minComplexity) / (maxComplexity - minComplexity);
-    // Interpolate between green and red
     const red = Math.round(34 + normalized * 221);
     const green = Math.round(197 - normalized * 175);
     const blue = Math.round(34 - normalized * 12);
@@ -88,14 +84,12 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       const x = (col - gridSize / 2) * spacing;
       const z = (row - gridSize / 2) * spacing;
       
-      // Calculate base size based on file size or number of functions
       const baseSize = Math.max(4, Math.min(12, 4 + functions.length * 0.5));
       
-      // Create blocks for each function
       const blocks = functions.map((fn, fnIdx) => {
         const complexity = fn.cyclomatic_complexity;
         const nloc = fn.nloc || 1;
-        const height = Math.max(5, (nloc / maxNloc) * 50); // Scale height based on nloc
+        const height = Math.max(5, (nloc / maxNloc) * 50);
         
         return {
           functionName: fn.name || 'Unknown',
@@ -137,10 +131,23 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     const platformCenterZ = (minZ + maxZ) / 2;
     const platformSize = Math.max(platformWidth, platformDepth);
 
-    // Scene setup
+    // Scene setup with beautiful gradient sky
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xf0f4f8);
-    scene.fog = new THREE.Fog(0xf0f4f8, 50, 300);
+    
+    const canvas = document.createElement('canvas');
+    canvas.width = 2;
+    canvas.height = 256;
+    const context = canvas.getContext('2d');
+    const gradient = context.createLinearGradient(0, 0, 0, 256);
+    gradient.addColorStop(0, '#1e3a8a');
+    gradient.addColorStop(0.5, '#f59e0b');
+    gradient.addColorStop(1, '#fbbf24');
+    context.fillStyle = gradient;
+    context.fillRect(0, 0, 2, 256);
+    
+    const texture = new THREE.CanvasTexture(canvas);
+    scene.background = texture;
+    scene.fog = new THREE.Fog(0xf59e0b, 100, 400);
     sceneRef.current = scene;
 
     // Camera
@@ -158,75 +165,146 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+    renderer.shadowMap.enabled = true;
     rendererRef.current = renderer;
     mountRef.current.appendChild(renderer.domElement);
 
-    // OrbitControls (for mouse interaction, but we'll override with WASD)
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.enabled = false; // Disable orbit controls, we'll use WASD
-    controlsRef.current = controls;
-
-    // Lights
-    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    // Lights - Warm sunset lighting
+    const ambientLight = new THREE.AmbientLight(0xffa07a, 0.5);
     scene.add(ambientLight);
 
-    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-    directionalLight.position.set(50, 50, 50);
-    scene.add(directionalLight);
+    const sunLight = new THREE.DirectionalLight(0xffd700, 1.2);
+    sunLight.position.set(-100, 40, -100);
+    sunLight.castShadow = true;
+    scene.add(sunLight);
 
-    // Platform
-    const platformGeometry = new THREE.BoxGeometry(platformWidth, 0.5, platformDepth);
-    const platformMaterial = new THREE.MeshStandardMaterial({
-      color: 0xd0e0f0,
-      roughness: 0.6,
+    const fillLight = new THREE.DirectionalLight(0xff6347, 0.4);
+    fillLight.position.set(50, 20, 50);
+    scene.add(fillLight);
+
+    // Ocean with animated waves
+    const oceanGeometry = new THREE.PlaneGeometry(platformSize * 3, platformSize * 3, 100, 100);
+    const oceanMaterial = new THREE.MeshStandardMaterial({
+      color: 0x1e88e5,
+      roughness: 0.3,
+      metalness: 0.8,
+      transparent: true,
+      opacity: 0.9
+    });
+    const ocean = new THREE.Mesh(oceanGeometry, oceanMaterial);
+    ocean.rotation.x = -Math.PI / 2;
+    ocean.position.y = -2;
+    scene.add(ocean);
+    
+    const oceanVertices = oceanGeometry.attributes.position;
+    const originalPositions = [];
+    for (let i = 0; i < oceanVertices.count; i++) {
+      originalPositions.push(oceanVertices.getZ(i));
+    }
+
+    // Sandy island base
+    const boundaryBoxWidth = (maxX - minX) + 10;
+    const boundaryBoxDepth = (maxZ - minZ) + 10;
+    const islandGeometry = new THREE.BoxGeometry(boundaryBoxWidth + 10, 3, boundaryBoxDepth + 10);
+    const islandMaterial = new THREE.MeshStandardMaterial({
+      color: 0xdaa520,
+      roughness: 0.9,
       metalness: 0.1
     });
-    const platform = new THREE.Mesh(platformGeometry, platformMaterial);
-    platform.position.set(platformCenterX, -0.25, platformCenterZ);
-    scene.add(platform);
+    const island = new THREE.Mesh(islandGeometry, islandMaterial);
+    island.position.set(platformCenterX, -0.5, platformCenterZ);
+    island.receiveShadow = true;
+    scene.add(island);
 
-    // Platform border
-    const borderGeometry = new THREE.EdgesGeometry(platformGeometry);
-    const borderMaterial = new THREE.LineBasicMaterial({ color: 0x88aacc, linewidth: 2 });
-    const border = new THREE.LineSegments(borderGeometry, borderMaterial);
-    platform.add(border);
-
-    // Grid
-    const gridHelper = new THREE.GridHelper(platformSize * 2, platformSize, 0x99bbdd, 0xbbddee);
-    gridHelper.position.y = 0.01;
-    scene.add(gridHelper);
-
-    // Green boundary
-    const greenBoundaryPadding = 1.0;
-    const boundaryBoxWidth = (maxX - minX) + greenBoundaryPadding * 2;
-    const boundaryBoxDepth = (maxZ - minZ) + greenBoundaryPadding * 2;
-    
-    const boundaryGeometry = new THREE.BoxGeometry(boundaryBoxWidth, 0.1, boundaryBoxDepth);
-    const boundaryEdges = new THREE.EdgesGeometry(boundaryGeometry);
-    const boundaryMaterial = new THREE.LineBasicMaterial({ color: 0x228B22, linewidth: 4 });
-    const greenBoundary = new THREE.LineSegments(boundaryEdges, boundaryMaterial);
-    greenBoundary.position.set(platformCenterX, 0.05, platformCenterZ);
-    scene.add(greenBoundary);
+    // Beach grid
+    const beachGridHelper = new THREE.GridHelper(platformSize * 1.5, 30, 0xf4a460, 0xe6b87d);
+    beachGridHelper.position.y = 0.01;
+    beachGridHelper.material.opacity = 0.3;
+    beachGridHelper.material.transparent = true;
+    scene.add(beachGridHelper);
 
     const blockMeshes = [];
     const geometriesToDispose = [];
     const materialsToDispose = [];
+    const palmTrees = [];
 
-    // Create buildings with stacked blocks
+    // Add palm trees around the perimeter
+    const numPalmTrees = 12;
+    for (let i = 0; i < numPalmTrees; i++) {
+      const angle = (i / numPalmTrees) * Math.PI * 2;
+      const radius = Math.max(boundaryBoxWidth, boundaryBoxDepth) / 2 + 3;
+      const x = platformCenterX + Math.cos(angle) * radius;
+      const z = platformCenterZ + Math.sin(angle) * radius;
+      
+      const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.4, 8, 8);
+      const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.9 });
+      const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+      trunk.position.set(x, 4, z);
+      scene.add(trunk);
+      palmTrees.push(trunk);
+      geometriesToDispose.push(trunkGeometry);
+      materialsToDispose.push(trunkMaterial);
+      
+      for (let j = 0; j < 6; j++) {
+        const leafAngle = (j / 6) * Math.PI * 2;
+        const leafGeometry = new THREE.ConeGeometry(1.5, 4, 4);
+        const leafMaterial = new THREE.MeshStandardMaterial({ color: 0x228b22, roughness: 0.7 });
+        const leaf = new THREE.Mesh(leafGeometry, leafMaterial);
+        leaf.position.set(
+          x + Math.cos(leafAngle) * 1.5,
+          8.5,
+          z + Math.sin(leafAngle) * 1.5
+        );
+        leaf.rotation.z = Math.cos(leafAngle) * 0.5;
+        leaf.rotation.x = Math.sin(leafAngle) * 0.5;
+        scene.add(leaf);
+        palmTrees.push(leaf);
+        geometriesToDispose.push(leafGeometry);
+        materialsToDispose.push(leafMaterial);
+      }
+    }
+
+    // Add tropical flowers around the border
+    const numFlowers = 40;
+    for (let i = 0; i < numFlowers; i++) {
+      const t = i / numFlowers;
+      let x, z;
+      
+      if (t < 0.25) {
+        x = minX + (t * 4) * (maxX - minX);
+        z = minZ;
+      } else if (t < 0.5) {
+        x = maxX;
+        z = minZ + ((t - 0.25) * 4) * (maxZ - minZ);
+      } else if (t < 0.75) {
+        x = maxX - ((t - 0.5) * 4) * (maxX - minX);
+        z = maxZ;
+      } else {
+        x = minX;
+        z = maxZ - ((t - 0.75) * 4) * (maxZ - minZ);
+      }
+      
+      const flowerGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+      const flowerMaterial = new THREE.MeshStandardMaterial({ 
+        color: Math.random() > 0.5 ? 0xff1493 : 0xff69b4,
+        emissive: 0xff1493,
+        emissiveIntensity: 0.2
+      });
+      const flower = new THREE.Mesh(flowerGeometry, flowerMaterial);
+      flower.position.set(x, 0.3, z);
+      scene.add(flower);
+      geometriesToDispose.push(flowerGeometry);
+      materialsToDispose.push(flowerMaterial);
+    }
+
+    // Create beautiful buildings with stacked blocks
     buildings.forEach((building) => {
       let currentHeight = 0;
       const numBlocks = building.blocks.length;
-      
-      // Tapering effect: each block is slightly smaller than the one below
       const sizeReductionPerStep = (building.baseSize * 0.3) / numBlocks;
-      let currentBaseSize = building.baseSize;
       const minBlockSize = building.baseSize * 0.4;
 
       building.blocks.forEach((block, blockIndex) => {
-        const isTopBlock = blockIndex === building.blocks.length - 1;
-        
         let blockWidth, blockDepth;
         
         if (blockIndex === 0) {
@@ -240,12 +318,14 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         blockWidth = Math.max(blockWidth, minBlockSize);
         blockDepth = Math.max(blockDepth, minBlockSize);
 
-        // Create block geometry
         const geometry = new THREE.BoxGeometry(blockWidth, block.height, blockDepth);
+        
         const material = new THREE.MeshStandardMaterial({
           color: block.color,
-          roughness: 0.4,
-          metalness: 0.3
+          roughness: 0.2,
+          metalness: 0.7,
+          emissive: block.color,
+          emissiveIntensity: 0.1
         });
         
         const mesh = new THREE.Mesh(geometry, material);
@@ -254,8 +334,9 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
           currentHeight + block.height / 2,
           building.z
         );
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
         
-        // Store function data in userData for click/hover
         mesh.userData = {
           ...block,
           filename: building.filename,
@@ -268,20 +349,17 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         
         scene.add(mesh);
         blockMeshes.push(mesh);
-        
         geometriesToDispose.push(geometry);
         materialsToDispose.push(material);
 
-        // Add wireframe edges
         const edges = new THREE.EdgesGeometry(geometry);
         const lineMaterial = new THREE.LineBasicMaterial({ 
           color: 0xffffff, 
-          opacity: 0.3, 
+          opacity: 0.6, 
           transparent: true 
         });
         const wireframe = new THREE.LineSegments(edges, lineMaterial);
         mesh.add(wireframe);
-        
         geometriesToDispose.push(edges);
         materialsToDispose.push(lineMaterial);
         
@@ -292,65 +370,6 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     // Raycaster for hover and click detection
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
-
-    const onHoverMove = (event) => {
-      if (!mountRef.current || isMouseDown) return; // Don't hover when dragging
-      const rect = mountRef.current.getBoundingClientRect();
-
-      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-      setHoverInfoPosition({ x: event.clientX + 10, y: event.clientY + 10 });
-
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(blockMeshes);
-
-      // Reset emissive for all blocks
-      blockMeshes.forEach(mesh => {
-        if (mesh.material && !Array.isArray(mesh.material) && mesh.material.emissive) {
-          mesh.material.emissive.setHex(0x000000);
-        }
-      });
-
-      if (intersects.length > 0) {
-        const hoveredMesh = intersects[0].object;
-        if (hoveredMesh.material && !Array.isArray(hoveredMesh.material) && hoveredMesh.material.emissive) {
-          hoveredMesh.material.emissive.setHex(0x444444);
-          setHoveredBlock(hoveredMesh.userData);
-        }
-      } else {
-        setHoveredBlock(null);
-      }
-    };
-
-    const onMouseClick = (event) => {
-      if (!mountRef.current || isMouseDown) return; // Don't click when dragging
-      const rect = mountRef.current.getBoundingClientRect();
-
-      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-      raycaster.setFromCamera(mouse, camera);
-      const intersects = raycaster.intersectObjects(blockMeshes);
-
-      if (intersects.length > 0 && onFunctionClick) {
-        const clickedMesh = intersects[0].object;
-        const blockData = clickedMesh.userData;
-        
-        if (blockData.startLine) {
-          onFunctionClick({
-            filename: blockData.filename,
-            functionName: blockData.functionName,
-            startLine: blockData.startLine,
-            nloc: blockData.nloc,
-            complexity: blockData.complexity
-          });
-        }
-      }
-    };
-
-    mountRef.current.addEventListener('mousemove', onHoverMove);
-    mountRef.current.addEventListener('click', onMouseClick);
 
     // WASD keyboard controls
     const handleKeyDown = (event) => {
@@ -364,57 +383,118 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
-    // Mouse look controls
-    let isMouseDown = false;
-    let lastMouseX = 0;
-    let lastMouseY = 0;
-    
-    // Initialize yaw and pitch from camera's initial rotation
+    // Initialize yaw and pitch
     const initialEuler = new THREE.Euler().setFromQuaternion(camera.quaternion);
     let yaw = initialEuler.y;
     let pitch = initialEuler.x;
     
-    const onMouseDownDrag = (event) => {
-      if (!mountRef.current) return;
-      isMouseDown = true;
-      lastMouseX = event.clientX;
-      lastMouseY = event.clientY;
-      mountRef.current.style.cursor = 'grabbing';
-    };
+    // Mouse look controls - pointer lock style
+    let isMouseLocked = false;
     
-    const onMouseUpDrag = () => {
-      isMouseDown = false;
-      if (mountRef.current) {
-        mountRef.current.style.cursor = 'grab';
+    const onMouseClick = (event) => {
+      if (!mountRef.current) return;
+      
+      const rect = mountRef.current.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(blockMeshes);
+
+      if (intersects.length > 0 && onFunctionClick && !isMouseLocked) {
+        const clickedMesh = intersects[0].object;
+        const blockData = clickedMesh.userData;
+        
+        if (blockData.startLine) {
+          onFunctionClick({
+            filename: blockData.filename,
+            functionName: blockData.functionName,
+            startLine: blockData.startLine,
+            nloc: blockData.nloc,
+            complexity: blockData.complexity
+          });
+        }
+      } else {
+        if (!isMouseLocked) {
+          mountRef.current.requestPointerLock();
+        } else {
+          document.exitPointerLock();
+        }
       }
     };
-    
-    const onMouseDrag = (event) => {
-      if (!isMouseDown || !mountRef.current) return;
-      
-      const deltaX = event.clientX - lastMouseX;
-      const deltaY = event.clientY - lastMouseY;
-      
-      yaw -= deltaX * rotateSpeed;
-      pitch -= deltaY * rotateSpeed;
-      pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch)); // Limit pitch
-      
-      lastMouseX = event.clientX;
-      lastMouseY = event.clientY;
+
+    const onPointerLockChange = () => {
+      isMouseLocked = document.pointerLockElement === mountRef.current;
+      if (mountRef.current) {
+        mountRef.current.style.cursor = isMouseLocked ? 'none' : 'crosshair';
+      }
     };
+
+    const onMouseMove = (event) => {
+      if (!mountRef.current) return;
+      
+      if (!isMouseLocked) {
+        const rect = mountRef.current.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+        setHoverInfoPosition({ x: event.clientX + 10, y: event.clientY + 10 });
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(blockMeshes);
+
+        blockMeshes.forEach(mesh => {
+          if (mesh.material && !Array.isArray(mesh.material) && mesh.material.emissive) {
+            mesh.material.emissive.setHex(0x000000);
+          }
+        });
+
+        if (intersects.length > 0) {
+          const hoveredMesh = intersects[0].object;
+          if (hoveredMesh.material && !Array.isArray(hoveredMesh.material) && hoveredMesh.material.emissive) {
+            hoveredMesh.material.emissive.setHex(0x444444);
+            setHoveredBlock(hoveredMesh.userData);
+          }
+        } else {
+          setHoveredBlock(null);
+        }
+      } else {
+        const movementX = event.movementX || 0;
+        const movementY = event.movementY || 0;
+        
+        yaw -= movementX * 0.002;
+        pitch -= movementY * 0.002;
+        pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+      }
+    };
+
+    document.addEventListener('pointerlockchange', onPointerLockChange);
+    mountRef.current.addEventListener('click', onMouseClick);
+    mountRef.current.addEventListener('mousemove', onMouseMove);
     
-    mountRef.current.addEventListener('mousedown', onMouseDownDrag);
-    window.addEventListener('mouseup', onMouseUpDrag);
-    mountRef.current.addEventListener('mousemove', onMouseDrag);
-    
-    // Set initial cursor style
     if (mountRef.current) {
-      mountRef.current.style.cursor = 'grab';
+      mountRef.current.style.cursor = 'crosshair';
     }
 
-    // Animation loop with WASD movement
+    // Animation loop with ocean waves and movement
+    let time = 0;
     const animate = () => {
       animationIdRef.current = requestAnimationFrame(animate);
+      time += 0.01;
+      
+      // Animate ocean waves
+      for (let i = 0; i < oceanVertices.count; i++) {
+        const x = oceanVertices.getX(i);
+        const y = oceanVertices.getY(i);
+        const wave = Math.sin(x * 0.1 + time) * 0.5 + Math.cos(y * 0.1 + time * 0.7) * 0.5;
+        oceanVertices.setZ(i, originalPositions[i] + wave);
+      }
+      oceanVertices.needsUpdate = true;
+      
+      // Gentle palm tree sway
+      palmTrees.forEach((tree, i) => {
+        if (tree.geometry.type === 'CylinderGeometry') {
+          tree.rotation.z = Math.sin(time + i) * 0.05;
+        }
+      });
       
       // Apply mouse look rotation
       const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
@@ -424,30 +504,17 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       const keys = keysRef.current;
       const moveVector = new THREE.Vector3();
       
-      if (keys['w']) {
-        moveVector.z -= moveSpeed;
-      }
-      if (keys['s']) {
-        moveVector.z += moveSpeed;
-      }
-      if (keys['a']) {
-        moveVector.x -= moveSpeed;
-      }
-      if (keys['d']) {
-        moveVector.x += moveSpeed;
-      }
-      if (keys['shift']) {
-        moveVector.y += moveSpeed;
-      }
-      if (keys['control']) {
-        moveVector.y -= moveSpeed;
-      }
+      if (keys['w']) moveVector.z -= moveSpeed;
+      if (keys['s']) moveVector.z += moveSpeed;
+      if (keys['a']) moveVector.x -= moveSpeed;
+      if (keys['d']) moveVector.x += moveSpeed;
+      if (keys[' ']) moveVector.y += moveSpeed;
+      if (keys['shift']) moveVector.y -= moveSpeed;
       
-      // Apply movement relative to camera direction
       if (moveVector.length() > 0) {
         const cameraDirection = new THREE.Vector3();
         camera.getWorldDirection(cameraDirection);
-        cameraDirection.y = 0; // Keep movement horizontal
+        cameraDirection.y = 0;
         cameraDirection.normalize();
         
         const rightVector = new THREE.Vector3();
@@ -455,9 +522,11 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         
         const forwardMovement = cameraDirection.multiplyScalar(-moveVector.z);
         const rightMovement = rightVector.multiplyScalar(moveVector.x);
+        const verticalMovement = new THREE.Vector3(0, moveVector.y, 0);
         
         camera.position.add(forwardMovement);
         camera.position.add(rightMovement);
+        camera.position.add(verticalMovement);
       }
       
       renderer.render(scene, camera);
@@ -482,31 +551,24 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      document.removeEventListener('pointerlockchange', onPointerLockChange);
 
       if (mountRef.current && renderer.domElement) {
-        mountRef.current.removeEventListener('mousemove', onHoverMove);
         mountRef.current.removeEventListener('click', onMouseClick);
-        mountRef.current.removeEventListener('mousedown', onMouseDownDrag);
-        mountRef.current.removeEventListener('mousemove', onMouseDrag);
-        window.removeEventListener('mouseup', onMouseUpDrag);
+        mountRef.current.removeEventListener('mousemove', onMouseMove);
         if (mountRef.current.contains(renderer.domElement)) {
           mountRef.current.removeChild(renderer.domElement);
         }
       }
 
-      if (controlsRef.current) {
-        controlsRef.current.dispose();
-      }
-
       geometriesToDispose.forEach(geom => geom.dispose());
       materialsToDispose.forEach(mat => mat.dispose());
-      platformGeometry.dispose();
-      platformMaterial.dispose();
-      borderGeometry.dispose();
-      borderMaterial.dispose();
-      boundaryGeometry.dispose();
-      boundaryMaterial.dispose();
-      gridHelper.geometry.dispose();
+      oceanGeometry.dispose();
+      oceanMaterial.dispose();
+      islandGeometry.dispose();
+      islandMaterial.dispose();
+      beachGridHelper.geometry.dispose();
+      beachGridHelper.material.dispose();
 
       renderer.dispose();
       sceneRef.current = null;
@@ -519,7 +581,6 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     <div className="relative w-full h-full">
       <div ref={mountRef} className="w-full h-full" style={{ minHeight: '55vh' }} />
 
-      {/* Hover tooltip */}
       {hoveredBlock && (
         <div
           className="fixed z-50 bg-white border border-gray-300 rounded-lg shadow-lg p-3 pointer-events-none"
@@ -543,25 +604,25 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         </div>
       )}
 
-      {/* Controls legend */}
-      <div className="absolute bottom-4 left-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-4 z-10">
-        <h4 className="font-bold text-sm mb-2 text-gray-900">Controls</h4>
-        <div className="space-y-1 text-xs text-gray-700">
-          <div>WASD - Move</div>
-          <div>Shift/Ctrl - Up/Down</div>
-          <div>Mouse Drag - Look around</div>
-          <div>Click - View code</div>
+      <div className="absolute bottom-4 left-4 bg-gradient-to-br from-amber-900/90 to-orange-900/90 backdrop-blur-sm rounded-lg shadow-lg p-4 z-10 border border-amber-700">
+        <h4 className="font-bold text-sm mb-2 text-amber-100">🎮 Controls</h4>
+        <div className="space-y-1 text-xs text-amber-50">
+          <div>WASD - Move around</div>
+          <div>Space/Shift - Up/Down</div>
+          <div>Click anywhere - Lock cursor</div>
+          <div>Move mouse - Look around</div>
+          <div>ESC - Unlock cursor</div>
+          <div>Click block - View code</div>
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="absolute bottom-4 right-4 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-4 z-10">
-        <h4 className="font-bold text-sm mb-2 text-gray-900">Legend</h4>
-        <div className="space-y-1 text-xs text-gray-700">
-          <div>📏 Height = Lines of Code</div>
+      <div className="absolute bottom-4 right-4 bg-gradient-to-br from-blue-900/90 to-purple-900/90 backdrop-blur-sm rounded-lg shadow-lg p-4 z-10 border border-blue-700">
+        <h4 className="font-bold text-sm mb-2 text-blue-100">🏝️ Island Code City</h4>
+        <div className="space-y-1 text-xs text-blue-50">
+          <div>🏢 Height = Lines of Code</div>
           <div>📦 Base Size = File Size</div>
           <div>🎨 Color = Complexity</div>
-          <div className="mt-2 pt-2 border-t border-gray-200">
+          <div className="mt-2 pt-2 border-t border-blue-600">
             <div className="flex items-center gap-2">
               <div className="w-3 h-3 rounded" style={{ backgroundColor: '#22c55e' }}></div>
               <span>Low Complexity</span>
@@ -578,4 +639,3 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
 }
 
 export default CodeCity3DVisualization;
-
