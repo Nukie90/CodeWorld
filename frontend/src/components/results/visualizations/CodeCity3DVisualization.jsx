@@ -10,8 +10,8 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
   
   const [hoveredBlock, setHoveredBlock] = useState(null);
   const [hoverInfoPosition, setHoverInfoPosition] = useState({ x: 0, y: 0 });
+  const [timeOfDay, setTimeOfDay] = useState('sunset');
   
-  // WASD movement state
   const keysRef = useRef({});
   const moveSpeed = 0.5;
 
@@ -23,7 +23,6 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     );
   }
 
-  // Calculate complexity range for color scaling
   const allComplexities = [];
   individualFiles.forEach(file => {
     const functions = file.functions || [];
@@ -37,7 +36,6 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
   const minComplexity = allComplexities.length > 0 ? Math.min(...allComplexities) : 1;
   const maxComplexity = allComplexities.length > 0 ? Math.max(...allComplexities) : 10;
 
-  // Color scale: green (low) to red (high)
   const getComplexityColor = (complexity) => {
     if (complexity === undefined || complexity === null) {
       return 0x9ca3af;
@@ -52,7 +50,6 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     return (red << 16) | (green << 8) | blue;
   };
 
-  // Calculate max nloc for scaling block heights
   const maxNloc = Math.max(
     ...individualFiles.flatMap(file => 
       (file.functions || []).map(fn => fn.nloc || 0)
@@ -63,14 +60,12 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
   useEffect(() => {
     if (!mountRef.current) return;
 
-    // Prevent duplicate scenes
     if (mountRef.current.hasChildNodes()) {
       while (mountRef.current.firstChild) {
         mountRef.current.removeChild(mountRef.current.firstChild);
       }
     }
 
-    // Build buildings data from individualFiles
     const gridSize = Math.ceil(Math.sqrt(individualFiles.length));
     const spacing = 20;
     const buildings = [];
@@ -113,7 +108,6 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       });
     });
 
-    // Calculate bounding box
     let minX = Infinity, maxX = -Infinity;
     let minZ = Infinity, maxZ = -Infinity;
     
@@ -125,32 +119,72 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     });
 
     const margin = 10;
-    const platformWidth = (maxX - minX) + margin * 2;
-    const platformDepth = (maxZ - minZ) + margin * 2;
     const platformCenterX = (minX + maxX) / 2;
     const platformCenterZ = (minZ + maxZ) / 2;
-    const platformSize = Math.max(platformWidth, platformDepth);
+    const platformSize = Math.max((maxX - minX) + margin * 2, (maxZ - minZ) + margin * 2);
 
-    // Scene setup with beautiful gradient sky
     const scene = new THREE.Scene();
+    sceneRef.current = scene;
+    
+    const skySettings = {
+      day: {
+        skyTop: '#87CEEB',
+        skyMiddle: '#B0E0E6',
+        skyBottom: '#E0F6FF',
+        fogColor: 0x87CEEB,
+        ambientColor: 0xffffff,
+        ambientIntensity: 0.8,
+        sunColor: 0xffffff,
+        sunIntensity: 1.5,
+        sunPosition: [50, 80, 50],
+        fillColor: 0x87CEEB,
+        fillIntensity: 0.3
+      },
+      sunset: {
+        skyTop: '#1e3a8a',
+        skyMiddle: '#f59e0b',
+        skyBottom: '#fbbf24',
+        fogColor: 0xf59e0b,
+        ambientColor: 0xffa07a,
+        ambientIntensity: 0.5,
+        sunColor: 0xffd700,
+        sunIntensity: 1.2,
+        sunPosition: [-100, 40, -100],
+        fillColor: 0xff6347,
+        fillIntensity: 0.4
+      },
+      night: {
+        skyTop: '#0a0a2e',
+        skyMiddle: '#16213e',
+        skyBottom: '#1a1a3e',
+        fogColor: 0x0a0a2e,
+        ambientColor: 0x4a5f8f,
+        ambientIntensity: 0.3,
+        sunColor: 0xaaaaff,
+        sunIntensity: 0.5,
+        sunPosition: [0, 50, 0],
+        fillColor: 0x6666ff,
+        fillIntensity: 0.2
+      }
+    };
+
+    const currentSettings = skySettings[timeOfDay];
     
     const canvas = document.createElement('canvas');
     canvas.width = 2;
     canvas.height = 256;
     const context = canvas.getContext('2d');
     const gradient = context.createLinearGradient(0, 0, 0, 256);
-    gradient.addColorStop(0, '#1e3a8a');
-    gradient.addColorStop(0.5, '#f59e0b');
-    gradient.addColorStop(1, '#fbbf24');
+    gradient.addColorStop(0, currentSettings.skyTop);
+    gradient.addColorStop(0.5, currentSettings.skyMiddle);
+    gradient.addColorStop(1, currentSettings.skyBottom);
     context.fillStyle = gradient;
     context.fillRect(0, 0, 2, 256);
     
     const texture = new THREE.CanvasTexture(canvas);
     scene.background = texture;
-    scene.fog = new THREE.Fog(0xf59e0b, 100, 400);
-    sceneRef.current = scene;
+    scene.fog = new THREE.Fog(currentSettings.fogColor, 100, 400);
 
-    // Camera
     const camera = new THREE.PerspectiveCamera(
       60,
       mountRef.current.clientWidth / mountRef.current.clientHeight,
@@ -162,30 +196,45 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     camera.lookAt(platformCenterX, 0, platformCenterZ);
     cameraRef.current = camera;
 
-    // Renderer
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
     renderer.shadowMap.enabled = true;
     rendererRef.current = renderer;
     mountRef.current.appendChild(renderer.domElement);
 
-    // Lights - Warm sunset lighting
-    const ambientLight = new THREE.AmbientLight(0xffa07a, 0.5);
+    const ambientLight = new THREE.AmbientLight(currentSettings.ambientColor, currentSettings.ambientIntensity);
     scene.add(ambientLight);
 
-    const sunLight = new THREE.DirectionalLight(0xffd700, 1.2);
-    sunLight.position.set(-100, 40, -100);
+    const sunLight = new THREE.DirectionalLight(currentSettings.sunColor, currentSettings.sunIntensity);
+    sunLight.position.set(...currentSettings.sunPosition);
     sunLight.castShadow = true;
     scene.add(sunLight);
 
-    const fillLight = new THREE.DirectionalLight(0xff6347, 0.4);
+    const fillLight = new THREE.DirectionalLight(currentSettings.fillColor, currentSettings.fillIntensity);
     fillLight.position.set(50, 20, 50);
     scene.add(fillLight);
 
-    // Ocean with animated waves
+    const stars = [];
+    if (timeOfDay === 'night') {
+      const starGeometry = new THREE.SphereGeometry(0.5, 8, 8);
+      const starMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
+      
+      for (let i = 0; i < 200; i++) {
+        const star = new THREE.Mesh(starGeometry, starMaterial);
+        star.position.set(
+          (Math.random() - 0.5) * 500,
+          Math.random() * 200 + 100,
+          (Math.random() - 0.5) * 500
+        );
+        scene.add(star);
+        stars.push(star);
+      }
+    }
+
+    const oceanColor = timeOfDay === 'night' ? 0x0a2463 : timeOfDay === 'day' ? 0x1e88e5 : 0x1e88e5;
     const oceanGeometry = new THREE.PlaneGeometry(platformSize * 3, platformSize * 3, 100, 100);
     const oceanMaterial = new THREE.MeshStandardMaterial({
-      color: 0x1e88e5,
+      color: oceanColor,
       roughness: 0.3,
       metalness: 0.8,
       transparent: true,
@@ -202,7 +251,6 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       originalPositions.push(oceanVertices.getZ(i));
     }
 
-    // Sandy island base
     const boundaryBoxWidth = (maxX - minX) + 10;
     const boundaryBoxDepth = (maxZ - minZ) + 10;
     const islandGeometry = new THREE.BoxGeometry(boundaryBoxWidth + 10, 3, boundaryBoxDepth + 10);
@@ -216,7 +264,6 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     island.receiveShadow = true;
     scene.add(island);
 
-    // Beach grid
     const beachGridHelper = new THREE.GridHelper(platformSize * 1.5, 30, 0xf4a460, 0xe6b87d);
     beachGridHelper.position.y = 0.01;
     beachGridHelper.material.opacity = 0.3;
@@ -227,8 +274,9 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     const geometriesToDispose = [];
     const materialsToDispose = [];
     const palmTrees = [];
+    const dolphins = [];
+    const boats = [];
 
-    // Add palm trees around the perimeter
     const numPalmTrees = 12;
     for (let i = 0; i < numPalmTrees; i++) {
       const angle = (i / numPalmTrees) * Math.PI * 2;
@@ -264,7 +312,6 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       }
     }
 
-    // Add tropical flowers around the border
     const numFlowers = 40;
     for (let i = 0; i < numFlowers; i++) {
       const t = i / numFlowers;
@@ -297,7 +344,173 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       materialsToDispose.push(flowerMaterial);
     }
 
-    // Create beautiful buildings with stacked blocks
+    const numShells = 20;
+    for (let i = 0; i < numShells; i++) {
+      const angle = (i / numShells) * Math.PI * 2;
+      const radius = Math.max(boundaryBoxWidth, boundaryBoxDepth) / 2 + 1.5;
+      const x = platformCenterX + Math.cos(angle) * radius + (Math.random() - 0.5) * 2;
+      const z = platformCenterZ + Math.sin(angle) * radius + (Math.random() - 0.5) * 2;
+      
+      const shellGeometry = new THREE.ConeGeometry(0.2, 0.3, 6);
+      const shellMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0xfff5ee,
+        roughness: 0.8
+      });
+      const shell = new THREE.Mesh(shellGeometry, shellMaterial);
+      shell.position.set(x, 0.15, z);
+      shell.rotation.x = Math.PI / 2;
+      shell.rotation.z = Math.random() * Math.PI * 2;
+      scene.add(shell);
+      geometriesToDispose.push(shellGeometry);
+      materialsToDispose.push(shellMaterial);
+    }
+
+    const numUmbrellas = 6;
+    for (let i = 0; i < numUmbrellas; i++) {
+      const angle = (i / numUmbrellas) * Math.PI * 2 + Math.PI / 4;
+      const radius = Math.max(boundaryBoxWidth, boundaryBoxDepth) / 2 + 2;
+      const x = platformCenterX + Math.cos(angle) * radius;
+      const z = platformCenterZ + Math.sin(angle) * radius;
+      
+      const poleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 3, 8);
+      const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x8b7355 });
+      const pole = new THREE.Mesh(poleGeometry, poleMaterial);
+      pole.position.set(x, 1.5, z);
+      scene.add(pole);
+      geometriesToDispose.push(poleGeometry);
+      materialsToDispose.push(poleMaterial);
+      
+      const umbrellaGeometry = new THREE.ConeGeometry(1.2, 1.5, 8);
+      const umbrellaColors = [0xff6b6b, 0x4ecdc4, 0xffe66d, 0x95e1d3];
+      const umbrellaMaterial = new THREE.MeshStandardMaterial({ 
+        color: umbrellaColors[i % umbrellaColors.length]
+      });
+      const umbrella = new THREE.Mesh(umbrellaGeometry, umbrellaMaterial);
+      umbrella.position.set(x, 3.5, z);
+      scene.add(umbrella);
+      geometriesToDispose.push(umbrellaGeometry);
+      materialsToDispose.push(umbrellaMaterial);
+      
+      const chairGeometry = new THREE.BoxGeometry(0.8, 0.1, 1);
+      const chairMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+      const chair = new THREE.Mesh(chairGeometry, chairMaterial);
+      chair.position.set(x + 0.5, 0.3, z);
+      chair.rotation.y = angle;
+      scene.add(chair);
+      geometriesToDispose.push(chairGeometry);
+      materialsToDispose.push(chairMaterial);
+    }
+
+    const numDolphins = 3;
+    for (let i = 0; i < numDolphins; i++) {
+      const dolphinGeometry = new THREE.SphereGeometry(0.8, 8, 8);
+      const dolphinMaterial = new THREE.MeshStandardMaterial({ 
+        color: 0x4a90e2,
+        metalness: 0.3,
+        roughness: 0.7
+      });
+      const dolphin = new THREE.Mesh(dolphinGeometry, dolphinMaterial);
+      
+      const angle = (i / numDolphins) * Math.PI * 2;
+      const radius = platformSize * 1.2;
+      dolphin.position.set(
+        platformCenterX + Math.cos(angle) * radius,
+        -1.5,
+        platformCenterZ + Math.sin(angle) * radius
+      );
+      dolphin.scale.set(1, 0.6, 1.5);
+      
+      scene.add(dolphin);
+      dolphins.push({ mesh: dolphin, angle: angle, phase: i * 2 });
+      geometriesToDispose.push(dolphinGeometry);
+      materialsToDispose.push(dolphinMaterial);
+    }
+
+    const numBoats = 4;
+    for (let i = 0; i < numBoats; i++) {
+      const boatGroup = new THREE.Group();
+      
+      const hullGeometry = new THREE.BoxGeometry(2, 0.5, 4);
+      const hullMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
+      const hull = new THREE.Mesh(hullGeometry, hullMaterial);
+      hull.position.y = 0;
+      boatGroup.add(hull);
+      geometriesToDispose.push(hullGeometry);
+      materialsToDispose.push(hullMaterial);
+      
+      const mastGeometry = new THREE.CylinderGeometry(0.1, 0.1, 4, 8);
+      const mastMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+      const mast = new THREE.Mesh(mastGeometry, mastMaterial);
+      mast.position.y = 2;
+      boatGroup.add(mast);
+      geometriesToDispose.push(mastGeometry);
+      materialsToDispose.push(mastMaterial);
+      
+      const sailGeometry = new THREE.PlaneGeometry(1.5, 3);
+      const sailColors = [0xff6b6b, 0xffffff, 0x4ecdc4, 0xffe66d];
+      const sailMaterial = new THREE.MeshStandardMaterial({ 
+        color: sailColors[i % sailColors.length],
+        side: THREE.DoubleSide
+      });
+      const sail = new THREE.Mesh(sailGeometry, sailMaterial);
+      sail.position.set(0.7, 2, 0);
+      boatGroup.add(sail);
+      geometriesToDispose.push(sailGeometry);
+      materialsToDispose.push(sailMaterial);
+      
+      const angle = (i / numBoats) * Math.PI * 2;
+      const radius = platformSize * 1.5;
+      boatGroup.position.set(
+        platformCenterX + Math.cos(angle) * radius,
+        -1.5,
+        platformCenterZ + Math.sin(angle) * radius
+      );
+      boatGroup.rotation.y = angle + Math.PI / 2;
+      
+      scene.add(boatGroup);
+      boats.push({ group: boatGroup, angle: angle, radius: radius });
+    }
+
+    const lighthouseX = platformCenterX + Math.max(boundaryBoxWidth, boundaryBoxDepth) / 2 + 5;
+    const lighthouseZ = platformCenterZ + Math.max(boundaryBoxWidth, boundaryBoxDepth) / 2 + 5;
+    
+    const baseGeometry = new THREE.CylinderGeometry(1.5, 2, 3, 8);
+    const baseMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
+    const base = new THREE.Mesh(baseGeometry, baseMaterial);
+    base.position.set(lighthouseX, 1.5, lighthouseZ);
+    scene.add(base);
+    geometriesToDispose.push(baseGeometry);
+    materialsToDispose.push(baseMaterial);
+    
+    const towerGeometry = new THREE.CylinderGeometry(1, 1.2, 12, 8);
+    const towerMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xff6347,
+      roughness: 0.7
+    });
+    const tower = new THREE.Mesh(towerGeometry, towerMaterial);
+    tower.position.set(lighthouseX, 9, lighthouseZ);
+    scene.add(tower);
+    geometriesToDispose.push(towerGeometry);
+    materialsToDispose.push(towerMaterial);
+    
+    const lightGeometry = new THREE.CylinderGeometry(1.2, 1.2, 2, 8);
+    const lightMaterial = new THREE.MeshStandardMaterial({ 
+      color: 0xffff00,
+      emissive: 0xffff00,
+      emissiveIntensity: timeOfDay === 'night' ? 1 : 0.3
+    });
+    const lighthouseLight = new THREE.Mesh(lightGeometry, lightMaterial);
+    lighthouseLight.position.set(lighthouseX, 16, lighthouseZ);
+    scene.add(lighthouseLight);
+    geometriesToDispose.push(lightGeometry);
+    materialsToDispose.push(lightMaterial);
+    
+    const beaconLight = new THREE.SpotLight(0xffff00, timeOfDay === 'night' ? 2 : 0.5, 100, Math.PI / 6);
+    beaconLight.position.set(lighthouseX, 16, lighthouseZ);
+    beaconLight.target.position.set(lighthouseX + 50, 0, lighthouseZ);
+    scene.add(beaconLight);
+    scene.add(beaconLight.target);
+
     buildings.forEach((building) => {
       let currentHeight = 0;
       const numBlocks = building.blocks.length;
@@ -367,11 +580,9 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       });
     });
 
-    // Raycaster for hover and click detection
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    // WASD keyboard controls
     const handleKeyDown = (event) => {
       keysRef.current[event.key.toLowerCase()] = true;
     };
@@ -383,12 +594,10 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
 
-    // Initialize yaw and pitch
     const initialEuler = new THREE.Euler().setFromQuaternion(camera.quaternion);
     let yaw = initialEuler.y;
     let pitch = initialEuler.x;
     
-    // Mouse look controls - pointer lock style
     let isMouseLocked = false;
     
     const onMouseClick = (event) => {
@@ -474,13 +683,11 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       mountRef.current.style.cursor = 'crosshair';
     }
 
-    // Animation loop with ocean waves and movement
     let time = 0;
     const animate = () => {
       animationIdRef.current = requestAnimationFrame(animate);
       time += 0.01;
       
-      // Animate ocean waves
       for (let i = 0; i < oceanVertices.count; i++) {
         const x = oceanVertices.getX(i);
         const y = oceanVertices.getY(i);
@@ -489,18 +696,35 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       }
       oceanVertices.needsUpdate = true;
       
-      // Gentle palm tree sway
       palmTrees.forEach((tree, i) => {
         if (tree.geometry.type === 'CylinderGeometry') {
           tree.rotation.z = Math.sin(time + i) * 0.05;
         }
       });
       
-      // Apply mouse look rotation
+      dolphins.forEach(dolphin => {
+        const jumpHeight = Math.sin(time * 2 + dolphin.phase) * 3;
+        dolphin.mesh.position.y = -1.5 + Math.max(0, jumpHeight);
+        dolphin.mesh.rotation.x = jumpHeight > 0 ? Math.sin(time * 2 + dolphin.phase) * 0.5 : 0;
+      });
+      
+      boats.forEach(boat => {
+        boat.angle += 0.001;
+        boat.group.position.x = platformCenterX + Math.cos(boat.angle) * boat.radius;
+        boat.group.position.z = platformCenterZ + Math.sin(boat.angle) * boat.radius;
+        boat.group.rotation.y = boat.angle + Math.PI / 2;
+        boat.group.position.y = -1.5 + Math.sin(time) * 0.2;
+      });
+      
+      if (beaconLight.target) {
+        const beaconAngle = time * 0.5;
+        beaconLight.target.position.x = lighthouseX + Math.cos(beaconAngle) * 50;
+        beaconLight.target.position.z = lighthouseZ + Math.sin(beaconAngle) * 50;
+      }
+      
       const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
       camera.quaternion.setFromEuler(euler);
       
-      // WASD movement
       const keys = keysRef.current;
       const moveVector = new THREE.Vector3();
       
@@ -533,7 +757,6 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     };
     animate();
 
-    // Handle resize
     const handleResize = () => {
       if (!mountRef.current) return;
       camera.aspect = mountRef.current.clientWidth / mountRef.current.clientHeight;
@@ -542,7 +765,6 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     };
     window.addEventListener('resize', handleResize);
 
-    // Cleanup
     return () => {
       if (animationIdRef.current) {
         cancelAnimationFrame(animationIdRef.current);
@@ -561,6 +783,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         }
       }
 
+      stars.forEach(star => scene.remove(star));
       geometriesToDispose.forEach(geom => geom.dispose());
       materialsToDispose.forEach(mat => mat.dispose());
       oceanGeometry.dispose();
@@ -575,7 +798,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       rendererRef.current = null;
       cameraRef.current = null;
     };
-  }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, maxNloc]);
+  }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, maxNloc, timeOfDay]);
 
   return (
     <div className="relative w-full h-full">
@@ -603,6 +826,41 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
           </div>
         </div>
       )}
+
+      <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-white/95 backdrop-blur-sm rounded-lg shadow-lg p-3 z-10 border border-gray-200">
+        <div className="flex gap-2">
+          <button
+            onClick={() => setTimeOfDay('day')}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              timeOfDay === 'day'
+                ? 'bg-blue-500 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            ☀️ Day
+          </button>
+          <button
+            onClick={() => setTimeOfDay('sunset')}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              timeOfDay === 'sunset'
+                ? 'bg-orange-500 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            🌅 Sunset
+          </button>
+          <button
+            onClick={() => setTimeOfDay('night')}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              timeOfDay === 'night'
+                ? 'bg-indigo-900 text-white shadow-md'
+                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+            }`}
+          >
+            🌙 Night
+          </button>
+        </div>
+      </div>
 
       <div className="absolute bottom-4 left-4 bg-gradient-to-br from-amber-900/90 to-orange-900/90 backdrop-blur-sm rounded-lg shadow-lg p-4 z-10 border border-amber-700">
         <h4 className="font-bold text-sm mb-2 text-amber-100">🎮 Controls</h4>
