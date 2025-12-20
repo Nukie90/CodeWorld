@@ -3,20 +3,32 @@ import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, HelpCircle, Upload, Expand, Play, GripVertical } from 'lucide-react';
 import { useLocation } from 'react-router-dom'
 import axios from 'axios'
+import BarChartVisualization from '../components/results/visualizations/BarChartVisualization';
+import CirclePackingVisualization from '../components/results/visualizations/CirclePackingVisualization';
+import TreemapVisualization from '../components/results/visualizations/TreemapVisualization';
+import ForceTreeVisualization from '../components/results/visualizations/ForceTreeVisualization';
+import RadarChartVisualization from '../components/results/visualizations/RadarChartVisualization';
 
 function ResultsPage() {
   const { state } = useLocation()
-  const { analysisResult, token, username } = state || {}
+  const { analysisResult: initialAnalysisResult, token } = state || {}
+  
+  // Convert analysisResult to state so it can be updated when branch changes
+  const [analysisResult, setAnalysisResult] = useState(initialAnalysisResult)
 
   const [activeTab, setActiveTab] = useState('bar');
-  const [graphWidth, setGraphWidth] = useState(16.666); // 2/12 = 16.666%
-  const [visualizationWidth, setVisualizationWidth] = useState(58.333); // 7/12 = 58.333%
+  // Make center visualization wider by default
+  const [graphWidth, setGraphWidth] = useState(12); // ~1.5/12
+  const [visualizationWidth, setVisualizationWidth] = useState(70); // larger center panel
   const [isDragging, setIsDragging] = useState(null);
   const containerRef = useRef(null);
 
   const [branches, setBranches] = useState([])
   const [currentBranch, setCurrentBranch] = useState("")
   const [branchLoading, setBranchLoading] = useState(false)
+
+  console.log('analysisResult in ResultsPage:', analysisResult);
+  
 
   useEffect(() => {
     // fetch branches when this is a repo analysis
@@ -39,7 +51,7 @@ function ResultsPage() {
     }
     fetchBranches()
   }, [analysisResult, token])
-  
+
   const mockData = [
     { name: 'mock.js', blue: 180, green: 120, pink: 80 },
     { name: 'mock.js', blue: 60, green: 40, pink: 50 },
@@ -47,13 +59,11 @@ function ResultsPage() {
     { name: 'mock.js', blue: 220, green: 160, pink: 70 },
     { name: 'mock.js', blue: 100, green: 130, pink: 40 }
   ];
-  
-  const folderMetrics = analysisResult.analysis.folder_metrics
-  const folderName = folderMetrics.folder_name.split('.git')[0]
+
+  // Derive values from analysisResult state (will update when branch changes)
+  const folderMetrics = analysisResult?.analysis?.folder_metrics || {}
+  const folderName = folderMetrics?.folder_name?.split('.git')[0] || ''
   const individual_files = analysisResult?.analysis?.individual_files || []
-  // console.log(analysisResult)
-  // console.log(folderMetrics);
-  
 
   const folderSummary = {
     'Total files': folderMetrics?.total_files,
@@ -103,6 +113,7 @@ function ResultsPage() {
       // server returns a new analysis payload
       if (resp.data) {
         setAnalysisResult(resp.data)
+        setCurrentBranch(branch)
       }
     } catch (err) {
       console.error('Checkout failed', err)
@@ -119,14 +130,14 @@ function ResultsPage() {
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
     >
-      {/* Header - Outside of container */}
+      {/* Header - Full-width */}
       <header className="bg-blue-300 text-black py-4 shadow-sm">
-        <div className="container mx-auto px-6 flex items-center justify-between">
+        <div className="w-full mx-auto px-6 flex items-center justify-between">
           <Link to="/" className="text-2xl font-bold hover:opacity-90 transition-opacity">
             CodeWorld
           </Link>
           <Link
-            to="/analyze"
+            to="/"
             className="flex items-center gap-2 bg-white text-blue-600 px-4 py-2 rounded-lg font-semibold hover:bg-blue-50 transition-colors text-sm"
           >
             <Upload size={16} />
@@ -135,8 +146,8 @@ function ResultsPage() {
         </div>
       </header>
 
-      {/* Main Content */}
-      <main className="container mx-auto px-6 py-8">
+      {/* Main Content - Full-width */}
+      <main className="w-full mx-auto px-6 py-8">
         {/* Title Section - Outside blocks */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Github Analysis Result</h1>
@@ -201,13 +212,13 @@ function ResultsPage() {
                         : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
-                    {tab === 'bar' ? 'Bar' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  </button>
+                    {tab === 'bar' ? 'Bar' : tab === 'block' ? 'Block' : tab === 'flower' ? 'Flower' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                  </button> 
                 ))}
               </div>
 
               {/* Bar Chart Visualization */}
-              <div className="h-96 flex items-end justify-around gap-3 px-4">
+              {/* <div className="h-96 flex items-end justify-around gap-3 px-4">
                 {mockData.map((item, idx) => {
                   const maxHeight = 320;
                   const scale = maxHeight / 450;
@@ -232,6 +243,30 @@ function ResultsPage() {
                     </div>
                   );
                 })}
+              </div> */}
+
+              {/* Visualization Content */}
+              <div className="h-[55vh] overflow-auto">
+                {activeTab === 'bar' && individual_files?.length > 0 && (
+                  <BarChartVisualization individualFiles={individual_files} />
+                )}
+                {activeTab === 'block' && individual_files?.length > 0 && (
+                  <CirclePackingVisualization individualFiles={individual_files} folderName={folderName} />
+                )}
+                {activeTab === 'tree' && individual_files?.length > 0 && (
+                  <ForceTreeVisualization individualFiles={individual_files} folderName={folderName} />
+                )}
+                {activeTab === 'treemap' && individual_files?.length > 0 && (
+                  <TreemapVisualization individualFiles={individual_files} folderName={folderName} />
+                )}
+                {activeTab === 'flower' && individual_files?.length > 0 && (
+                  <RadarChartVisualization individualFiles={individual_files} />
+                )}
+                {(!individual_files?.length || individual_files.length === 0) && (
+                  <div className="flex items-center justify-center h-full text-gray-400">
+                    No files to visualize
+                  </div>
+                )}
               </div>
             </div>
 
@@ -287,8 +322,7 @@ function ResultsPage() {
             </div>
           </div>
           {/* Down Panel - Individaul files */}
-          
-        </div>
+          </div>
       </main>
     </div>
   );

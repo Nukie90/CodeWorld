@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import axios from 'axios'
 import InfoTip from "../common/InfoTip";
-import ComplexityBarChart from "./ComplexityBarChart";
 import "./result.css";
 import FolderVisualizationSelector from "./FolderVisualizationSelector"
 import CirclePackingVisualization from "./visualizations/CirclePackingVisualization"
@@ -199,9 +198,6 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
             >
               {activeTab === "circle" && (
                 <CirclePackingVisualization individualFiles={individual_files} folderName={folder_name_safe} />
-              )}
-              {activeTab === "bar" && (
-                <ComplexityBarChart files={individual_files} />
               )}
               {activeTab === "treemap" && (
                 <TreemapVisualization individualFiles={individual_files} folderName={folder_name_safe} />
