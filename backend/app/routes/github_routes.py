@@ -30,6 +30,15 @@ class RepoCheckoutRequest(BaseModel):
     token: Optional[str] = None
 
 
+class FunctionCodeRequest(BaseModel):
+    repo_url: str
+    filename: str
+    function_name: str
+    start_line: int
+    nloc: int
+    token: Optional[str] = None
+
+
 @router.get("/auth/github/login")
 async def github_login(request: Request):
     client_id = os.environ.get("GITHUB_CLIENT_ID")
@@ -162,3 +171,163 @@ async def repo_checkout(payload: RepoCheckoutRequest):
         return {"repo_url": payload.repo_url, "branch": payload.branch, "folder_name": local_path, "analysis": analysis}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to analyze after checkout: {str(exc)}")
+
+
+@router.post("/repo/function-code")
+async def get_function_code(payload: FunctionCodeRequest):
+    """Retrieve the code for a specific function from a repository."""
+    try:
+        if not payload.start_line:
+            raise HTTPException(status_code=400, detail="Function start_line is required but was not provided")
+        
+        # Get the cached repo path
+        local_path = repo_manager.get_cached_path(payload.repo_url)
+        if not local_path or not os.path.exists(local_path):
+            # Try to clone if not cached
+            local_path = repo_manager.clone_repo(payload.repo_url, token=payload.token)
+        
+        # Construct full file path
+        file_path = os.path.join(local_path, payload.filename)
+        
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail=f"File not found: {payload.filename}")
+        
+        # Read the file
+        with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+            lines = f.readlines()
+        
+        # Extract function code based on start_line
+        # start_line is 1-indexed, convert to 0-indexed
+        start_idx = max(0, payload.start_line - 1)
+        
+        if start_idx >= len(lines):
+            raise HTTPException(status_code=400, detail=f"Start line {payload.start_line} is beyond file length")
+        
+        # Detect file language from extension
+        file_ext = os.path.splitext(payload.filename)[1].lower()
+        is_python = file_ext == '.py'
+        
+        actual_end_idx = start_idx
+        
+        if is_python:
+            # Python: use indentation-based detection
+            start_line_content = lines[start_idx]
+            # Find the base indentation of the function definition
+            base_indent = len(start_line_content) - len(start_line_content.lstrip())
+            
+            # Find the end of the function by looking for lines with less or equal indentation
+            # that are not blank and not part of the function body
+            max_search_lines = min(start_idx + payload.nloc * 5 + 100, len(lines))
+            
+            for i in range(start_idx + 1, max_search_lines):
+                line = lines[i]
+                stripped = line.lstrip()
+                
+                # Skip blank lines
+                if not stripped:
+                    continue
+                
+                current_indent = len(line) - len(stripped)
+                
+                # If we find a line at the same or less indentation that's not a continuation,
+                # we've reached the end of the function
+                if current_indent <= base_indent and stripped:
+                    # Check if it's a decorator (starts with @) - still part of function
+                    if stripped.startswith('@'):
+                        continue
+                    # Check if it's a comment - still part of function if indented
+                    if stripped.startswith('#'):
+                        continue
+                    # Otherwise, we've found the end
+                    actual_end_idx = i
+                    break
+            else:
+                # If we didn't break, use the last searched line
+                actual_end_idx = max_search_lines
+        else:
+            # For brace-based languages (JS, Java, C++, etc.)
+            # We need to find the opening brace first, then match it
+            brace_count = 0
+            paren_count = 0
+            in_string = False
+            string_char = None
+            found_opening_brace = False
+            
+            # Look ahead to find the function end
+            max_search_lines = min(start_idx + payload.nloc * 5 + 100, len(lines))
+            
+            for i in range(start_idx, max_search_lines):
+                line = lines[i]
+                escaped = False
+                
+                # Check if we've found the opening brace of the function body
+                if '{' in line and not found_opening_brace:
+                    # Make sure it's not in a string
+                    temp_in_string = False
+                    temp_string_char = None
+                    for char in line:
+                        if escaped:
+                            escaped = False
+                            continue
+                        if char == '\\':
+                            escaped = True
+                            continue
+                        if char in ('"', "'", '`') and not escaped:
+                            if not temp_in_string:
+                                temp_in_string = True
+                                temp_string_char = char
+                            elif char == temp_string_char:
+                                temp_in_string = False
+                                temp_string_char = None
+                            continue
+                        if not temp_in_string and char == '{':
+                            found_opening_brace = True
+                            break
+                    escaped = False
+                
+                for char in line:
+                    if escaped:
+                        escaped = False
+                        continue
+                    if char == '\\':
+                        escaped = True
+                        continue
+                    
+                    # Track string boundaries
+                    if char in ('"', "'", '`') and not escaped:
+                        if not in_string:
+                            in_string = True
+                            string_char = char
+                        elif char == string_char:
+                            in_string = False
+                            string_char = None
+                        continue
+                    
+                    # Only count braces when not in a string
+                    if not in_string:
+                        if char == '{':
+                            brace_count += 1
+                        elif char == '}':
+                            brace_count -= 1
+                
+                actual_end_idx = i + 1
+                
+                # Function ends when we've closed the opening brace and we're past the start
+                if found_opening_brace and brace_count == 0 and i > start_idx:
+                    break
+        
+        # Extract the function code
+        actual_function_code = "".join(lines[start_idx:actual_end_idx])
+        
+        return {
+            "code": actual_function_code,
+            "filename": payload.filename,
+            "function_name": payload.function_name,
+            "start_line": payload.start_line,
+            "end_line": actual_end_idx,
+            "nloc": payload.nloc
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve function code: {str(exc)}")

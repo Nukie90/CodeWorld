@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-function BarChartVisualization({ individualFiles }) {
+function BarChartVisualization({ individualFiles, onFunctionClick }) {
   const [hoveredFunction, setHoveredFunction] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
@@ -116,6 +116,17 @@ function BarChartVisualization({ individualFiles }) {
                           nloc: fn.nloc || 0
                         })}
                         onMouseLeave={handleMouseLeave}
+                        onClick={() => {
+                          if (onFunctionClick && fn.start_line) {
+                            onFunctionClick({
+                              filename: file.filename,
+                              functionName: fn.name || 'Unknown',
+                              startLine: fn.start_line,
+                              nloc: fn.nloc || 0,
+                              complexity: complexity
+                            });
+                          }
+                        }}
                       />
                     );
                   })}

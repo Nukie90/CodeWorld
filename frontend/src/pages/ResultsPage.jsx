@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, HelpCircle, Upload, Expand, Play, GripVertical } from 'lucide-react';
+import { ChevronLeft, ChevronRight, HelpCircle, Upload, Expand, Play, GripVertical, Copy, Check, Code, FileText, Hash } from 'lucide-react';
 import { useLocation } from 'react-router-dom'
 import axios from 'axios'
 import BarChartVisualization from '../components/results/visualizations/BarChartVisualization';
@@ -26,6 +26,12 @@ function ResultsPage() {
   const [branches, setBranches] = useState([])
   const [currentBranch, setCurrentBranch] = useState("")
   const [branchLoading, setBranchLoading] = useState(false)
+  const [selectedCode, setSelectedCode] = useState(null)
+  const [codeLoading, setCodeLoading] = useState(false)
+  const [codeDisplayMode, setCodeDisplayMode] = useState('plain') // 'plain', 'highlighted'
+  const [showLineNumbers, setShowLineNumbers] = useState(false)
+  const [wordWrap, setWordWrap] = useState(true)
+  const [copied, setCopied] = useState(false)
 
   console.log('analysisResult in ResultsPage:', analysisResult);
   
@@ -52,13 +58,6 @@ function ResultsPage() {
     fetchBranches()
   }, [analysisResult, token])
 
-  const mockData = [
-    { name: 'mock.js', blue: 180, green: 120, pink: 80 },
-    { name: 'mock.js', blue: 60, green: 40, pink: 50 },
-    { name: 'mock.js', blue: 20, green: 15, pink: 10 },
-    { name: 'mock.js', blue: 220, green: 160, pink: 70 },
-    { name: 'mock.js', blue: 100, green: 130, pink: 40 }
-  ];
 
   // Derive values from analysisResult state (will update when branch changes)
   const folderMetrics = analysisResult?.analysis?.folder_metrics || {}
@@ -122,6 +121,58 @@ function ResultsPage() {
       setBranchLoading(false)
     }
   }
+
+  const handleFunctionClick = async (functionData) => {
+    if (!analysisResult?.repo_url) return
+    
+    setCodeLoading(true)
+    setSelectedCode(null)
+    
+    try {
+      const resp = await axios.post('http://127.0.0.1:8000/api/repo/function-code', {
+        repo_url: analysisResult.repo_url,
+        filename: functionData.filename,
+        function_name: functionData.functionName,
+        start_line: functionData.startLine,
+        nloc: functionData.nloc,
+        token: token
+      })
+      
+      if (resp.data) {
+        setSelectedCode({
+          code: resp.data.code,
+          filename: resp.data.filename,
+          functionName: resp.data.function_name,
+          startLine: resp.data.start_line,
+          endLine: resp.data.end_line
+        })
+      }
+    } catch (err) {
+      console.error('Failed to fetch function code', err)
+      setSelectedCode({
+        code: `// Error loading function code: ${err.response?.data?.detail || err.message}`,
+        filename: functionData.filename,
+        functionName: functionData.functionName,
+        startLine: functionData.startLine,
+        endLine: null
+      })
+    } finally {
+      setCodeLoading(false)
+    }
+  }
+
+  const handleCopyCode = async () => {
+    if (selectedCode?.code) {
+      try {
+        await navigator.clipboard.writeText(selectedCode.code)
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      } catch (err) {
+        console.error('Failed to copy code', err)
+      }
+    }
+  }
+
 
   return (
     <div 
@@ -248,7 +299,10 @@ function ResultsPage() {
               {/* Visualization Content */}
               <div className="h-[55vh] overflow-auto">
                 {activeTab === 'bar' && individual_files?.length > 0 && (
-                  <BarChartVisualization individualFiles={individual_files} />
+                  <BarChartVisualization 
+                    individualFiles={individual_files} 
+                    onFunctionClick={handleFunctionClick}
+                  />
                 )}
                 {activeTab === 'block' && individual_files?.length > 0 && (
                   <CirclePackingVisualization individualFiles={individual_files} folderName={folderName} />
@@ -316,8 +370,186 @@ function ResultsPage() {
                   <Expand size={20} />
                 </button>
               </div>
+              
+              {/* Code Display Options */}
+              {selectedCode && (
+                <div className="mb-3 flex items-center gap-2 flex-wrap">
+                  <div className="flex items-center gap-1 bg-white rounded-lg p-1 border border-gray-200">
+                    <button
+                      onClick={() => setCodeDisplayMode('plain')}
+                      className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors ${
+                        codeDisplayMode === 'plain'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                      title="Plain text"
+                    >
+                      <FileText size={14} />
+                      Plain
+                    </button>
+                    <button
+                      onClick={() => setCodeDisplayMode('highlighted')}
+                      className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors ${
+                        codeDisplayMode === 'highlighted'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'text-gray-600 hover:bg-gray-100'
+                      }`}
+                      title="Syntax highlighted"
+                    >
+                      <Code size={14} />
+                      Highlighted
+                    </button>
+                  </div>
+                  
+                  <button
+                    onClick={() => setShowLineNumbers(!showLineNumbers)}
+                    className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors border ${
+                      showLineNumbers
+                        ? 'bg-blue-100 text-blue-700 border-blue-300'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                    }`}
+                    title="Toggle line numbers"
+                  >
+                    <Hash size={14} />
+                    Lines
+                  </button>
+                  
+                  <button
+                    onClick={() => setWordWrap(!wordWrap)}
+                    className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors border ${
+                      wordWrap
+                        ? 'bg-blue-100 text-blue-700 border-blue-300'
+                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                    }`}
+                    title="Toggle word wrap"
+                  >
+                    Wrap
+                  </button>
+                  
+                  <button
+                    onClick={handleCopyCode}
+                    className="px-2 py-1 rounded text-xs flex items-center gap-1 bg-white text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors"
+                    title="Copy code"
+                  >
+                    {copied ? <Check size={14} className="text-green-600" /> : <Copy size={14} />}
+                    {copied ? 'Copied!' : 'Copy'}
+                  </button>
+                </div>
+              )}
+              
               <div className="bg-white rounded-lg p-4 flex-1 overflow-auto">
-                <p className="text-gray-400 text-sm">Select a file to view its contents...</p>
+                {codeLoading ? (
+                  <div className="flex items-center justify-center h-full">
+                    <p className="text-gray-400 text-sm">Loading function code...</p>
+                  </div>
+                ) : selectedCode ? (
+                  <div className="h-full flex flex-col">
+                    <div className="mb-3 pb-2 border-b border-gray-200">
+                      <h4 className="font-semibold text-gray-900 text-sm">
+                        {selectedCode.functionName}
+                      </h4>
+                      <p className="text-xs text-gray-500 mt-1">
+                        {selectedCode.filename} (Lines {selectedCode.startLine}
+                        {selectedCode.endLine ? `-${selectedCode.endLine}` : ''})
+                      </p>
+                    </div>
+                    <div className="flex-1 overflow-auto relative">
+                      {codeDisplayMode === 'highlighted' ? (
+                        <div className="relative">
+                          {showLineNumbers && (
+                            <div 
+                              className="absolute left-0 top-0 bottom-0 text-gray-500 select-none pr-4 border-r border-gray-300"
+                              style={{ 
+                                fontFamily: 'monospace',
+                                fontSize: '0.75rem',
+                                lineHeight: '1.5',
+                                paddingTop: '1rem',
+                                paddingBottom: '1rem',
+                                backgroundColor: '#1e1e1e',
+                                paddingLeft: '1rem',
+                                paddingRight: '0.75rem'
+                              }}
+                            >
+                              {selectedCode.code.split('\n').map((_, idx) => (
+                                <div key={idx} style={{ textAlign: 'right' }}>
+                                  {selectedCode.startLine + idx}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <pre 
+                            className={`text-xs font-mono ${
+                              wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'
+                            } break-words`}
+                            style={{ 
+                              backgroundColor: '#1e1e1e',
+                              color: '#d4d4d4',
+                              padding: '1rem',
+                              paddingLeft: showLineNumbers ? '4rem' : '1rem',
+                              borderRadius: '0.375rem',
+                              lineHeight: '1.5',
+                              margin: 0
+                            }}
+                          >
+                            <code style={{ color: '#d4d4d4' }}>
+                              {selectedCode.code.split('\n').map((line, idx) => {
+                                // Simple syntax highlighting for common patterns
+                                const highlighted = line
+                                  .replace(/(['"`])(?:(?=(\\?))\2.)*?\1/g, '<span style="color: #ce9178">$&</span>')
+                                  .replace(/\b(async|await|function|const|let|var|if|else|for|while|return|class|import|export|from|def|try|except|finally|with|as)\b/g, '<span style="color: #569cd6">$&</span>')
+                                  .replace(/\b(\d+\.?\d*)\b/g, '<span style="color: #b5cea8">$&</span>')
+                                  .replace(/(\/\/.*$|\/\*[\s\S]*?\*\/)/gm, '<span style="color: #6a9955">$&</span>')
+                                return (
+                                  <div key={idx} dangerouslySetInnerHTML={{ __html: highlighted || ' ' }} />
+                                )
+                              })}
+                            </code>
+                          </pre>
+                        </div>
+                      ) : (
+                        <div className="relative">
+                          {showLineNumbers && (
+                            <div 
+                              className="absolute left-0 top-0 bottom-0 text-gray-400 select-none pr-4 border-r border-gray-200"
+                              style={{ 
+                                fontFamily: 'monospace',
+                                fontSize: '0.75rem',
+                                lineHeight: '1.5',
+                                paddingTop: '1rem',
+                                paddingBottom: '1rem',
+                                backgroundColor: '#f9fafb',
+                                paddingLeft: '1rem',
+                                paddingRight: '0.75rem'
+                              }}
+                            >
+                              {selectedCode.code.split('\n').map((_, idx) => (
+                                <div key={idx} style={{ textAlign: 'right' }}>
+                                  {selectedCode.startLine + idx}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                          <pre 
+                            className={`text-xs font-mono text-gray-800 ${
+                              wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'
+                            } break-words`}
+                            style={{ 
+                              paddingLeft: showLineNumbers ? '4rem' : '0',
+                              paddingTop: '1rem',
+                              paddingBottom: '1rem',
+                              paddingRight: '1rem',
+                              margin: 0
+                            }}
+                          >
+                            <code>{selectedCode.code}</code>
+                          </pre>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-400 text-sm">Click on a function block in the visualization to view its code...</p>
+                )}
               </div>
             </div>
           </div>
