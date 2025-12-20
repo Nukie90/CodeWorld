@@ -1,14 +1,45 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, HelpCircle, Upload, Expand, Play, GripVertical } from 'lucide-react';
+import { useLocation } from 'react-router-dom'
+import axios from 'axios'
 
-function HomePage() {
+function ResultsPage() {
+  const { state } = useLocation()
+  const { analysisResult, token, username } = state || {}
+
   const [activeTab, setActiveTab] = useState('bar');
   const [graphWidth, setGraphWidth] = useState(16.666); // 2/12 = 16.666%
   const [visualizationWidth, setVisualizationWidth] = useState(58.333); // 7/12 = 58.333%
   const [isDragging, setIsDragging] = useState(null);
   const containerRef = useRef(null);
 
+  const [branches, setBranches] = useState([])
+  const [currentBranch, setCurrentBranch] = useState("")
+  const [branchLoading, setBranchLoading] = useState(false)
+
+  useEffect(() => {
+    // fetch branches when this is a repo analysis
+    async function fetchBranches() {
+      if (!analysisResult?.repo_url) return
+      try {
+        const resp = await axios.get('http://127.0.0.1:8000/api/repo/branches', { params: { repo_url: analysisResult.repo_url, token } })
+        const data = resp.data || {}
+        const local = data.local || []
+        const remote = data.remote || []
+        const current = data.current || ''
+        // merge lists: prefer local branch names, but include remotes
+        const combined = [...local]
+        remote.forEach(r => { if (!combined.includes(r)) combined.push(r) })
+        setBranches(combined)
+        setCurrentBranch(current)
+      } catch (err) {
+        console.error('Failed to fetch branches', err)
+      }
+    }
+    fetchBranches()
+  }, [analysisResult, token])
+  
   const mockData = [
     { name: 'mock.js', blue: 180, green: 120, pink: 80 },
     { name: 'mock.js', blue: 60, green: 40, pink: 50 },
@@ -16,14 +47,21 @@ function HomePage() {
     { name: 'mock.js', blue: 220, green: 160, pink: 70 },
     { name: 'mock.js', blue: 100, green: 130, pink: 40 }
   ];
+  
+  const folderMetrics = analysisResult.analysis.folder_metrics
+  const folderName = folderMetrics.folder_name.split('.git')[0]
+  const individual_files = analysisResult?.analysis?.individual_files || []
+  // console.log(analysisResult)
+  // console.log(folderMetrics);
+  
 
-  const summaryData = {
-    'Total files': 6,
-    'Total lines': 566,
-    'Logical LOC': 566,
-    'Total function': 28,
-    'Avg. complexity': 1.89,
-    'Max complexity': 7
+  const folderSummary = {
+    'Total files': folderMetrics?.total_files,
+    'Total lines': folderMetrics?.total_loc,
+    'Logical LOC': folderMetrics?.total_nloc,
+    'Total function': folderMetrics?.total_functions,
+    'Avg. complexity': folderMetrics?.complexity_avg,
+    'Max complexity': folderMetrics?.complexity_max
   };
 
   const handleMouseDown = (divider) => {
@@ -56,6 +94,24 @@ function HomePage() {
     setIsDragging(null);
   };
 
+  const handleBranchChange = async (evt) => {
+    const branch = evt.target.value
+    if (!branch || !analysisResult?.repo_url) return
+    setBranchLoading(true)
+    try {
+      const resp = await axios.post('http://127.0.0.1:8000/api/repo/checkout', { repo_url: analysisResult.repo_url, branch, token })
+      // server returns a new analysis payload
+      if (resp.data) {
+        setAnalysisResult(resp.data)
+      }
+    } catch (err) {
+      console.error('Checkout failed', err)
+      // keep UI responsive
+    } finally {
+      setBranchLoading(false)
+    }
+  }
+
   return (
     <div 
       className="min-h-screen bg-slate-100"
@@ -84,7 +140,7 @@ function HomePage() {
         {/* Title Section - Outside blocks */}
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900 mb-2">Github Analysis Result</h1>
-          <p className="text-gray-600">Metrics from folder <span className="font-semibold">src</span></p>
+          <p className="text-gray-600">Metrics for <span className="font-semibold">{folderName}</span></p>
         </div>
 
         {/* Main Layout with Resizable Panels */}
@@ -106,10 +162,11 @@ function HomePage() {
                   </button>
                 </div>
               </div>
-              <select className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
-                <option>Branch</option>
-                <option>Main</option>
-                <option>Feature</option>
+              <select value={currentBranch} onChange={handleBranchChange} disabled={branchLoading || branches.length === 0} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
+                <option value="">Select branch</option>
+                  {branches.map((b) => (
+                    <option key={b} value={b}>{b}</option>
+                ))}
               </select>
             </div>
           </div>
@@ -190,7 +247,7 @@ function HomePage() {
                 {/* vertical divider */}
                 <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-200 -translate-x-1/2"></div>
 
-                {Object.entries(summaryData).map(([key, value], index) => (
+                {Object.entries(folderSummary).map(([key, value], index) => (
                   <div
                     key={key}
                     className={`flex justify-between items-center pb-3 ${
@@ -229,10 +286,12 @@ function HomePage() {
               </div>
             </div>
           </div>
+          {/* Down Panel - Individaul files */}
+          
         </div>
       </main>
     </div>
   );
 }
 
-export default HomePage;
+export default ResultsPage;

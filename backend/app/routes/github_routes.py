@@ -1,10 +1,12 @@
 import os
 import httpx
+from urllib.parse import quote
 from fastapi import APIRouter, Request, HTTPException, Body
 from pydantic import BaseModel
 from typing import Optional
 from app.services import repo_manager
 from app.services.analyze_local_folder import analyze_local_folder
+from fastapi.responses import RedirectResponse
 
 router = APIRouter(tags=["github"])
 
@@ -29,24 +31,45 @@ class RepoCheckoutRequest(BaseModel):
 
 
 @router.get("/auth/github/login")
-async def github_login():
+async def github_login(request: Request):
     client_id = os.environ.get("GITHUB_CLIENT_ID")
     if not client_id:
         raise HTTPException(status_code=500, detail="GITHUB_CLIENT_ID not configured")
 
+    # Use environment variable for redirect_uri, or fallback to dynamic generation
+    # IMPORTANT: This must match EXACTLY what's configured in GitHub OAuth app settings
+    redirect_uri = os.environ.get("GITHUB_REDIRECT_URI")
+    if not redirect_uri:
+        # Fallback to dynamic generation from request
+        base_url = str(request.base_url).rstrip('/')
+        redirect_uri = f"{base_url}/api/auth/github/callback"
+    
     # scopes: repo for private repo access, read:user to obtain username
+    # redirect_uri must match what's configured in GitHub OAuth app settings
     auth_url = (
-        f"https://github.com/login/oauth/authorize?client_id={client_id}&scope=repo%20read:user&allow_signup=true"
+        f"https://github.com/login/oauth/authorize"
+        f"?client_id={client_id}"
+        f"&scope=repo%20read:user"
+        f"&allow_signup=true"
+        f"&redirect_uri={quote(redirect_uri, safe='')}"
     )
     return {"auth_url": auth_url}
 
 
 @router.get("/auth/github/callback")
-async def github_callback(code: str):
+async def github_callback(code: str, request: Request):
     client_id = os.environ.get("GITHUB_CLIENT_ID")
     client_secret = os.environ.get("GITHUB_CLIENT_SECRET")
     if not client_id or not client_secret:
         raise HTTPException(status_code=500, detail="GitHub OAuth client not configured")
+
+    # Use the same redirect_uri logic as in login endpoint
+    # This must match EXACTLY what's configured in GitHub OAuth app settings
+    redirect_uri = os.environ.get("GITHUB_REDIRECT_URI")
+    if not redirect_uri:
+        # Fallback to dynamic generation from request
+        base_url = str(request.base_url).rstrip('/')
+        redirect_uri = f"{base_url}/api/auth/github/callback"
 
     token_url = "https://github.com/login/oauth/access_token"
 
@@ -57,6 +80,7 @@ async def github_callback(code: str):
                 "client_id": client_id,
                 "client_secret": client_secret,
                 "code": code,
+                "redirect_uri": redirect_uri,  # Must match the one used in auth URL
             },
             headers={"Accept": "application/json"},
             timeout=10,
@@ -82,9 +106,11 @@ async def github_callback(code: str):
 
     _TOKENS[access_token] = username
 
-    # In a real app we would set a secure cookie or session. For now return token.
-    return {"access_token": access_token, "username": username}
+    frontend_url = (
+        f"http://localhost:3000/?token={access_token}&username={username}"
+    )
 
+    return RedirectResponse(url=frontend_url)
 
 @router.post("/auth/logout")
 async def logout(token: str = Body(..., embed=True)):

@@ -1,14 +1,20 @@
 import { createBrowserRouter } from 'react-router-dom';
-import HomePage from '../pages/HomePage';
+import ResultsPage from '../pages/ResultsPage.jsx';
 import App from '../App';
 import CodeCity3D from '../components/Visualization/CodeCity3D';
 import GitHubUploadPage from '../pages/GitHubUploadPage.jsx';
+import GitHubCallbackPage from '../pages/GitHubCallbackPage.jsx';
 import BlockStack from '../components/Visualization/BlockStack.jsx';
+import Results from '../components/results/Results.jsx';
 
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <HomePage />,
+    element: <GitHubUploadPage />,
+  },
+  {
+    path: '/auth/callback/github',
+    element: <GitHubCallbackPage />,
   },
   {
     path: '/analyze',
@@ -19,8 +25,8 @@ const router = createBrowserRouter([
     element: <CodeCity3D />,
   },
   {
-    path: '/upload',
-    element: <GitHubUploadPage />,
+    path: '/results',
+    element: <ResultsPage />,
   },
   {
     path: '/stack',
