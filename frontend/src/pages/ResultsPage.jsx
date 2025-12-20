@@ -8,6 +8,7 @@ import CirclePackingVisualization from '../components/results/visualizations/Cir
 import TreemapVisualization from '../components/results/visualizations/TreemapVisualization';
 import ForceTreeVisualization from '../components/results/visualizations/ForceTreeVisualization';
 import RadarChartVisualization from '../components/results/visualizations/RadarChartVisualization';
+import CodeCity3DVisualization from '../components/results/visualizations/CodeCity3DVisualization';
 
 function ResultsPage() {
   const { state } = useLocation()
@@ -252,52 +253,24 @@ function ResultsPage() {
               </div>
 
               {/* Tab Navigation */}
-              <div className="flex gap-6 mb-6 border-b border-gray-200">
-                {['bar', 'block', 'tree', 'treemap', 'flower'].map((tab) => (
-                  <button
-                    key={tab}
-                    onClick={() => setActiveTab(tab)}
-                    className={`pb-3 px-1 font-medium transition-colors capitalize text-sm ${
-                      activeTab === tab
-                        ? 'text-blue-600 border-b-2 border-blue-600'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    {tab === 'bar' ? 'Bar' : tab === 'block' ? 'Block' : tab === 'flower' ? 'Flower' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-                  </button> 
-                ))}
-              </div>
-
-              {/* Bar Chart Visualization */}
-              {/* <div className="h-96 flex items-end justify-around gap-3 px-4">
-                {mockData.map((item, idx) => {
-                  const maxHeight = 320;
-                  const scale = maxHeight / 450;
-
-                  return (
-                    <div key={idx} className="flex flex-col items-center flex-1">
-                      <div className="w-full flex flex-col-reverse" style={{ height: `${maxHeight}px` }}>
-                        <div
-                          className="w-full bg-pink-300 rounded-t transition-all"
-                          style={{ height: `${item.pink * scale}px` }}
-                        />
-                        <div
-                          className="w-full bg-green-300"
-                          style={{ height: `${item.green * scale}px` }}
-                        />
-                        <div
-                          className="w-full bg-blue-400"
-                          style={{ height: `${item.blue * scale}px` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-600 mt-3">{item.name}</span>
-                    </div>
-                  );
-                })}
-              </div> */}
+                <div className="flex gap-6 mb-6 border-b border-gray-200">
+                  {['bar', 'block', 'tree', 'treemap', 'flower', 'city'].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveTab(tab)}
+                      className={`pb-3 px-1 font-medium transition-colors capitalize text-sm ${
+                        activeTab === tab
+                          ? 'text-blue-600 border-b-2 border-blue-600'
+                          : 'text-gray-500 hover:text-gray-700'
+                      }`}
+                    >
+                      {tab === 'bar' ? 'Bar' : tab === 'block' ? 'Block' : tab === 'flower' ? 'Flower' : tab === 'city' ? 'City 3D' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                    </button> 
+                  ))}
+                </div>
 
               {/* Visualization Content */}
-              <div className="h-[55vh] overflow-auto">
+              <div className={`h-[55vh] ${activeTab === 'city' ? 'overflow-hidden' : 'overflow-auto'}`}>
                 {activeTab === 'bar' && individual_files?.length > 0 && (
                   <BarChartVisualization 
                     individualFiles={individual_files} 
@@ -315,6 +288,12 @@ function ResultsPage() {
                 )}
                 {activeTab === 'flower' && individual_files?.length > 0 && (
                   <RadarChartVisualization individualFiles={individual_files} />
+                )}
+                {activeTab === 'city' && individual_files?.length > 0 && (
+                  <CodeCity3DVisualization 
+                    individualFiles={individual_files} 
+                    onFunctionClick={handleFunctionClick}
+                  />
                 )}
                 {(!individual_files?.length || individual_files.length === 0) && (
                   <div className="flex items-center justify-center h-full text-gray-400">
