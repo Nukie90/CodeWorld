@@ -732,8 +732,8 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       if (keys['s']) moveVector.z += moveSpeed;
       if (keys['a']) moveVector.x -= moveSpeed;
       if (keys['d']) moveVector.x += moveSpeed;
-      if (keys[' ']) moveVector.y += moveSpeed;
-      if (keys['shift']) moveVector.y -= moveSpeed;
+      if (keys['q']) moveVector.y += moveSpeed;
+      if (keys['e']) moveVector.y -= moveSpeed;
       
       if (moveVector.length() > 0) {
         const cameraDirection = new THREE.Vector3();
@@ -866,11 +866,9 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         <h4 className="font-bold text-sm mb-2 text-amber-100">🎮 Controls</h4>
         <div className="space-y-1 text-xs text-amber-50">
           <div>WASD - Move around</div>
-          <div>Space/Shift - Up/Down</div>
-          <div>Click anywhere - Lock cursor</div>
-          <div>Move mouse - Look around</div>
-          <div>ESC - Unlock cursor</div>
-          <div>Click block - View code</div>
+          <div>QE - Up/Down</div>
+          <div>ESC - Exit</div>
+          <div>click - View code</div>
         </div>
       </div>
 

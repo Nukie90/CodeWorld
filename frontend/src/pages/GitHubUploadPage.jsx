@@ -94,7 +94,7 @@ function GitHubUploadPage() {
               Code Analysis Tool
             </h2>
             <p className="text-gray-600">
-              Upload github repo for complexity analysis
+              Select github repo for complexity analysis
             </p>
           </div>
 
