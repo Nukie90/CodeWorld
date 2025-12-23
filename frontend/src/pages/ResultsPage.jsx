@@ -9,6 +9,7 @@ import TreemapVisualization from '../components/results/visualizations/TreemapVi
 import ForceTreeVisualization from '../components/results/visualizations/ForceTreeVisualization';
 import RadarChartVisualization from '../components/results/visualizations/RadarChartVisualization';
 import CodeCity3DVisualization from '../components/results/visualizations/CodeCity3DVisualization';
+import CodeGalaxySolarSystem from '../components/results/visualizations/CodeGalaxySolarSystem';
 
 function ResultsPage() {
   const { state } = useLocation()
@@ -254,7 +255,7 @@ function ResultsPage() {
 
               {/* Tab Navigation */}
                 <div className="flex gap-6 mb-6 border-b border-gray-200">
-                  {['bar', 'block', 'tree', 'treemap', 'flower', 'city'].map((tab) => (
+                  {['bar', 'block', 'tree', 'treemap', 'flower', 'city', 'galaxy'].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -292,6 +293,12 @@ function ResultsPage() {
                 {activeTab === 'city' && individual_files?.length > 0 && (
                   <CodeCity3DVisualization 
                     individualFiles={individual_files} 
+                    onFunctionClick={handleFunctionClick}
+                  />
+                )}
+                {activeTab === 'galaxy' && individual_files?.length > 0 && (
+                  <CodeGalaxySolarSystem
+                    individualFiles={individual_files}
                     onFunctionClick={handleFunctionClick}
                   />
                 )}
