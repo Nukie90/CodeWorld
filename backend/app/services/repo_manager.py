@@ -241,7 +241,7 @@ def checkout_branch(repo_url: str, branch: str, token: Optional[str] = None) -> 
     return path
 
 
-def get_commit_history(repo_url: str, branch: Optional[str] = None, limit: int = 50, token: Optional[str] = None) -> list:
+def get_commit_history(repo_url: str, branch: Optional[str] = None, limit: int = 50, skip: int = 0, token: Optional[str] = None) -> list:
     """Get commit history for a repository. Returns list of commit dicts."""
     path = get_cached_path(repo_url)
     if not path or not os.path.exists(path):
@@ -266,7 +266,15 @@ def get_commit_history(repo_url: str, branch: Optional[str] = None, limit: int =
     try:
         format_str = "%H|%an|%ad|%s"
         date_format = "--date=iso"
-        args = ["log", f"--pretty=format:{format_str}", date_format, f"-{limit}"]
+        args = ["log", f"--pretty=format:{format_str}", date_format]
+        
+        # Add skip if specified
+        if skip > 0:
+            args.append(f"--skip={skip}")
+        
+        # Add limit
+        args.append(f"-{limit}")
+        
         # If branch was checked out successfully, use HEAD (current branch)
         # Otherwise, try to use the branch name directly (normalize if needed)
         if branch and not branch_checked_out:

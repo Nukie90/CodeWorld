@@ -5,36 +5,66 @@ import { GitCommit, Calendar, User } from 'lucide-react';
 function GitGraph({ repoUrl, branch, token }) {
   const [commits, setCommits] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
   const [selectedCommit, setSelectedCommit] = useState(null);
+  const [skip, setSkip] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const COMMITS_PER_PAGE = 20;
 
-  const fetchCommits = useCallback(async () => {
-    setLoading(true);
+  const fetchCommits = useCallback(async (skipCount = 0, append = false) => {
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoading(true);
+    }
     setError(null);
     try {
       const resp = await axios.post('http://127.0.0.1:8000/api/repo/commits', {
         repo_url: repoUrl,
         branch: branch,
-        limit: 5,
+        limit: COMMITS_PER_PAGE,
+        skip: skipCount,
         token: token
       });
-      setCommits(resp.data.commits || []);
+      const newCommits = resp.data.commits || [];
+      
+      if (append) {
+        setCommits(prev => [...prev, ...newCommits]);
+      } else {
+        setCommits(newCommits);
+      }
+      
+      // If we got fewer commits than requested, there are no more
+      setHasMore(newCommits.length === COMMITS_PER_PAGE);
+      setSkip(skipCount + newCommits.length);
     } catch (err) {
       console.error('Failed to fetch commits', err);
       setError('Failed to load commit history');
     } finally {
       setLoading(false);
+      setLoadingMore(false);
     }
   }, [repoUrl, branch, token]);
 
   useEffect(() => {
     if (repoUrl && branch) {
-      fetchCommits();
+      setSkip(0);
+      setHasMore(true);
+      fetchCommits(0, false);
     } else {
       setCommits([]);
       setError(null);
+      setSkip(0);
+      setHasMore(true);
     }
   }, [repoUrl, branch, fetchCommits]);
+
+  const handleLoadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchCommits(skip, true);
+    }
+  };
 
   const handleCommitDoubleClick = (commit) => {
     setSelectedCommit(commit);
@@ -81,25 +111,26 @@ function GitGraph({ repoUrl, branch, token }) {
   }
 
   return (
-    <div className="h-full overflow-auto">
-      <div className="space-y-3 p-2">
-        {commits.map((commit) => (
-          <div
-            key={commit.hash}
-            className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 hover:border-blue-300 transition-colors cursor-pointer group"
-            onDoubleClick={() => handleCommitDoubleClick(commit)}
-          >
-            {/* Commit info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
-                  {commit.message || 'No message'}
-                </p>
-                <span className="text-xs font-mono text-gray-500 flex-shrink-0 truncate">
-                  {getShortHash(commit.hash)}
-                </span>
-              </div>
-              
+    <div className="h-full flex flex-col">
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="space-y-3 p-2">
+          {commits.map((commit) => (
+            <div
+              key={commit.hash}
+              className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 hover:border-blue-300 transition-colors cursor-pointer group"
+              onDoubleClick={() => handleCommitDoubleClick(commit)}
+            >
+              {/* Commit info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
+                    {commit.message || 'No message'}
+                  </p>
+                  <span className="text-xs font-mono text-gray-500 flex-shrink-0 truncate">
+                    {getShortHash(commit.hash)}
+                  </span>
+                </div>
+                
                 <div className="flex items-center gap-1 text-xs text-gray-500 truncate">
                   <User size={12} />
                   <span className="truncate">{commit.author || 'Unknown'}</span>
@@ -108,12 +139,26 @@ function GitGraph({ repoUrl, branch, token }) {
                   <Calendar size={12} />
                   <span>{formatDate(commit.date)}</span>
                 </div>
-              <div className="flex items-center gap-4 text-xs text-gray-500 truncate">
+                <div className="flex items-center gap-4 text-xs text-gray-500 truncate">
+                </div>
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
+
+      {/* Load More Button */}
+      {hasMore && commits.length > 0 && (
+        <div className="p-3 border-t border-gray-200">
+          <button
+            onClick={handleLoadMore}
+            disabled={loadingMore}
+            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+          >
+            {loadingMore ? 'Loading...' : 'Load More'}
+          </button>
+        </div>
+      )}
 
       {/* Commit detail modal */}
       {selectedCommit && (

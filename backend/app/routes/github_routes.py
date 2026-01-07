@@ -43,6 +43,7 @@ class CommitHistoryRequest(BaseModel):
     repo_url: str
     branch: Optional[str] = None
     limit: Optional[int] = 50
+    skip: Optional[int] = 0
     token: Optional[str] = None
 
 
@@ -354,6 +355,7 @@ async def get_commit_history(payload: CommitHistoryRequest):
             payload.repo_url,
             branch=payload.branch,
             limit=payload.limit or 50,
+            skip=payload.skip or 0,
             token=payload.token
         )
         return {"commits": commits}
