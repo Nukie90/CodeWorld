@@ -177,14 +177,19 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
   const [details, setDetails] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [parsedFiles, setParsedFiles] = useState([]);
+  const [fileDiffs, setFileDiffs] = useState({});
 
   useEffect(() => {
     fetchCommitDetails();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [commit.hash]);
 
   const fetchCommitDetails = async () => {
     setLoading(true);
     setError(null);
+    setSelectedFile(null);
     try {
       const resp = await axios.post('http://127.0.0.1:8000/api/repo/commit-details', {
         repo_url: repoUrl,
@@ -192,12 +197,80 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
         token: token
       });
       setDetails(resp.data);
+      
+      // Parse files changed
+      if (resp.data.files_changed && resp.data.files_changed.length > 0) {
+        const parsed = parseFilesChanged(resp.data.files_changed);
+        setParsedFiles(parsed);
+      }
+      
+      // Parse diff into per-file diffs
+      if (resp.data.diff) {
+        const diffs = parseDiffByFile(resp.data.diff);
+        setFileDiffs(diffs);
+      }
     } catch (err) {
       console.error('Failed to fetch commit details', err);
       setError('Failed to load commit details');
     } finally {
       setLoading(false);
     }
+  };
+
+  const parseFilesChanged = (files) => {
+    return files.map(file => {
+      // Format: "filename | X +Y -Z" or just "filename"
+      const parts = file.split('|');
+      const filename = parts[0].trim();
+      let additions = 0;
+      let deletions = 0;
+      
+      if (parts.length > 1) {
+        const stats = parts[1].trim();
+        // Extract numbers from "+Y -Z" format
+        const addMatch = stats.match(/(\d+)\s*\+/);
+        const delMatch = stats.match(/(\d+)\s*-/);
+        additions = addMatch ? parseInt(addMatch[1]) : 0;
+        deletions = delMatch ? parseInt(delMatch[1]) : 0;
+      }
+      
+      return { filename, additions, deletions, raw: file };
+    });
+  };
+
+  const parseDiffByFile = (diff) => {
+    const fileDiffs = {};
+    const lines = diff.split('\n');
+    let currentFile = null;
+    let currentDiff = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      
+      // Check for file header
+      if (line.startsWith('diff --git')) {
+        // Save previous file diff
+        if (currentFile && currentDiff.length > 0) {
+          fileDiffs[currentFile] = currentDiff.join('\n');
+        }
+        
+        // Extract filename from "diff --git a/path b/path"
+        const match = line.match(/diff --git a\/(.+?) b\/(.+)/);
+        if (match) {
+          currentFile = match[2]; // Use the 'b' path (new file)
+          currentDiff = [line];
+        }
+      } else if (currentFile) {
+        currentDiff.push(line);
+      }
+    }
+    
+    // Save last file diff
+    if (currentFile && currentDiff.length > 0) {
+      fileDiffs[currentFile] = currentDiff.join('\n');
+    }
+    
+    return fileDiffs;
   };
 
   const formatDate = (dateString) => {
@@ -217,30 +290,76 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
     if (!diff) return null;
     
     const lines = diff.split('\n');
+    let oldLineNum = 0;
+    let newLineNum = 0;
+    
     return lines.map((line, idx) => {
-      let className = 'text-gray-800';
-      if (line.startsWith('+')) {
-        className = 'text-green-600 bg-green-50';
-      } else if (line.startsWith('-')) {
-        className = 'text-red-600 bg-red-50';
-      } else if (line.startsWith('@@')) {
-        className = 'text-blue-600 bg-blue-50 font-semibold';
+      let className = 'text-gray-300';
+      let bgColor = 'bg-gray-900';
+      let lineNum = null;
+      
+      // Parse hunk header: @@ -oldStart,oldCount +newStart,newCount @@
+      if (line.startsWith('@@')) {
+        const match = line.match(/@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
+        if (match) {
+          const oldStart = parseInt(match[1]);
+          const newStart = parseInt(match[3]);
+          oldLineNum = oldStart - 1;
+          newLineNum = newStart - 1;
+        }
+        className = 'text-blue-400 bg-blue-900/30 font-semibold';
+        bgColor = 'bg-gray-900';
       } else if (line.startsWith('diff --git') || line.startsWith('index') || line.startsWith('---') || line.startsWith('+++')) {
-        className = 'text-gray-600 bg-gray-50';
+        className = 'text-gray-400 bg-gray-800/50';
+        bgColor = 'bg-gray-900';
+      } else if (line.startsWith('+') && !line.startsWith('+++')) {
+        newLineNum++;
+        lineNum = newLineNum;
+        className = 'text-green-400';
+        bgColor = 'bg-green-900/20';
+      } else if (line.startsWith('-') && !line.startsWith('---')) {
+        oldLineNum++;
+        lineNum = oldLineNum;
+        className = 'text-red-400';
+        bgColor = 'bg-red-900/20';
+      } else if (line.startsWith('\\')) {
+        className = 'text-gray-500';
+        bgColor = 'bg-gray-900';
+      } else {
+        // Context line
+        oldLineNum++;
+        newLineNum++;
+        lineNum = newLineNum;
+        className = 'text-gray-300';
+        bgColor = 'bg-gray-900';
       }
       
+      const lineContent = line.startsWith('+') || line.startsWith('-') 
+        ? line.substring(1) 
+        : line.startsWith('@@') || line.startsWith('diff') || line.startsWith('index') || line.startsWith('---') || line.startsWith('+++') || line.startsWith('\\')
+        ? line
+        : line;
+      
       return (
-        <div key={idx} className={`px-2 py-0.5 font-mono text-xs ${className}`}>
-          {line || ' '}
+        <div key={idx} className={`flex ${bgColor} hover:bg-opacity-50 transition-colors`}>
+          <div className="flex-shrink-0 w-16 text-right pr-4 text-gray-500 text-xs select-none border-r border-gray-700">
+            {lineNum !== null && !line.startsWith('diff') && !line.startsWith('index') && !line.startsWith('---') && !line.startsWith('+++') && !line.startsWith('@@') && !line.startsWith('\\') ? lineNum : ''}
+          </div>
+          <div className="flex-shrink-0 w-8 text-center text-gray-600 text-xs select-none">
+            {line.startsWith('+') && !line.startsWith('+++') ? '+' : line.startsWith('-') && !line.startsWith('---') ? '-' : ''}
+          </div>
+          <div className={`flex-1 px-2 py-0.5 font-mono text-xs ${className} whitespace-pre-wrap break-words`}>
+            {lineContent}
+          </div>
         </div>
       );
     });
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div 
-        className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] flex flex-col"
+        className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
@@ -300,21 +419,79 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
               </div>
 
               {/* Files Changed */}
-              {details.files_changed && details.files_changed.length > 0 && (
+              {parsedFiles.length > 0 && (
                 <div>
-                  <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block">Files Changed</label>
-                  <div className="bg-gray-50 rounded-lg p-3 space-y-1">
-                    {details.files_changed.map((file, idx) => (
-                      <div key={idx} className="text-sm font-mono text-gray-700">
-                        {file}
+                  <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block">
+                    Files Changed ({parsedFiles.length})
+                  </label>
+                  <div className="bg-gray-50 rounded-lg border border-gray-200 divide-y divide-gray-200">
+                    {parsedFiles.map((file, idx) => (
+                      <div
+                        key={idx}
+                        onClick={() => setSelectedFile(selectedFile === file.filename ? null : file.filename)}
+                        className={`p-3 cursor-pointer hover:bg-gray-100 transition-colors ${
+                          selectedFile === file.filename ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <span className="text-sm font-medium text-gray-900 truncate">
+                              {file.filename}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 flex-shrink-0 ml-4">
+                            {file.additions > 0 && (
+                              <span className="text-xs text-green-600 font-medium">
+                                +{file.additions}
+                              </span>
+                            )}
+                            {file.deletions > 0 && (
+                              <span className="text-xs text-red-600 font-medium">
+                                -{file.deletions}
+                              </span>
+                            )}
+                            <svg 
+                              className={`w-4 h-4 text-gray-400 transition-transform ${
+                                selectedFile === file.filename ? 'rotate-90' : ''
+                              }`}
+                              fill="none" 
+                              stroke="currentColor" 
+                              viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </div>
+                        </div>
                       </div>
                     ))}
                   </div>
                 </div>
               )}
 
-              {/* Diff */}
-              {details.diff && (
+              {/* File Diff */}
+              {selectedFile && fileDiffs[selectedFile] && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-xs font-semibold text-gray-500 uppercase">
+                      Changes in {selectedFile}
+                    </label>
+                    <button
+                      onClick={() => setSelectedFile(null)}
+                      className="text-xs text-gray-500 hover:text-gray-700"
+                    >
+                      Hide
+                    </button>
+                  </div>
+                  <div className="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
+                    <div className="overflow-auto max-h-96">
+                      {renderDiff(fileDiffs[selectedFile])}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Show all diff if no file selected */}
+              {!selectedFile && details.diff && parsedFiles.length === 0 && (
                 <div>
                   <label className="text-xs font-semibold text-gray-500 uppercase mb-2 block">Changes</label>
                   <div className="bg-gray-900 rounded-lg overflow-hidden border border-gray-700">
@@ -326,16 +503,6 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
               )}
             </div>
           ) : null}
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200 flex justify-end">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>
