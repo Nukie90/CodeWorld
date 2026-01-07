@@ -10,6 +10,7 @@ import ForceTreeVisualization from '../components/results/visualizations/ForceTr
 import RadarChartVisualization from '../components/results/visualizations/RadarChartVisualization';
 import CodeCity3DVisualization from '../components/results/visualizations/CodeCity3DVisualization';
 import CodeGalaxySolarSystem from '../components/results/visualizations/CodeGalaxySolarSystem';
+import GitGraph from '../components/git/GitGraph';
 
 function ResultsPage() {
   const { state } = useLocation()
@@ -211,9 +212,9 @@ function ResultsPage() {
         <div ref={containerRef} className="flex gap-0 mb-6 relative">
           {/* Left Panel - Graph */}
           <div style={{ width: `${graphWidth}%` }} className="pr-3">
-            <div className="bg-white rounded-lg shadow p-4 h-full min-h-[500px]">
+            <div className="bg-white rounded-lg shadow p-4 h-full min-h-[500px] flex flex-col">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold">Graph</h3>
+                <h3 className="text-lg font-semibold">Git Graph</h3>
                 <div className="flex gap-1">
                   <button className="text-gray-400 hover:text-gray-600">
                     <ChevronLeft size={16} />
@@ -226,12 +227,30 @@ function ResultsPage() {
                   </button>
                 </div>
               </div>
-              <select value={currentBranch} onChange={handleBranchChange} disabled={branchLoading || branches.length === 0} className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm">
+              <select 
+                value={currentBranch} 
+                onChange={handleBranchChange} 
+                disabled={branchLoading || branches.length === 0} 
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm mb-4"
+              >
                 <option value="">Select branch</option>
-                  {branches.map((b) => (
-                    <option key={b} value={b}>{b}</option>
+                {branches.map((b) => (
+                  <option key={b} value={b}>{b}</option>
                 ))}
               </select>
+              {analysisResult?.repo_url && currentBranch ? (
+                <div className="flex-1 overflow-hidden">
+                  <GitGraph 
+                    repoUrl={analysisResult.repo_url} 
+                    branch={currentBranch} 
+                    token={token}
+                  />
+                </div>
+              ) : (
+                <div className="flex-1 flex items-center justify-center text-gray-400 text-sm">
+                  {!currentBranch ? 'Please select a branch to view commit history' : 'Loading...'}
+                </div>
+              )}
             </div>
           </div>
 

@@ -239,3 +239,106 @@ def checkout_branch(repo_url: str, branch: str, token: Optional[str] = None) -> 
             subprocess.run(["git", "-C", path, "checkout", branch], check=True)
 
     return path
+
+
+def get_commit_history(repo_url: str, branch: Optional[str] = None, limit: int = 50, token: Optional[str] = None) -> list:
+    """Get commit history for a repository. Returns list of commit dicts."""
+    path = get_cached_path(repo_url)
+    if not path or not os.path.exists(path):
+        path = clone_repo(repo_url, token=token)
+    
+    # Fetch latest changes
+    try:
+        subprocess.run(["git", "-C", path, "fetch", "--all"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except subprocess.CalledProcessError:
+        pass
+    
+    # Checkout branch if specified
+    branch_checked_out = False
+    if branch:
+        try:
+            checkout_branch(repo_url, branch, token=token)
+            branch_checked_out = True
+        except Exception:
+            pass
+    
+    # Get commit log with format: hash|author|date|message
+    try:
+        format_str = "%H|%an|%ad|%s"
+        date_format = "--date=iso"
+        args = ["log", f"--pretty=format:{format_str}", date_format, f"-{limit}"]
+        # If branch was checked out successfully, use HEAD (current branch)
+        # Otherwise, try to use the branch name directly (normalize if needed)
+        if branch and not branch_checked_out:
+            # Normalize branch name - remove origin/ prefix if present
+            normalized_branch = branch
+            if normalized_branch.startswith("origin/"):
+                normalized_branch = normalized_branch.replace("origin/", "", 1)
+            args.append(normalized_branch)
+        
+        output = _run_git(path, args)
+        commits = []
+        
+        for line in output.strip().split('\n'):
+            if not line:
+                continue
+            parts = line.split('|', 3)
+            if len(parts) == 4:
+                commits.append({
+                    "hash": parts[0],
+                    "author": parts[1],
+                    "date": parts[2],
+                    "message": parts[3]
+                })
+        
+        return commits
+    except Exception as exc:
+        return []
+
+
+def get_commit_details(repo_url: str, commit_hash: str, token: Optional[str] = None) -> dict:
+    """Get detailed information about a specific commit including changes."""
+    path = get_cached_path(repo_url)
+    if not path or not os.path.exists(path):
+        path = clone_repo(repo_url, token=token)
+    
+    try:
+        # Get commit info
+        format_str = "%H|%an|%ae|%ad|%s|%b"
+        date_format = "--date=iso"
+        commit_info = _run_git(path, ["show", "--pretty=format:" + format_str, date_format, "--no-patch", commit_hash])
+        
+        parts = commit_info.strip().split('|', 5)
+        if len(parts) < 5:
+            raise ValueError("Invalid commit format")
+        
+        commit_data = {
+            "hash": parts[0],
+            "author": parts[1],
+            "email": parts[2],
+            "date": parts[3],
+            "message": parts[4],
+            "body": parts[5] if len(parts) > 5 else ""
+        }
+        
+        # Get file changes
+        diff_output = _run_git(path, ["show", "--stat", "--format=", commit_hash])
+        files_changed = []
+        
+        # Parse diff --stat output
+        for line in diff_output.strip().split('\n'):
+            if '|' in line and 'file' not in line.lower():
+                # Format: filename | X +Y -Z
+                file_info = line.strip()
+                if file_info:
+                    files_changed.append(file_info)
+        
+        commit_data["files_changed"] = files_changed
+        
+        # Get actual diff
+        diff_output = _run_git(path, ["show", commit_hash])
+        commit_data["diff"] = diff_output
+        
+        return commit_data
+    except Exception as exc:
+        raise ValueError(f"Failed to get commit details: {str(exc)}")

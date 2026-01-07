@@ -39,6 +39,19 @@ class FunctionCodeRequest(BaseModel):
     token: Optional[str] = None
 
 
+class CommitHistoryRequest(BaseModel):
+    repo_url: str
+    branch: Optional[str] = None
+    limit: Optional[int] = 50
+    token: Optional[str] = None
+
+
+class CommitDetailsRequest(BaseModel):
+    repo_url: str
+    commit_hash: str
+    token: Optional[str] = None
+
+
 @router.get("/auth/github/login")
 async def github_login(request: Request):
     client_id = os.environ.get("GITHUB_CLIENT_ID")
@@ -331,3 +344,34 @@ async def get_function_code(payload: FunctionCodeRequest):
         raise
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to retrieve function code: {str(exc)}")
+
+
+@router.post("/repo/commits")
+async def get_commit_history(payload: CommitHistoryRequest):
+    """Get commit history for a repository."""
+    try:
+        commits = repo_manager.get_commit_history(
+            payload.repo_url,
+            branch=payload.branch,
+            limit=payload.limit or 50,
+            token=payload.token
+        )
+        return {"commits": commits}
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to get commit history: {str(exc)}")
+
+
+@router.post("/repo/commit-details")
+async def get_commit_details(payload: CommitDetailsRequest):
+    """Get detailed information about a specific commit."""
+    try:
+        commit_details = repo_manager.get_commit_details(
+            payload.repo_url,
+            payload.commit_hash,
+            token=payload.token
+        )
+        return commit_details
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to get commit details: {str(exc)}")
