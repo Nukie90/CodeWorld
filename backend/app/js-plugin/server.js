@@ -1,20 +1,13 @@
 const express = require('express');
 const cors = require('cors');
-const multer = require('multer');
 const parser = require('@babel/parser');
 const traverse = require('@babel/traverse').default;
-const generate = require('@babel/generator').default;
-const fs = require('fs');
-const path = require('path');
+const fs = require('node:fs');
+const path = require('node:path');
+const os = require('node:os');
 const AdmZip = require('adm-zip');
 
 const app = express();
-const upload = multer({ dest: 'uploads/' });
-
-// Ensure uploads directory exists
-if (!fs.existsSync('uploads')) {
-    fs.mkdirSync('uploads');
-}
 
 app.use(cors());
 app.use(express.json());
@@ -26,12 +19,27 @@ function calculateMetrics(code) {
             plugins: ['jsx', 'typescript', 'classProperties', 'classPrivateProperties', 'objectRestSpread'],
             ranges: true,
             locations: true,
-            allowReturnOutsideFunction: true
+            allowReturnOutsideFunction: true,
+            tokens: true
         });
+
+        // Helper to count lines from tokens
+        const countTokenLines = (tokens) => {
+            const lines = new Set();
+            tokens.forEach(t => {
+                // Skip comments
+                if (t.type === 'CommentLine' || t.type === 'CommentBlock') return;
+
+                const start = t.loc.start.line;
+                const end = t.loc.end.line;
+                for (let i = start; i <= end; i++) lines.add(i);
+            });
+            return lines.size;
+        };
 
         const metrics = {
             LOC: code.split('\n').length,
-            NLOC: code.split('\n').filter(l => l.trim()).length,
+            NLOC: countTokenLines(ast.tokens),
             NOF: 0,
             functions: []
         };
@@ -52,7 +60,8 @@ function calculateMetrics(code) {
                         functionName = par.node.id.name;                         // const foo = () => {}
                     } else if (par?.isObjectProperty() && par.node.key.type === 'Identifier') {
                         functionName = par.node.key.name;                        // const o = { foo() {} }
-                    } else if (p.isClassMethod() || p.isObjectMethod()) {
+                    }
+                    else if (p.isClassMethod() || p.isObjectMethod()) {
                         const key = fnNode.key;
                         if (key?.type === 'Identifier') functionName = key.name; // class X { foo() {} }
                     }
@@ -61,10 +70,13 @@ function calculateMetrics(code) {
                 // Safe slice by character range (no manual line/column math!)
                 const start = fnNode.start ?? 0;
                 const end = fnNode.end ?? code.length;
-                const functionCode = code.slice(start, end);
+                // const functionCode = code.slice(start, end);
 
                 const lineStart = fnNode.loc?.start?.line ?? null;
                 const lineEnd = fnNode.loc?.end?.line ?? null;
+
+                // Filter tokens belonging to this function
+                const fnTokens = ast.tokens.filter(t => t.start >= start && t.end <= end);
 
                 metrics.NOF += 1;
                 // Calculate base nesting from ancestors
@@ -87,12 +99,17 @@ function calculateMetrics(code) {
                     curr = curr.parentPath;
                 }
 
+                const { complexity, maxNesting } = calculateCognitiveComplexity(p, baseNesting, functionName);
+
                 metrics.functions.push({
                     name: functionName,
-                    NLOC: functionCode.split('\n').filter(l => l.trim()).length,
-                    CC: calculateCognitiveComplexity(p, baseNesting), // Pass the NodePath and baseNesting
+                    NLOC: countTokenLines(fnTokens),
+                    CC: complexity,
+                    maxNesting,
                     lineStart,
-                    lineEnd
+                    lineEnd,
+                    id: start,
+                    parentId: p.getFunctionParent()?.node?.start ?? null
                 });
             }
         });
@@ -157,9 +174,20 @@ function calculateMetrics(code) {
 //   }
 // }
 
-function calculateCognitiveComplexity(funcPath, baseNesting = 0) {
+function calculateCognitiveComplexity(funcPath, baseNesting = 0, functionName = null) {
     let complexity = 0;
     let nesting = baseNesting;
+    let maxNesting = 0; // Track max depth encountered relative to this function
+
+    // Helper to update max nesting
+    function checkNesting() {
+        // current absolute nesting - baseNesting = depth inside this function
+        // Or is max_nesting_depth absolute? Usually relative to function start.
+        // Let's assume relative depth (depth of control structures within function).
+        // So if we are at `nesting`, relative depth is `nesting - baseNesting`.
+        const depth = nesting - baseNesting;
+        if (depth > maxNesting) maxNesting = depth;
+    }
 
     // Increment for structural elements (if, looping, catch)
     function addStructural() {
@@ -179,54 +207,66 @@ function calculateCognitiveComplexity(funcPath, baseNesting = 0) {
                 return;
             }
 
+            // --- Recursion ---
+            if (path.isCallExpression() && functionName) {
+                const callee = path.node.callee;
+                if (callee.type === 'Identifier' && callee.name === functionName) {
+                    addFundamental();
+                }
+            }
+
+            // --- Break/Continue with Label ---
+            if ((path.isBreakStatement() || path.isContinueStatement()) && path.node.label) {
+                addFundamental();
+            }
+
             // --- Control Flow ---
             if (path.isIfStatement()) {
                 const isElseIf = path.key === 'alternate' && path.parentPath.isIfStatement();
 
                 if (isElseIf) {
-                    // Else-if should not increase nesting relative to the chain
-                    // Parent nesting included us, so cost is flat (+1 structural)
-                    // We calculate cost using (nesting - 1) to simulate being at parent's level
                     complexity += 1 + (nesting - 1);
                 } else {
                     addStructural();
                     nesting++;
+                    checkNesting();
                 }
 
-                // Check for 'else' (non-if alternate)
                 if (path.node.alternate && path.node.alternate.type !== 'IfStatement') {
                     addFundamental();
                 }
             }
             else if (path.isSwitchStatement()) {
                 nesting++;
+                checkNesting();
             }
             else if (path.isSwitchCase()) {
-                addFundamental(); // Covers case and default
+                addFundamental();
             }
             else if (path.isForStatement() || path.isForInStatement() || path.isForOfStatement() ||
                 path.isWhileStatement() || path.isDoWhileStatement()) {
                 addStructural();
                 nesting++;
+                checkNesting();
             }
             else if (path.isCatchClause()) {
                 addStructural();
-                nesting++; // Catch block implies nesting
+                nesting++;
+                checkNesting();
             }
-            // --- Logical Operators (&&, ||, ??) ---
+            // --- Logical Operators ---
             else if (path.isLogicalExpression()) {
                 const op = path.node.operator;
                 if (op === '&&' || op === '||' || op === '??') {
-                    // Only add if not part of a sequence of the same operator
                     if (!path.parentPath.isLogicalExpression() || path.parentPath.node.operator !== op) {
                         addFundamental();
                     }
                 }
             }
-            // Removed ConditionalExpression to match user expectation (CC=1 for formatFileSize)
             else if (path.isConditionalExpression()) {
                 addStructural();
                 nesting++;
+                checkNesting();
             }
         },
         exit(path) {
@@ -246,7 +286,7 @@ function calculateCognitiveComplexity(funcPath, baseNesting = 0) {
         }
     });
 
-    return complexity;
+    return { complexity, maxNesting };
 }
 
 function analyzeFile(filePath) {
@@ -337,15 +377,15 @@ function analyzeFileAt(filePath, rootPathForRel) {
     }
 }
 
-app.post('/analyze-zip', upload.single('file'), (req, res) => {
+app.post('/analyze-zip', (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
     }
 
     try {
         console.log('Received file:', req.file.originalname);
-        const zip = new AdmZip(req.file.path);
-        const extractPath = path.join('uploads', 'extracted_' + Date.now());
+        const zip = new AdmZip(req.file.buffer);
+        const extractPath = path.join(os.tmpdir(), 'extracted_' + Date.now());
 
         // Create extraction directory
         if (!fs.existsSync(extractPath)) fs.mkdirSync(extractPath);
@@ -383,8 +423,8 @@ app.post('/analyze-zip', upload.single('file'), (req, res) => {
         })(rootPath);
 
 
-        // Clean up uploaded file and extracted contents
-        fs.unlinkSync(req.file.path);
+        // Clean up extracted contents
+        // req.file is in memory, so no path to unlink
         cleanupDirectory(extractPath);
 
         res.json({
@@ -394,24 +434,25 @@ app.post('/analyze-zip', upload.single('file'), (req, res) => {
         });
     } catch (error) {
         // Clean up on error
-        if (req.file && fs.existsSync(req.file.path)) {
-            fs.unlinkSync(req.file.path);
-        }
+        // req.file is in memory
+
         res.status(500).json({ error: error.message });
     }
 });
 
 // Keep the original single file endpoint
-app.post('/analyze', upload.single('file'), (req, res) => {
+app.post('/analyze', (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
     }
 
     try {
-        const result = analyzeFile(req.file.path);
-
-        // Clean up uploaded file
-        fs.unlinkSync(req.file.path);
+        // Calculate without saving to disk first
+        const metrics = calculateMetrics(req.file.buffer.toString('utf8'));
+        const result = {
+            fileName: req.file.originalname,
+            metrics: metrics
+        };
 
         res.json(result.metrics);
     } catch (error) {
@@ -429,39 +470,98 @@ app.post('/analyze-code', express.json(), (req, res) => {
     try {
         const babelMetrics = calculateMetrics(code);
 
+        // Sort by ID to preserve order
+        babelMetrics.functions.sort((a, b) => a.id - b.id);
+
+        const fnMap = new Map();
+        const childrenMap = new Map();
+        const roots = [];
+
+        // Initialize maps
+        babelMetrics.functions.forEach(f => {
+            f.children = []; // Prepare for nesting
+            fnMap.set(f.id, f);
+            childrenMap.set(f.id, []);
+        });
+
+        // Build hierarchy
+        babelMetrics.functions.forEach(f => {
+            if (f.parentId !== null && fnMap.has(f.parentId)) {
+                childrenMap.get(f.parentId).push(f);
+            } else {
+                roots.push(f);
+            }
+        });
+
+        // Compute Total CC recursively and build nested structure
+        function processNode(fnId) {
+            const f = fnMap.get(fnId);
+            const children = childrenMap.get(fnId);
+            let childSum = 0;
+
+            children.forEach(c => {
+                childSum += processNode(c.id);
+                f.children.push(c); // Add child object to parent
+            });
+
+            f.totalCC = f.CC + childSum;
+
+            // Format for response
+            // We want to return specific fields, so let's attach processed properties or just return the object?
+            // User likely wants the same fields as before plus hierarchy.
+            // Let's modify the object in place or map it differently if needed.
+            // But previous fields were snake_case for the response.
+
+            return f.totalCC;
+        }
+
+        roots.forEach(r => processNode(r.id));
+
+        // Helper to format the tree for response recursively
+        function formatFunction(f, parentLongName = '') {
+            const currentLongName = parentLongName ? `${parentLongName}.${f.name}` : f.name;
+
+            const children = f.children.map(c => formatFunction(c, currentLongName));
+
+            return {
+                cognitive_complexity: f.CC,
+                total_cognitive_complexity: f.totalCC, // Add total CC
+                nloc: f.NLOC,
+                token_count: 0,
+                name: f.name,
+                long_name: currentLongName,
+                start_line: f.lineStart,
+                end_line: f.lineEnd, // Available now
+                max_nesting_depth: f.maxNesting || 0,
+                children: children
+            };
+        }
+
+        const hierarchicalFunctions = roots.map(r => formatFunction(r, ''));
+
+        // Recalculate global stats if needed, or just return top-level stats
         let complexity_sum = 0;
         let complexity_max = 0;
 
-        const functions = babelMetrics.functions.map(f => {
-            const cc = f.CC;
-            complexity_sum += cc;
-            if (cc > complexity_max) {
-                complexity_max = cc;
-            }
-            return {
-                cyclomatic_complexity: cc,
-                nloc: f.NLOC,
-                token_count: 0, // Not available from babel parser
-                name: f.name,
-                long_name: f.name, // Use name as long_name
-                start_line: f.lineStart,
-                end_line: 0, // Not available
-                max_nesting_depth: 0, // Not available
-            };
+        // For stats, we might want to iterate ALL functions to get max/sum, not just roots?
+        // Usually sum is sum of ALL functions' CC. 
+        babelMetrics.functions.forEach(f => {
+            complexity_sum += f.CC;
+            if (f.CC > complexity_max) complexity_max = f.CC;
         });
 
-        const function_count = functions.length;
+        const function_count = babelMetrics.functions.length;
         const complexity_avg = function_count > 0 ? parseFloat((complexity_sum / function_count).toFixed(2)) : 0.0;
 
         const responseMetrics = {
             filename: filename,
-            language: 'javascript', // Hardcode for this endpoint
+            language: 'javascript',
             total_loc: babelMetrics.LOC,
             total_nloc: babelMetrics.NLOC,
             function_count: function_count,
             complexity_avg: complexity_avg,
             complexity_max: complexity_max,
-            functions: functions,
+            functions: hierarchicalFunctions, // Returns roots with nested children
         };
 
         res.json(responseMetrics);
