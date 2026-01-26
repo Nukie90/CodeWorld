@@ -2,7 +2,7 @@ const { calculateMetrics } = require('./server');
 const fs = require('node:fs');
 const path = require('node:path');
 
-const filePath = path.join(__dirname, 'temp_code.js');
+const filePath = path.join(__dirname, 'temp.jsx');
 
 
 
@@ -46,8 +46,14 @@ function analyzeFile(filePath) {
 
         roots.forEach(r => computeTotalCC(r.id));
 
-        console.log('Function Name                 | Start Line | End Line | CC       | NLOC');
-        console.log('-----------------------------------------------------------------------');
+        let outputString = '';
+        const log = (msg) => {
+            console.log(msg);
+            outputString += msg + '\n';
+        };
+
+        log('Function Name                 | Start Line | End Line | CC       | NLOC');
+        log('-----------------------------------------------------------------------');
 
         function printNode(fnId, indentLevel = 0) {
             const f = fnMap.get(fnId);
@@ -63,12 +69,15 @@ function analyzeFile(filePath) {
                 ccDisplay += '(total)';
             }
 
-            console.log(`${nameCell}| ${String(f.lineStart).padEnd(11)}| ${String(f.lineEnd).padEnd(9)}| ${ccDisplay.padEnd(9)}| ${f.NLOC}`);
+            log(`${nameCell}| ${String(f.lineStart).padEnd(11)}| ${String(f.lineEnd).padEnd(9)}| ${ccDisplay.padEnd(9)}| ${f.NLOC}`);
 
             children.forEach(c => printNode(c.id, indentLevel + 1));
         }
 
         roots.forEach(r => printNode(r.id));
+
+        // fs.writeFileSync(path.join(__dirname, 'analysis_output.txt'), outputString);
+        // console.log('\nOutput saved to analysis_output.txt');
     }
     catch (error) {
         console.error("Error analyzing file:", error);

@@ -23,6 +23,33 @@ const FOLDER_METRIC_HELP = {
     "Highest cyclomatic complexity among all functions across the folder.",
 };
 
+/* FunctionTreeItem component for recursive rendering */
+function FunctionTreeItem({ fn }) {
+  const hasChildren = fn.children && fn.children.length > 0;
+  
+  // Prefer total_cognitive_complexity if available, otherwise cognitive_complexity, otherwise cyclomatic_complexity
+  const complexity = fn.total_cognitive_complexity ?? fn.cognitive_complexity ?? fn.cyclomatic_complexity ?? 0;
+  // Label: Total CC if hierarchical data is present, else just CC
+  const complexityLabel = fn.total_cognitive_complexity !== undefined ? "Total CC" : "CC";
+
+  return (
+    <div className="function-item-container">
+      <div className="function-item">
+        <span className="function-name" title={fn.long_name || fn.name}>{fn.name}</span>
+        <span className="function-sub">nloc: {fn.nloc}</span>
+        <span className="function-sub">{complexityLabel}: {complexity}</span>
+      </div>
+      {hasChildren && (
+        <div className="function-children" style={{ marginLeft: '20px', borderLeft: '1px solid #444', paddingLeft: '8px' }}>
+          {fn.children.map((child, index) => (
+            <FunctionTreeItem key={index} fn={child} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
   // Hooks must be called unconditionally at top of the component
 
@@ -241,20 +268,10 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
 
                   {file.functions?.length > 0 && (
                     <details className="function-details">
-                      <summary>Functions ({file.functions.length})</summary>
+                      <summary>Functions ({file.function_count})</summary>
                       <div className="function-list">
                         {file.functions.map((fn, fnIndex) => (
-                          <div key={fnIndex} className="function-item">
-                            <span className="function-name">{fn.name}</span>
-                            <span className="function-sub">
-                              nloc: {fn.nloc}
-                            </span>
-                            {/* <span className="function-sub">tc: {fn.token_count}</span> */}
-                            <span className="function-sub">
-                              CC: {fn.cyclomatic_complexity}
-                            </span>
-                            {/* <span className="function-sub">msd: {fn.max_nesting_depth}</span> */}
-                          </div>
+                           <FunctionTreeItem key={fnIndex} fn={fn} />
                         ))}
                       </div>
                     </details>

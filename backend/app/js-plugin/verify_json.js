@@ -3,11 +3,11 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const code = fs.readFileSync(path.join(__dirname, 'temp_code.js'), 'utf8');
+const code = fs.readFileSync(path.join(__dirname, 'temp.jsx'), 'utf8');
 
 const postData = JSON.stringify({
     code: code,
-    filename: 'temp_code.js'
+    filename: 'sfs'
 });
 
 const options = {
@@ -29,7 +29,10 @@ const req = http.request(options, (res) => {
     res.on('end', () => {
         try {
             const json = JSON.parse(data);
-            console.log(JSON.stringify(json, null, 2));
+            const outputString = JSON.stringify(json, null, 2);
+            console.log(outputString);
+            // fs.writeFileSync(path.join(__dirname, 'output.txt'), outputString);
+            // console.log('Output saved to output.txt');
         } catch (e) {
             console.error('Response was not JSON:', data);
         }
