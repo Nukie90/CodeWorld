@@ -362,3 +362,20 @@ def get_commit_details(repo_url: str, commit_hash: str, token: Optional[str] = N
         return commit_data
     except Exception as exc:
         raise ValueError(f"Failed to get commit details: {str(exc)}")
+
+
+def get_file_content(repo_url: str, commit_hash: str, file_path: str, token: Optional[str] = None) -> str:
+    """Get the full content of a file at a specific commit."""
+    path = get_cached_path(repo_url)
+    if not path or not os.path.exists(path):
+        path = clone_repo(repo_url, token=token)
+    
+    try:
+        # Use git show commit:path to get file content
+        # We use strict path spec to avoid ambiguity
+        return _run_git(path, ["show", f"{commit_hash}:{file_path}"])
+    except subprocess.CalledProcessError:
+        # If file doesn't exist in that commit or other git error
+        return ""
+    except Exception as exc:
+        raise ValueError(f"Failed to get file content: {str(exc)}")

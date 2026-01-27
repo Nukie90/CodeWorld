@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
-import { GitCommit, Calendar, User } from 'lucide-react';
+import { GitCommit, Calendar, User, FileText, X } from 'lucide-react';
 
 function GitGraph({ repoUrl, branch, token, activeCommitHash, onCommitClick, externalCommits }) {
   const [commits, setCommits] = useState([]);
@@ -80,10 +80,10 @@ function GitGraph({ repoUrl, branch, token, activeCommitHash, onCommitClick, ext
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
-    return date.toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
+    return date.toLocaleString('en-UK', {
+      year: '2-digit',
+      month: '2-digit',
+      day: '2-digit',
       hour: '2-digit',
       minute: '2-digit'
     });
@@ -137,8 +137,9 @@ function GitGraph({ repoUrl, branch, token, activeCommitHash, onCommitClick, ext
                   <p className="text-sm font-medium text-gray-900 truncate group-hover:text-blue-600 transition-colors">
                     {commit.message || 'No message'}
                   </p>
-                  <span className="text-xs font-mono text-gray-500 flex-shrink-0 truncate">
-                    {getShortHash(commit.hash)}
+                  <span className="gap-1 text-xs text-gray-500">
+                    {/* {getShortHash(commit.hash)} */}
+                    <span>{formatDate(commit.date)}</span>
                   </span>
                 </div>
 
@@ -146,10 +147,10 @@ function GitGraph({ repoUrl, branch, token, activeCommitHash, onCommitClick, ext
                   <User size={12} />
                   <span className="truncate">{commit.author || 'Unknown'}</span>
                 </div>
-                <div className="flex items-center gap-1 text-xs text-gray-500 truncate">
+                {/* <div className="flex items-center gap-1 text-xs text-gray-500 truncate">
                   <Calendar size={12} />
                   <span>{formatDate(commit.date)}</span>
-                </div>
+                </div> */}
                 <div className="flex items-center gap-4 text-xs text-gray-500 truncate">
                 </div>
               </div>
@@ -195,6 +196,9 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
   const [selectedFile, setSelectedFile] = useState(null);
   const [parsedFiles, setParsedFiles] = useState([]);
   const [fileDiffs, setFileDiffs] = useState({});
+  const [viewingFileContent, setViewingFileContent] = useState(null);
+  const [fileContent, setFileContent] = useState('');
+  const [loadingContent, setLoadingContent] = useState(false);
 
   useEffect(() => {
     fetchCommitDetails();
@@ -228,6 +232,26 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
       setError('Failed to load commit details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchFileContent = async (filename) => {
+    setLoadingContent(true);
+    setFileContent('');
+    setViewingFileContent(filename);
+    try {
+      const resp = await axios.post('http://127.0.0.1:8000/api/repo/file-content', {
+        repo_url: repoUrl,
+        commit_hash: commit.hash,
+        file_path: filename,
+        token: token
+      });
+      setFileContent(resp.data.content);
+    } catch (err) {
+      console.error('Failed to fetch file content', err);
+      setFileContent('Failed to load file content.');
+    } finally {
+      setLoadingContent(false);
     }
   };
 
@@ -455,8 +479,53 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
                             </svg>
                           </div>
                         </div>
+                        {selectedFile === file.filename && (
+                          <div className="mt-2 flex justify-end">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                fetchFileContent(file.filename);
+                              }}
+                              className="text-xs flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                            >
+                              <FileText size={12} />
+                              View Full File
+                            </button>
+                          </div>
+                        )}
                       </div>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {/* File Content Modal */}
+              {viewingFileContent && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setViewingFileContent(null)}>
+                  <div className="bg-white rounded-lg shadow-xl w-full max-w-5xl h-[85vh] flex flex-col" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between p-4 border-b border-gray-200">
+                      <div className="flex items-center gap-2">
+                        <FileText size={20} className="text-blue-600" />
+                        <h3 className="font-semibold text-gray-900 truncate">{viewingFileContent}</h3>
+                        <span className="text-xs text-gray-500 bg-gray-100 px-2 py-1 rounded">
+                          At commit {commit.hash.substring(0, 7)}
+                        </span>
+                      </div>
+                      <button onClick={() => setViewingFileContent(null)} className="text-gray-400 hover:text-gray-600">
+                        <X size={24} />
+                      </button>
+                    </div>
+                    <div className="flex-1 overflow-auto bg-gray-50 p-4">
+                      {loadingContent ? (
+                        <div className="flex items-center justify-center h-full">
+                          <div className="text-gray-500">Loading content...</div>
+                        </div>
+                      ) : (
+                        <pre className="text-sm font-mono text-gray-800 whitespace-pre-wrap break-words bg-white p-4 rounded border border-gray-200 shadow-sm min-h-full">
+                          {fileContent || '(Empty file)'}
+                        </pre>
+                      )}
+                    </div>
                   </div>
                 </div>
               )}
