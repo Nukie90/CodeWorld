@@ -9,6 +9,7 @@ def get_file_matrix_lizard(code: str, filename: str) -> FileMetrics:
     IMPORTANT: Do not hard-filter function names (keep "(anonymous)", "&&", "?").
     This preserves parity for JS/JSX where anonymous functions are common.
     """
+    print("IS USED3")
     result = lizard.analyze_file.analyze_source_code(filename, code)
 
     funcs: list[FunctionMetric] = []
