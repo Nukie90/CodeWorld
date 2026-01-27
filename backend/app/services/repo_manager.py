@@ -329,17 +329,29 @@ def get_commit_details(repo_url: str, commit_hash: str, token: Optional[str] = N
             "body": parts[5] if len(parts) > 5 else ""
         }
         
-        # Get file changes
-        diff_output = _run_git(path, ["show", "--stat", "--format=", commit_hash])
+        # Get file changes details using numstat to avoid truncation
+        stat_output = _run_git(path, ["show", "--numstat", "--format=", commit_hash])
         files_changed = []
         
-        # Parse diff --stat output
-        for line in diff_output.strip().split('\n'):
-            if '|' in line and 'file' not in line.lower():
-                # Format: filename | X +Y -Z
-                file_info = line.strip()
-                if file_info:
-                    files_changed.append(file_info)
+        # Parse numstat output
+        for line in stat_output.strip().split('\n'):
+            if not line:
+                continue
+            parts = line.split('\t', 2)
+            if len(parts) == 3:
+                added = parts[0]
+                deleted = parts[1]
+                filename = parts[2]
+                
+                # Handle binary files which show as - - filename
+                if added == '-': added = 0
+                if deleted == '-': deleted = 0
+                    
+                files_changed.append({
+                    "filename": filename,
+                    "additions": int(added),
+                    "deletions": int(deleted)
+                })
         
         commit_data["files_changed"] = files_changed
         

@@ -213,10 +213,9 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
       });
       setDetails(resp.data);
 
-      // Parse files changed
-      if (resp.data.files_changed && resp.data.files_changed.length > 0) {
-        const parsed = parseFilesChanged(resp.data.files_changed);
-        setParsedFiles(parsed);
+      // Set files changed
+      if (resp.data.files_changed) {
+        setParsedFiles(resp.data.files_changed);
       }
 
       // Parse diff into per-file diffs
@@ -232,26 +231,7 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
     }
   };
 
-  const parseFilesChanged = (files) => {
-    return files.map(file => {
-      // Format: "filename | X +Y -Z" or just "filename"
-      const parts = file.split('|');
-      const filename = parts[0].trim();
-      let additions = 0;
-      let deletions = 0;
 
-      if (parts.length > 1) {
-        const stats = parts[1].trim();
-        // Extract numbers from "+Y -Z" format
-        const addMatch = stats.match(/(\d+)\s*\+/);
-        const delMatch = stats.match(/(\d+)\s*-/);
-        additions = addMatch ? parseInt(addMatch[1]) : 0;
-        deletions = delMatch ? parseInt(delMatch[1]) : 0;
-      }
-
-      return { filename, additions, deletions, raw: file };
-    });
-  };
 
   const parseDiffByFile = (diff) => {
     const fileDiffs = {};
