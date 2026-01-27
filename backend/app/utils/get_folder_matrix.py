@@ -2,6 +2,11 @@ from typing import List
 from app.model.analyzer_model import FileMetrics, FunctionMetric, FolderMetrics, FolderAnalysisResult
 from app.utils.ignore import build_ignore_checker
 from app.adapter.factory import get_adapters
+import os
+import io
+import zipfile
+import tempfile
+from anyio import Path
 
 # NOTE: This function's complexity is due to the aggregation logic.
 # While it could be split, keeping it together for now preserves clarity of the single-pass process.
@@ -40,8 +45,7 @@ async def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnaly
 
         for file_path, relative_path in all_files:
             try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    content = f.read()
+                content = await Path(file_path).read_text(encoding='utf-8')
 
                 file_metrics = None
                 
