@@ -24,7 +24,7 @@ async def analyze_folder(file):
     try:
         # Extract folder name from zip filename
         folder_name = filename.rsplit('.', 1)[0]  # Remove .zip extension
-        analysis_result = get_folder_matrix(data, folder_name)
+        analysis_result = await get_folder_matrix(data, folder_name)
         
         return {
             "folder_name": folder_name,

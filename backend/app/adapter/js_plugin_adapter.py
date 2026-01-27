@@ -2,10 +2,20 @@ import httpx
 from fastapi import UploadFile, HTTPException
 from app.adapter.adapter import AnalysisAdapter
 import os
+from typing import Optional
+from app.model.analyzer_model import FileMetrics
+from app.utils.get_file_matrix_js import get_file_matrix_js
 
 NODE_METRICS_URL = os.getenv("NODE_METRICS_URL", "http://localhost:3001")
 
 class JSPluginAdapter(AnalysisAdapter):
+    def supports(self, filename: str) -> bool:
+        return filename.lower().endswith(('.js', '.jsx', '.ts', '.tsx'))
+
+    async def analyze_content(self, content: str, filename: str) -> Optional[FileMetrics]:
+        # Reuse the logic which already calls the node service and returns FileMetrics
+        return get_file_matrix_js(content, filename)
+
     async def analyze_file(self, file: UploadFile):
         content = await file.read()
         async with httpx.AsyncClient(timeout=60) as client:
@@ -18,7 +28,7 @@ class JSPluginAdapter(AnalysisAdapter):
         return r.json()
 
     async def analyze_zip(self, file: UploadFile):
-        print("IS USED")
+        print("IS USED1")
         content = await file.read()
         print("Forwarding zip file to Node server for analysis...")
         async with httpx.AsyncClient(timeout=300) as client:
