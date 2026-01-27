@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-function BarChartVisualization({ individualFiles, onFunctionClick }) {
+function BarChartVisualization({ individualFiles, onFunctionClick, fixedFileOrder }) {
   const [hoveredFunction, setHoveredFunction] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
@@ -79,34 +79,37 @@ function BarChartVisualization({ individualFiles, onFunctionClick }) {
   return (
     <div className="relative w-full overflow-x-auto">
       <div className="inline-block min-w-full">
-        <div 
+        <div
           className="flex items-end justify-start gap-3 px-4"
           style={{ height: `${maxHeight}px`, minHeight: `${maxHeight}px` }}
           onMouseMove={handleMouseMove}
         >
-          {individualFiles.map((file, fileIdx) => {
-            const functions = file.functions || [];
+          {(fixedFileOrder || individualFiles).map((baseFile, fileIdx) => {
+            const fileName = baseFile.filename;
+            // Find current file data if it exists
+            const file = individualFiles.find(f => f.filename === fileName);
+            const functions = file?.functions || [];
 
             return (
-              <div 
-                key={fileIdx} 
-                className="flex flex-col items-center justify-end flex-shrink-0"
+              <div
+                key={baseFile.filename || fileIdx}
+                className="flex flex-col items-center justify-end flex-shrink-0 transition-all duration-500 ease-in-out"
                 style={{ width: barWidth, height: `${maxHeight}px` }}
               >
-                <div 
-                  className="w-full flex flex-col-reverse relative" 
+                <div
+                  className="w-full flex flex-col-reverse relative"
                   style={{ height: `${maxHeight}px` }}
                 >
                   {functions.map((fn, fnIdx) => {
                     const fnHeight = (fn.nloc || 0) * scale;
                     const complexity = fn.cyclomatic_complexity;
                     const color = getComplexityColor(complexity);
-                    
+
                     return (
                       <div
-                        key={fnIdx}
-                        className="w-full transition-all cursor-pointer hover:opacity-80"
-                        style={{ 
+                        key={fn.name || fnIdx}
+                        className="w-full transition-all duration-500 ease-in-out cursor-pointer hover:opacity-80"
+                        style={{
                           height: `${fnHeight}px`,
                           backgroundColor: color
                         }}
@@ -117,7 +120,7 @@ function BarChartVisualization({ individualFiles, onFunctionClick }) {
                         })}
                         onMouseLeave={handleMouseLeave}
                         onClick={() => {
-                          if (onFunctionClick && fn.start_line) {
+                          if (onFunctionClick && fn.start_line && file) {
                             onFunctionClick({
                               filename: file.filename,
                               functionName: fn.name || 'Unknown',
@@ -130,10 +133,16 @@ function BarChartVisualization({ individualFiles, onFunctionClick }) {
                       />
                     );
                   })}
-                  {functions.length === 0 && (
-                    <div 
+                  {file && functions.length === 0 && (
+                    <div
                       className="w-full bg-gray-200 rounded-t"
                       style={{ height: '20px' }}
+                    />
+                  )}
+                  {!file && (
+                    <div
+                      className="w-full border-b border-gray-100"
+                      style={{ height: '1px' }}
                     />
                   )}
                 </div>
@@ -143,12 +152,12 @@ function BarChartVisualization({ individualFiles, onFunctionClick }) {
         </div>
         {/* File names row - separate from bars for better alignment */}
         <div className="flex justify-start gap-3 px-4 mt-2">
-          {individualFiles.map((file, fileIdx) => {
+          {(fixedFileOrder || individualFiles).map((file, fileIdx) => {
             const fileName = file.filename?.split('/').pop() || `File ${fileIdx + 1}`;
             return (
-              <span 
-                key={fileIdx}
-                className="text-xs text-gray-600 text-center break-words flex-shrink-0"
+              <span
+                key={file.filename || fileIdx}
+                className="text-xs text-gray-600 text-center break-words flex-shrink-0 transition-all duration-500"
                 style={{ width: barWidth }}
               >
                 {fileName}

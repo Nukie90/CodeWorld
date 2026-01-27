@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, HelpCircle, Upload, Expand, Play, GripVertical, Copy, Check, Code, FileText, Hash } from 'lucide-react';
+import { ChevronLeft, ChevronRight, HelpCircle, Upload, Expand, Play, Square, GitCommit, GripVertical, Copy, Check, Code, FileText, Hash } from 'lucide-react';
 import { useLocation } from 'react-router-dom'
 import axios from 'axios'
 import BarChartVisualization from '../components/results/visualizations/BarChartVisualization';
@@ -15,7 +15,7 @@ import GitGraph from '../components/git/GitGraph';
 function ResultsPage() {
   const { state } = useLocation()
   const { analysisResult: initialAnalysisResult, token } = state || {}
-  
+
   // Convert analysisResult to state so it can be updated when branch changes
   const [analysisResult, setAnalysisResult] = useState(initialAnalysisResult)
 
@@ -35,9 +35,18 @@ function ResultsPage() {
   const [showLineNumbers, setShowLineNumbers] = useState(false)
   const [wordWrap, setWordWrap] = useState(true)
   const [copied, setCopied] = useState(false)
+  const [isAnimating, setIsAnimating] = useState(false)
+  const isAnimatingRef = useRef(false)
+  const [animationProgress, setAnimationProgress] = useState(0)
+  const [animatingCommit, setAnimatingCommit] = useState(null)
+  const [fixedFileOrder, setFixedFileOrder] = useState(null)
+  const [allCommits, setAllCommits] = useState([])
+  const [currentCommitIndex, setCurrentCommitIndex] = useState(-1)
+  const [animationSpeed, setAnimationSpeed] = useState(800)
+  const animationRef = useRef(null)
 
   console.log('analysisResult in ResultsPage:', analysisResult);
-  
+
 
   useEffect(() => {
     // fetch branches when this is a repo analysis
@@ -59,7 +68,7 @@ function ResultsPage() {
       }
     }
     fetchBranches()
-  }, [analysisResult, token])
+  }, [analysisResult?.repo_url, token])
 
 
   // Derive values from analysisResult state (will update when branch changes)
@@ -127,10 +136,10 @@ function ResultsPage() {
 
   const handleFunctionClick = async (functionData) => {
     if (!analysisResult?.repo_url) return
-    
+
     setCodeLoading(true)
     setSelectedCode(null)
-    
+
     try {
       const resp = await axios.post('http://127.0.0.1:8000/api/repo/function-code', {
         repo_url: analysisResult.repo_url,
@@ -140,7 +149,7 @@ function ResultsPage() {
         nloc: functionData.nloc,
         token: token
       })
-      
+
       if (resp.data) {
         setSelectedCode({
           code: resp.data.code,
@@ -176,9 +185,171 @@ function ResultsPage() {
     }
   }
 
+  const handlePlayAnimation = async () => {
+    if (isAnimating) {
+      setIsAnimating(false)
+      isAnimatingRef.current = false
+      if (animationRef.current) {
+        clearTimeout(animationRef.current)
+      }
+      return
+    }
+
+    if (!analysisResult?.repo_url || !currentBranch) return
+
+    setIsAnimating(true)
+    isAnimatingRef.current = true
+    setAnimationProgress(0)
+    setAnimatingCommit(null)
+    setFixedFileOrder([...individual_files])
+    setActiveTab('bar')
+
+    try {
+      let commits = allCommits;
+      if (commits.length === 0) {
+        const resp = await axios.post('http://127.0.0.1:8000/api/repo/commits', {
+          repo_url: analysisResult.repo_url,
+          branch: currentBranch,
+          limit: 1000,
+          token: token
+        })
+        const fetchedCommits = resp.data.commits || []
+        if (fetchedCommits.length === 0) {
+          setIsAnimating(false)
+          isAnimatingRef.current = false
+          return
+        }
+        commits = [...fetchedCommits].reverse()
+        setAllCommits(commits)
+      }
+
+      const runStep = async (index) => {
+        if (index >= commits.length || !isAnimatingRef.current) {
+          setIsAnimating(false)
+          isAnimatingRef.current = false
+          return
+        }
+
+        const commit = commits[index]
+        setCurrentCommitIndex(index)
+        setAnimatingCommit(commit)
+        setAnimationProgress(Math.round((index / (commits.length - 1)) * 100))
+
+        try {
+          const checkoutResp = await axios.post('http://127.0.0.1:8000/api/repo/checkout', {
+            repo_url: analysisResult.repo_url,
+            branch: commit.hash,
+            token: token
+          })
+
+          if (checkoutResp.data) {
+            setAnalysisResult(checkoutResp.data)
+          }
+        } catch (err) {
+          console.error(`Animation step failed at commit ${commit.hash}`, err)
+        }
+
+        animationRef.current = setTimeout(() => runStep(index + 1), animationSpeed)
+      }
+
+      await runStep(currentCommitIndex === -1 || currentCommitIndex >= commits.length - 1 ? 0 : currentCommitIndex + 1)
+
+    } catch (err) {
+      console.error('Failed to start animation', err)
+      setIsAnimating(false)
+      isAnimatingRef.current = false
+    }
+  }
+
+  const handleStepPrev = async () => {
+    if (isAnimating || currentCommitIndex <= 0) return
+    if (!fixedFileOrder) setFixedFileOrder([...individual_files])
+    const newIndex = currentCommitIndex - 1
+    const commit = allCommits[newIndex]
+    setCurrentCommitIndex(newIndex)
+    setAnimatingCommit(commit)
+    setAnimationProgress(Math.round((newIndex / (allCommits.length - 1)) * 100))
+
+    try {
+      const checkoutResp = await axios.post('http://127.0.0.1:8000/api/repo/checkout', {
+        repo_url: analysisResult.repo_url,
+        branch: commit.hash,
+        token: token
+      })
+      if (checkoutResp.data) setAnalysisResult(checkoutResp.data)
+    } catch (err) {
+      console.error('Manual step failed', err)
+    }
+  }
+
+  const handleStepNext = async () => {
+    if (isAnimating || currentCommitIndex >= allCommits.length - 1) return
+    if (!fixedFileOrder) setFixedFileOrder([...individual_files])
+    const newIndex = currentCommitIndex + 1
+    const commit = allCommits[newIndex]
+    setCurrentCommitIndex(newIndex)
+    setAnimatingCommit(commit)
+    setAnimationProgress(Math.round((newIndex / (allCommits.length - 1)) * 100))
+
+    try {
+      const checkoutResp = await axios.post('http://127.0.0.1:8000/api/repo/checkout', {
+        repo_url: analysisResult.repo_url,
+        branch: commit.hash,
+        token: token
+      })
+      if (checkoutResp.data) setAnalysisResult(checkoutResp.data)
+    } catch (err) {
+      console.error('Manual step failed', err)
+    }
+  }
+
+  const handleCommitClick = async (commit) => {
+    if (isAnimating) return; // Don't allow clicking during animation
+
+    // Ensure we have a stable layout baseline
+    if (!fixedFileOrder) {
+      setFixedFileOrder([...individual_files]);
+    }
+
+    // Find index in allCommits if available
+    let index = -1;
+    if (allCommits.length > 0) {
+      index = allCommits.findIndex(c => c.hash === commit.hash);
+      if (index !== -1) {
+        setCurrentCommitIndex(index);
+      }
+    }
+
+    setAnimatingCommit(commit);
+    setAnimationProgress(index !== -1 ? Math.round((index / (allCommits.length - 1)) * 100) : 0);
+
+    try {
+      const checkoutResp = await axios.post('http://127.0.0.1:8000/api/repo/checkout', {
+        repo_url: analysisResult.repo_url,
+        branch: commit.hash,
+        token: token
+      });
+
+      if (checkoutResp.data) {
+        setAnalysisResult(checkoutResp.data);
+      }
+    } catch (err) {
+      console.error('Failed to visualize commit', err);
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (animationRef.current) {
+        clearTimeout(animationRef.current)
+      }
+    }
+  }, [])
+
 
   return (
-    <div 
+    <div
       className="min-h-screen bg-slate-100"
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
@@ -213,24 +384,57 @@ function ResultsPage() {
           {/* Left Panel - Graph */}
           <div style={{ width: `${graphWidth}%` }} className="pr-3">
             <div className="bg-white rounded-lg shadow p-4 h-full flex flex-col">
-              <div className="flex items-center justify-between mb-4 flex-shrink-0">
-                <h3 className="text-lg font-semibold">Git Graph</h3>
-                <div className="flex gap-1">
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <ChevronLeft size={16} />
-                  </button>
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <Play size={16} />
-                  </button>
-                  <button className="text-gray-400 hover:text-gray-600">
-                    <ChevronRight size={16} />
-                  </button>
+              <div className="flex items-center justify-between gap-4 mb-4 flex-wrap flex-shrink-0">
+                <h3 className="text-lg font-semibold whitespace-nowrap">Git Graph</h3>
+                <div className="flex items-center gap-4 flex-wrap">
+                  <div className="flex items-center gap-2 bg-gray-50 px-2 py-1 rounded-lg border border-gray-200">
+                    <button
+                      onClick={handleStepPrev}
+                      disabled={branchLoading || branches.length === 0 || isAnimating || currentCommitIndex <= 0}
+                      className="p-1 text-gray-400 hover:text-blue-600 disabled:opacity-30 transition-colors"
+                      title="Previous Commit"
+                    >
+                      <ChevronLeft size={16} />
+                    </button>
+
+                    <button
+                      onClick={handlePlayAnimation}
+                      disabled={branchLoading || branches.length === 0}
+                      className={`transition-colors p-1 ${isAnimating ? 'text-red-500 hover:text-red-600' : 'text-blue-500 hover:text-blue-600'}`}
+                      title={isAnimating ? 'Stop Animation' : 'Play Evolution Animation'}
+                    >
+                      {isAnimating ? <Square size={16} fill="currentColor" /> : <Play size={16} fill="currentColor" />}
+                    </button>
+
+                    <button
+                      onClick={handleStepNext}
+                      disabled={branchLoading || branches.length === 0 || isAnimating || currentCommitIndex >= allCommits.length - 1}
+                      className="p-1 text-gray-400 hover:text-blue-600 disabled:opacity-30 transition-colors"
+                      title="Next Commit"
+                    >
+                      <ChevronRight size={16} />
+                    </button>
+                  </div>
+
+                  {/* Speed Controller */}
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-medium text-gray-400 uppercase tracking-wider">Speed</span>
+                    <input
+                      type="range"
+                      min="200"
+                      max="2000"
+                      step="100"
+                      value={2200 - animationSpeed}
+                      onChange={(e) => setAnimationSpeed(2200 - parseInt(e.target.value))}
+                      className="w-20 h-1 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
+                    />
+                  </div>
                 </div>
               </div>
-              <select 
-                value={currentBranch} 
-                onChange={handleBranchChange} 
-                disabled={branchLoading || branches.length === 0} 
+              <select
+                value={currentBranch}
+                onChange={handleBranchChange}
+                disabled={branchLoading || branches.length === 0}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm mb-4 flex-shrink-0"
               >
                 <option value="">Select branch</option>
@@ -240,10 +444,13 @@ function ResultsPage() {
               </select>
               {analysisResult?.repo_url && currentBranch ? (
                 <div className="flex-1 min-h-0 overflow-hidden">
-                  <GitGraph 
-                    repoUrl={analysisResult.repo_url} 
-                    branch={currentBranch} 
+                  <GitGraph
+                    repoUrl={analysisResult.repo_url}
+                    branch={currentBranch}
                     token={token}
+                    activeCommitHash={animatingCommit?.hash}
+                    onCommitClick={handleCommitClick}
+                    externalCommits={allCommits && allCommits.length > 0 ? [...allCommits].reverse() : undefined}
                   />
                 </div>
               ) : (
@@ -255,7 +462,7 @@ function ResultsPage() {
           </div>
 
           {/* First Divider */}
-          <div 
+          <div
             className="flex items-center justify-center cursor-col-resize hover:bg-blue-100 transition-colors group relative z-10"
             style={{ width: '12px', flexShrink: 0 }}
             onMouseDown={() => handleMouseDown('first')}
@@ -273,28 +480,44 @@ function ResultsPage() {
               </div>
 
               {/* Tab Navigation */}
-                <div className="flex gap-6 mb-6 border-b border-gray-200">
+              <div className="flex gap-6 mb-6 border-b border-gray-200 justify-between items-center">
+                <div className="flex gap-6">
                   {['bar', 'block', 'tree', 'treemap', 'flower', 'city', 'galaxy'].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
-                      className={`pb-3 px-1 font-medium transition-colors capitalize text-sm ${
-                        activeTab === tab
-                          ? 'text-blue-600 border-b-2 border-blue-600'
-                          : 'text-gray-500 hover:text-gray-700'
-                      }`}
+                      className={`pb-3 px-1 font-medium transition-colors capitalize text-sm ${activeTab === tab
+                        ? 'text-blue-600 border-b-2 border-blue-600'
+                        : 'text-gray-500 hover:text-gray-700'
+                        }`}
                     >
                       {tab === 'bar' ? 'Bar' : tab === 'block' ? 'Block' : tab === 'flower' ? 'Flower' : tab === 'city' ? 'City 3D' : tab.charAt(0).toUpperCase() + tab.slice(1)}
-                    </button> 
+                    </button>
                   ))}
                 </div>
+
+                {isAnimating && animatingCommit && (
+                  <div className="flex items-center gap-2 bg-blue-50 px-2 py-1 rounded border border-blue-100 mb-2 animate-pulse min-w-0">
+                    <GitCommit size={14} className="text-blue-600 flex-shrink-0" />
+                    <div className="flex flex-col min-w-0">
+                      <span className="text-[10px] font-semibold text-blue-900 truncate max-w-[150px]">
+                        {animatingCommit.message}
+                      </span>
+                      <span className="text-[8px] font-mono text-blue-500">
+                        {animatingCommit.hash.substring(0, 7)}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               {/* Visualization Content */}
               <div className={`h-[55vh] ${activeTab === 'city' ? 'overflow-hidden' : 'overflow-auto'}`}>
                 {activeTab === 'bar' && individual_files?.length > 0 && (
-                  <BarChartVisualization 
-                    individualFiles={individual_files} 
+                  <BarChartVisualization
+                    individualFiles={individual_files}
                     onFunctionClick={handleFunctionClick}
+                    fixedFileOrder={fixedFileOrder}
                   />
                 )}
                 {activeTab === 'block' && individual_files?.length > 0 && (
@@ -310,8 +533,8 @@ function ResultsPage() {
                   <RadarChartVisualization individualFiles={individual_files} />
                 )}
                 {activeTab === 'city' && individual_files?.length > 0 && (
-                  <CodeCity3DVisualization 
-                    individualFiles={individual_files} 
+                  <CodeCity3DVisualization
+                    individualFiles={individual_files}
                     onFunctionClick={handleFunctionClick}
                   />
                 )}
@@ -344,9 +567,8 @@ function ResultsPage() {
                 {Object.entries(folderSummary).map(([key, value], index) => (
                   <div
                     key={key}
-                    className={`flex justify-between items-center pb-3 ${
-                      index % 2 === 0 ? 'pr-8' : 'pl-8'
-                    }`}
+                    className={`flex justify-between items-center pb-3 ${index % 2 === 0 ? 'pr-8' : 'pl-8'
+                      }`}
                   >
                     <span className="text-gray-700 text-sm font-medium">{key}</span>
                     <span className="text-gray-900 font-bold text-lg">{value}</span>
@@ -357,7 +579,7 @@ function ResultsPage() {
           </div>
 
           {/* Second Divider */}
-          <div 
+          <div
             className="flex items-center justify-center cursor-col-resize hover:bg-blue-100 transition-colors group relative z-10"
             style={{ width: '12px', flexShrink: 0 }}
             onMouseDown={() => handleMouseDown('second')}
@@ -375,18 +597,17 @@ function ResultsPage() {
                   <Expand size={20} />
                 </button>
               </div>
-              
+
               {/* Code Display Options */}
               {selectedCode && (
                 <div className="mb-3 flex items-center gap-2 flex-wrap">
                   <div className="flex items-center gap-1 bg-white rounded-lg p-1 border border-gray-200">
                     <button
                       onClick={() => setCodeDisplayMode('plain')}
-                      className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors ${
-                        codeDisplayMode === 'plain'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'text-gray-600 hover:bg-gray-100'
-                      }`}
+                      className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors ${codeDisplayMode === 'plain'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-100'
+                        }`}
                       title="Plain text"
                     >
                       <FileText size={14} />
@@ -394,43 +615,40 @@ function ResultsPage() {
                     </button>
                     <button
                       onClick={() => setCodeDisplayMode('highlighted')}
-                      className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors ${
-                        codeDisplayMode === 'highlighted'
-                          ? 'bg-blue-100 text-blue-700'
-                          : 'text-gray-600 hover:bg-gray-100'
-                      }`}
+                      className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors ${codeDisplayMode === 'highlighted'
+                        ? 'bg-blue-100 text-blue-700'
+                        : 'text-gray-600 hover:bg-gray-100'
+                        }`}
                       title="Syntax highlighted"
                     >
                       <Code size={14} />
                       Highlighted
                     </button>
                   </div>
-                  
+
                   <button
                     onClick={() => setShowLineNumbers(!showLineNumbers)}
-                    className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors border ${
-                      showLineNumbers
-                        ? 'bg-blue-100 text-blue-700 border-blue-300'
-                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
-                    }`}
+                    className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors border ${showLineNumbers
+                      ? 'bg-blue-100 text-blue-700 border-blue-300'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                      }`}
                     title="Toggle line numbers"
                   >
                     <Hash size={14} />
                     Lines
                   </button>
-                  
+
                   <button
                     onClick={() => setWordWrap(!wordWrap)}
-                    className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors border ${
-                      wordWrap
-                        ? 'bg-blue-100 text-blue-700 border-blue-300'
-                        : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
-                    }`}
+                    className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors border ${wordWrap
+                      ? 'bg-blue-100 text-blue-700 border-blue-300'
+                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
+                      }`}
                     title="Toggle word wrap"
                   >
                     Wrap
                   </button>
-                  
+
                   <button
                     onClick={handleCopyCode}
                     className="px-2 py-1 rounded text-xs flex items-center gap-1 bg-white text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors"
@@ -441,7 +659,7 @@ function ResultsPage() {
                   </button>
                 </div>
               )}
-              
+
               <div className="bg-white rounded-lg p-4 flex-1 overflow-auto">
                 {codeLoading ? (
                   <div className="flex items-center justify-center h-full">
@@ -462,9 +680,9 @@ function ResultsPage() {
                       {codeDisplayMode === 'highlighted' ? (
                         <div className="relative">
                           {showLineNumbers && (
-                            <div 
+                            <div
                               className="absolute left-0 top-0 bottom-0 text-gray-500 select-none pr-4 border-r border-gray-300"
-                              style={{ 
+                              style={{
                                 fontFamily: 'monospace',
                                 fontSize: '0.75rem',
                                 lineHeight: '1.5',
@@ -482,11 +700,10 @@ function ResultsPage() {
                               ))}
                             </div>
                           )}
-                          <pre 
-                            className={`text-xs font-mono ${
-                              wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'
-                            } break-words`}
-                            style={{ 
+                          <pre
+                            className={`text-xs font-mono ${wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'
+                              } break-words`}
+                            style={{
                               backgroundColor: '#1e1e1e',
                               color: '#d4d4d4',
                               padding: '1rem',
@@ -514,9 +731,9 @@ function ResultsPage() {
                       ) : (
                         <div className="relative">
                           {showLineNumbers && (
-                            <div 
+                            <div
                               className="absolute left-0 top-0 bottom-0 text-gray-400 select-none pr-4 border-r border-gray-200"
-                              style={{ 
+                              style={{
                                 fontFamily: 'monospace',
                                 fontSize: '0.75rem',
                                 lineHeight: '1.5',
@@ -534,11 +751,10 @@ function ResultsPage() {
                               ))}
                             </div>
                           )}
-                          <pre 
-                            className={`text-xs font-mono text-gray-800 ${
-                              wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'
-                            } break-words`}
-                            style={{ 
+                          <pre
+                            className={`text-xs font-mono text-gray-800 ${wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'
+                              } break-words`}
+                            style={{
                               paddingLeft: showLineNumbers ? '4rem' : '0',
                               paddingTop: '1rem',
                               paddingBottom: '1rem',
@@ -559,7 +775,7 @@ function ResultsPage() {
             </div>
           </div>
           {/* Down Panel - Individaul files */}
-          </div>
+        </div>
       </main>
     </div>
   );

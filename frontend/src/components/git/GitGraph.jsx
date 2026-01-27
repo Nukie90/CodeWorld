@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { GitCommit, Calendar, User } from 'lucide-react';
 
-function GitGraph({ repoUrl, branch, token }) {
+function GitGraph({ repoUrl, branch, token, activeCommitHash, onCommitClick, externalCommits }) {
   const [commits, setCommits] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -28,13 +28,13 @@ function GitGraph({ repoUrl, branch, token }) {
         token: token
       });
       const newCommits = resp.data.commits || [];
-      
+
       if (append) {
         setCommits(prev => [...prev, ...newCommits]);
       } else {
         setCommits(newCommits);
       }
-      
+
       // If we got fewer commits than requested, there are no more
       setHasMore(newCommits.length === COMMITS_PER_PAGE);
       setSkip(skipCount + newCommits.length);
@@ -48,6 +48,13 @@ function GitGraph({ repoUrl, branch, token }) {
   }, [repoUrl, branch, token]);
 
   useEffect(() => {
+    if (externalCommits && externalCommits.length > 0) {
+      setCommits(externalCommits);
+      setHasMore(false);
+      setLoading(false);
+      return;
+    }
+
     if (repoUrl && branch) {
       setSkip(0);
       setHasMore(true);
@@ -58,7 +65,7 @@ function GitGraph({ repoUrl, branch, token }) {
       setSkip(0);
       setHasMore(true);
     }
-  }, [repoUrl, branch, fetchCommits]);
+  }, [repoUrl, branch, fetchCommits, externalCommits]);
 
   const handleLoadMore = () => {
     if (!loadingMore && hasMore) {
@@ -117,7 +124,11 @@ function GitGraph({ repoUrl, branch, token }) {
           {commits.map((commit) => (
             <div
               key={commit.hash}
-              className="flex items-start gap-3 p-3 rounded-lg border border-gray-200 hover:bg-gray-50 hover:border-blue-300 transition-colors cursor-pointer group"
+              className={`flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer group ${activeCommitHash === commit.hash
+                ? 'bg-blue-50 border-blue-500 shadow-sm ring-1 ring-blue-500'
+                : 'border-gray-200 hover:bg-gray-50 hover:border-blue-300'
+                }`}
+              onClick={() => onCommitClick && onCommitClick(commit)}
               onDoubleClick={() => handleCommitDoubleClick(commit)}
             >
               {/* Commit info */}
@@ -130,7 +141,7 @@ function GitGraph({ repoUrl, branch, token }) {
                     {getShortHash(commit.hash)}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center gap-1 text-xs text-gray-500 truncate">
                   <User size={12} />
                   <span className="truncate">{commit.author || 'Unknown'}</span>
@@ -148,28 +159,32 @@ function GitGraph({ repoUrl, branch, token }) {
       </div>
 
       {/* Load More Button */}
-      {hasMore && commits.length > 0 && (
-        <div className="p-3 border-t border-gray-200">
-          <button
-            onClick={handleLoadMore}
-            disabled={loadingMore}
-            className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-          >
-            {loadingMore ? 'Loading...' : 'Load More'}
-          </button>
-        </div>
-      )}
+      {
+        hasMore && commits.length > 0 && (
+          <div className="p-3 border-t border-gray-200">
+            <button
+              onClick={handleLoadMore}
+              disabled={loadingMore}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            >
+              {loadingMore ? 'Loading...' : 'Load More'}
+            </button>
+          </div>
+        )
+      }
 
       {/* Commit detail modal */}
-      {selectedCommit && (
-        <CommitDetailModal
-          commit={selectedCommit}
-          repoUrl={repoUrl}
-          token={token}
-          onClose={() => setSelectedCommit(null)}
-        />
-      )}
-    </div>
+      {
+        selectedCommit && (
+          <CommitDetailModal
+            commit={selectedCommit}
+            repoUrl={repoUrl}
+            token={token}
+            onClose={() => setSelectedCommit(null)}
+          />
+        )
+      }
+    </div >
   );
 }
 
@@ -197,13 +212,13 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
         token: token
       });
       setDetails(resp.data);
-      
+
       // Parse files changed
       if (resp.data.files_changed && resp.data.files_changed.length > 0) {
         const parsed = parseFilesChanged(resp.data.files_changed);
         setParsedFiles(parsed);
       }
-      
+
       // Parse diff into per-file diffs
       if (resp.data.diff) {
         const diffs = parseDiffByFile(resp.data.diff);
@@ -224,7 +239,7 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
       const filename = parts[0].trim();
       let additions = 0;
       let deletions = 0;
-      
+
       if (parts.length > 1) {
         const stats = parts[1].trim();
         // Extract numbers from "+Y -Z" format
@@ -233,7 +248,7 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
         additions = addMatch ? parseInt(addMatch[1]) : 0;
         deletions = delMatch ? parseInt(delMatch[1]) : 0;
       }
-      
+
       return { filename, additions, deletions, raw: file };
     });
   };
@@ -243,17 +258,17 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
     const lines = diff.split('\n');
     let currentFile = null;
     let currentDiff = [];
-    
+
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-      
+
       // Check for file header
       if (line.startsWith('diff --git')) {
         // Save previous file diff
         if (currentFile && currentDiff.length > 0) {
           fileDiffs[currentFile] = currentDiff.join('\n');
         }
-        
+
         // Extract filename from "diff --git a/path b/path"
         const match = line.match(/diff --git a\/(.+?) b\/(.+)/);
         if (match) {
@@ -264,12 +279,12 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
         currentDiff.push(line);
       }
     }
-    
+
     // Save last file diff
     if (currentFile && currentDiff.length > 0) {
       fileDiffs[currentFile] = currentDiff.join('\n');
     }
-    
+
     return fileDiffs;
   };
 
@@ -288,16 +303,16 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
 
   const renderDiff = (diff) => {
     if (!diff) return null;
-    
+
     const lines = diff.split('\n');
     let oldLineNum = 0;
     let newLineNum = 0;
-    
+
     return lines.map((line, idx) => {
       let className = 'text-gray-300';
       let bgColor = 'bg-gray-900';
       let lineNum = null;
-      
+
       // Parse hunk header: @@ -oldStart,oldCount +newStart,newCount @@
       if (line.startsWith('@@')) {
         const match = line.match(/@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/);
@@ -333,13 +348,13 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
         className = 'text-gray-300';
         bgColor = 'bg-gray-900';
       }
-      
-      const lineContent = line.startsWith('+') || line.startsWith('-') 
-        ? line.substring(1) 
+
+      const lineContent = line.startsWith('+') || line.startsWith('-')
+        ? line.substring(1)
         : line.startsWith('@@') || line.startsWith('diff') || line.startsWith('index') || line.startsWith('---') || line.startsWith('+++') || line.startsWith('\\')
-        ? line
-        : line;
-      
+          ? line
+          : line;
+
       return (
         <div key={idx} className={`flex ${bgColor} hover:bg-opacity-50 transition-colors`}>
           <div className="flex-shrink-0 w-16 text-right pr-4 text-gray-500 text-xs select-none border-r border-gray-700">
@@ -358,7 +373,7 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
 
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div 
+      <div
         className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
@@ -429,9 +444,8 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
                       <div
                         key={idx}
                         onClick={() => setSelectedFile(selectedFile === file.filename ? null : file.filename)}
-                        className={`p-3 cursor-pointer hover:bg-gray-100 transition-colors ${
-                          selectedFile === file.filename ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
-                        }`}
+                        className={`p-3 cursor-pointer hover:bg-gray-100 transition-colors ${selectedFile === file.filename ? 'bg-blue-50 border-l-4 border-l-blue-500' : ''
+                          }`}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -450,12 +464,11 @@ function CommitDetailModal({ commit, repoUrl, token, onClose }) {
                                 -{file.deletions}
                               </span>
                             )}
-                            <svg 
-                              className={`w-4 h-4 text-gray-400 transition-transform ${
-                                selectedFile === file.filename ? 'rotate-90' : ''
-                              }`}
-                              fill="none" 
-                              stroke="currentColor" 
+                            <svg
+                              className={`w-4 h-4 text-gray-400 transition-transform ${selectedFile === file.filename ? 'rotate-90' : ''
+                                }`}
+                              fill="none"
+                              stroke="currentColor"
                               viewBox="0 0 24 24"
                             >
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
