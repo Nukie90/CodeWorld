@@ -639,17 +639,6 @@ function ResultsPage() {
                   </button>
 
                   <button
-                    onClick={() => setWordWrap(!wordWrap)}
-                    className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors border ${wordWrap
-                      ? 'bg-blue-100 text-blue-700 border-blue-300'
-                      : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-100'
-                      }`}
-                    title="Toggle word wrap"
-                  >
-                    Wrap
-                  </button>
-
-                  <button
                     onClick={handleCopyCode}
                     className="px-2 py-1 rounded text-xs flex items-center gap-1 bg-white text-gray-600 border border-gray-200 hover:bg-gray-100 transition-colors"
                     title="Copy code"
@@ -660,14 +649,14 @@ function ResultsPage() {
                 </div>
               )}
 
-              <div className="bg-white rounded-lg p-4 flex-1 overflow-auto">
+              <div className="bg-white rounded-lg p-0 flex-1 overflow-auto border border-gray-200 relative">
                 {codeLoading ? (
                   <div className="flex items-center justify-center h-full">
                     <p className="text-gray-400 text-sm">Loading function code...</p>
                   </div>
                 ) : selectedCode ? (
                   <div className="h-full flex flex-col">
-                    <div className="mb-3 pb-2 border-b border-gray-200">
+                    <div className="p-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
                       <h4 className="font-semibold text-gray-900 text-sm">
                         {selectedCode.functionName}
                       </h4>
@@ -676,45 +665,37 @@ function ResultsPage() {
                         {selectedCode.endLine ? `-${selectedCode.endLine}` : ''})
                       </p>
                     </div>
-                    <div className="flex-1 overflow-auto relative">
-                      {codeDisplayMode === 'highlighted' ? (
-                        <div className="relative">
-                          {showLineNumbers && (
-                            <div
-                              className="absolute left-0 top-0 bottom-0 text-gray-500 select-none pr-4 border-r border-gray-300"
-                              style={{
-                                fontFamily: 'monospace',
-                                fontSize: '0.75rem',
-                                lineHeight: '1.5',
-                                paddingTop: '1rem',
-                                paddingBottom: '1rem',
-                                backgroundColor: '#1e1e1e',
-                                paddingLeft: '1rem',
-                                paddingRight: '0.75rem'
-                              }}
-                            >
-                              {selectedCode.code.split('\n').map((_, idx) => (
-                                <div key={idx} style={{ textAlign: 'right' }}>
-                                  {selectedCode.startLine + idx}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                          <pre
-                            className={`text-xs font-mono ${wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'
-                              } break-words`}
-                            style={{
-                              backgroundColor: '#1e1e1e',
-                              color: '#d4d4d4',
-                              padding: '1rem',
-                              paddingLeft: showLineNumbers ? '4rem' : '1rem',
-                              borderRadius: '0.375rem',
-                              lineHeight: '1.5',
-                              margin: 0
-                            }}
-                          >
+
+                    <div className={`flex-1 overflow-auto flex ${codeDisplayMode === 'highlighted' ? 'bg-[#1e1e1e]' : 'bg-white'}`}>
+                      {/* Line Numbers Column */}
+                      {showLineNumbers && (
+                        <div
+                          className={`flex-shrink-0 select-none text-right py-4 px-3 border-r ${codeDisplayMode === 'highlighted'
+                            ? 'bg-[#1e1e1e] text-gray-500 border-gray-700'
+                            : 'bg-gray-50 text-gray-400 border-gray-200'
+                            }`}
+                          style={{ fontFamily: 'monospace', fontSize: '12px', lineHeight: '1.5' }}
+                        >
+                          {selectedCode.code.replace(/\n$/, '').split('\n').map((_, idx) => (
+                            <div key={idx}>{selectedCode.startLine + idx}</div>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Code Content Column */}
+                      <div className="flex-1 py-4 px-4 min-w-0">
+                        <pre
+                          className="font-mono text-xs whitespace-pre"
+                          style={{
+                            lineHeight: '1.5',
+                            fontSize: '12px',
+                            margin: 0,
+                            color: codeDisplayMode === 'highlighted' ? '#d4d4d4' : '#1f2937'
+                          }}
+                        >
+                          {codeDisplayMode === 'highlighted' ? (
                             <code style={{ color: '#d4d4d4' }}>
-                              {selectedCode.code.split('\n').map((line, idx) => {
+                              {selectedCode.code.replace(/\n$/, '').split('\n').map((line, idx) => {
                                 // Simple syntax highlighting for common patterns
                                 const highlighted = line
                                   .replace(/(['"`])(?:(?=(\\?))\2.)*?\1/g, '<span style="color: #ce9178">$&</span>')
@@ -722,54 +703,25 @@ function ResultsPage() {
                                   .replace(/\b(\d+\.?\d*)\b/g, '<span style="color: #b5cea8">$&</span>')
                                   .replace(/(\/\/.*$|\/\*[\s\S]*?\*\/)/gm, '<span style="color: #6a9955">$&</span>')
                                 return (
-                                  <div key={idx} dangerouslySetInnerHTML={{ __html: highlighted || ' ' }} />
+                                  <div key={idx} dangerouslySetInnerHTML={{ __html: highlighted || ' ' }} className="h-[18px]" />
                                 )
                               })}
                             </code>
-                          </pre>
-                        </div>
-                      ) : (
-                        <div className="relative">
-                          {showLineNumbers && (
-                            <div
-                              className="absolute left-0 top-0 bottom-0 text-gray-400 select-none pr-4 border-r border-gray-200"
-                              style={{
-                                fontFamily: 'monospace',
-                                fontSize: '0.75rem',
-                                lineHeight: '1.5',
-                                paddingTop: '1rem',
-                                paddingBottom: '1rem',
-                                backgroundColor: '#f9fafb',
-                                paddingLeft: '1rem',
-                                paddingRight: '0.75rem'
-                              }}
-                            >
-                              {selectedCode.code.split('\n').map((_, idx) => (
-                                <div key={idx} style={{ textAlign: 'right' }}>
-                                  {selectedCode.startLine + idx}
-                                </div>
+                          ) : (
+                            <code>
+                              {selectedCode.code.replace(/\n$/, '').split('\n').map((line, idx) => (
+                                <div key={idx} className="h-[18px]">{line || ' '}</div>
                               ))}
-                            </div>
+                            </code>
                           )}
-                          <pre
-                            className={`text-xs font-mono text-gray-800 ${wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'
-                              } break-words`}
-                            style={{
-                              paddingLeft: showLineNumbers ? '4rem' : '0',
-                              paddingTop: '1rem',
-                              paddingBottom: '1rem',
-                              paddingRight: '1rem',
-                              margin: 0
-                            }}
-                          >
-                            <code>{selectedCode.code}</code>
-                          </pre>
-                        </div>
-                      )}
+                        </pre>
+                      </div>
                     </div>
                   </div>
                 ) : (
-                  <p className="text-gray-400 text-sm">Click on a function block in the visualization to view its code...</p>
+                  <div className="flex items-center justify-center h-full p-4">
+                    <p className="text-gray-400 text-sm text-center">Click on a function block in the visualization to view its code...</p>
+                  </div>
                 )}
               </div>
             </div>

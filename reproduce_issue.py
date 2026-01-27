@@ -6,10 +6,6 @@ import urllib.error
 def test_get_function_code():
     url = "http://127.0.0.1:8000/api/repo/function-code"
     
-    # "repo_url": "Nukie90/CodeWorld" is a valid short spec.
-    # The file path in the repo structure for CodeWorld seems to be 'backend/app/utils/normalize.py'
-    # relative to the repo root.
-    
     payload = {
         "repo_url": "Nukie90/CodeWorld", 
         "filename": "backend/app/utils/normalize.py",

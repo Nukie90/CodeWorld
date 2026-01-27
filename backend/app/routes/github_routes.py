@@ -258,10 +258,12 @@ async def get_function_code(payload: FunctionCodeRequest):
                 line = lines[i]
                 stripped = line.lstrip()
                 
-                # Skip blank lines and comments
-                if not stripped or stripped.startswith('#'):
+                # Skip blank lines (but not comments)
+                if not stripped:
                     continue
                 
+                # Check indentation for comments too
+                # If a comment is dedented to base_indent, it likely belongs to the outer scope
                 current_indent = len(line) - len(stripped)
                 
                 # If we find a line with indentation <= base_indent, the function has ended
@@ -270,7 +272,7 @@ async def get_function_code(payload: FunctionCodeRequest):
                     if stripped.startswith('@'):
                         actual_end_idx = i
                         break
-                    # Otherwise it's code outside the function
+                    # Otherwise it's code/comment outside the function
                     actual_end_idx = i
                     break
             else:
