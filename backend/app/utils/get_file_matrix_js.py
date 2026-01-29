@@ -11,7 +11,6 @@ def get_file_matrix_js(code: str, filename: str) -> Optional[FileMetrics]:
     Returns FileMetrics if successful, None otherwise.
     """
     try:
-        print("IS USED2")
         with httpx.Client(timeout=30.0) as client:
             response = client.post(
                 ANALYZER_URL,

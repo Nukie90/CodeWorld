@@ -3,7 +3,7 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 
-const code = fs.readFileSync(path.join(__dirname, 'temp.jsx'), 'utf8');
+const code = fs.readFileSync(path.join(__dirname, 'temp_code.jsx'), 'utf8');
 
 const postData = JSON.stringify({
     code: code,

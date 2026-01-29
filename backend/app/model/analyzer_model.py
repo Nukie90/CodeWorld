@@ -13,6 +13,8 @@ class FunctionMetric(BaseModel):
     total_cognitive_complexity: Optional[int] = None
     max_nesting_depth: int
     token_count: int
+    id: Optional[int] = None
+    parentId: Optional[int] = None
     children: List['FunctionMetric'] = Field(default_factory=list)
 
 class FileMetrics(BaseModel):

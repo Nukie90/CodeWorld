@@ -1,7 +1,7 @@
 import os
 from typing import List
-from app.utils.get_file_matrix import get_file_matrix_lizard
 from app.utils.get_file_matrix_js import get_file_matrix_js
+from app.python_plugin.python_analyzer import calculate_metrics as get_file_matrix_python
 from app.model.analyzer_model import FileMetrics, FolderMetrics, FolderAnalysisResult
 from app.utils.ignore import build_ignore_checker
 
@@ -37,9 +37,14 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
 
             file_metrics = None
             if relative_path.endswith(('.js', '.jsx')):
+                print("To JS PLUGIN")
                 file_metrics = get_file_matrix_js(content, relative_path)
+            elif relative_path.endswith('.py'):
+                print("To Python PLUGIN")
+                file_metrics = get_file_matrix_python(content, relative_path)
             else:
-                file_metrics = get_file_matrix_lizard(content, relative_path)
+                # Fallback or skip other languages for now
+                pass
 
             if file_metrics is None:
                 # Skip file if analysis failed (e.g., service down or parse error)

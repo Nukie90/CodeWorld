@@ -29,6 +29,9 @@ function BarChartVisualization({ individualFiles, onFunctionClick, fixedFileOrde
       if (fn.cyclomatic_complexity !== undefined && fn.cyclomatic_complexity !== null) {
         allComplexities.push(fn.cyclomatic_complexity);
       }
+      if (fn.cognitive_complexity !== undefined && fn.cognitive_complexity !== null) {
+        allComplexities.push(fn.cognitive_complexity);
+      }
     });
   });
 
@@ -102,7 +105,8 @@ function BarChartVisualization({ individualFiles, onFunctionClick, fixedFileOrde
                 >
                   {functions.map((fn, fnIdx) => {
                     const fnHeight = (fn.nloc || 0) * scale;
-                    const complexity = fn.cyclomatic_complexity;
+                    // const complexity = fn.cyclomatic_complexity;
+                    const complexity = fn.total_cognitive_complexity;
                     const color = getComplexityColor(complexity);
 
                     return (
