@@ -1,17 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
-function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
+function CodeCity3DVisualization({ individualFiles, onFunctionClick, onFileClick }) {
   const mountRef = useRef(null);
   const sceneRef = useRef(null);
   const rendererRef = useRef(null);
   const animationIdRef = useRef(null);
   const cameraRef = useRef(null);
-  
+
   const [hoveredBlock, setHoveredBlock] = useState(null);
   const [hoverInfoPosition, setHoverInfoPosition] = useState({ x: 0, y: 0 });
   const [timeOfDay, setTimeOfDay] = useState('sunset');
-  
+
   const keysRef = useRef({});
   const moveSpeed = 0.5;
 
@@ -51,7 +51,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
   };
 
   const maxNloc = Math.max(
-    ...individualFiles.flatMap(file => 
+    ...individualFiles.flatMap(file =>
       (file.functions || []).map(fn => fn.nloc || 0)
     ),
     1
@@ -69,23 +69,23 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     const gridSize = Math.ceil(Math.sqrt(individualFiles.length));
     const spacing = 20;
     const buildings = [];
-    
+
     individualFiles.forEach((file, fileIdx) => {
       const functions = file.functions || [];
       if (functions.length === 0) return;
-      
+
       const row = Math.floor(fileIdx / gridSize);
       const col = fileIdx % gridSize;
       const x = (col - gridSize / 2) * spacing;
       const z = (row - gridSize / 2) * spacing;
-      
+
       const baseSize = Math.max(4, Math.min(12, 4 + functions.length * 0.5));
-      
+
       const blocks = functions.map((fn, fnIdx) => {
         const complexity = fn.cyclomatic_complexity;
         const nloc = fn.nloc || 1;
         const height = Math.max(5, (nloc / maxNloc) * 50);
-        
+
         return {
           functionName: fn.name || 'Unknown',
           filename: file.filename,
@@ -97,7 +97,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
           blockIndex: fnIdx
         };
       });
-      
+
       buildings.push({
         name: file.filename?.split('/').pop() || `File ${fileIdx + 1}`,
         filename: file.filename,
@@ -110,7 +110,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
 
     let minX = Infinity, maxX = -Infinity;
     let minZ = Infinity, maxZ = -Infinity;
-    
+
     buildings.forEach(b => {
       minX = Math.min(minX, b.x - b.baseSize / 2);
       maxX = Math.max(maxX, b.x + b.baseSize / 2);
@@ -125,7 +125,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
 
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-    
+
     const skySettings = {
       day: {
         skyTop: '#87CEEB',
@@ -169,7 +169,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     };
 
     const currentSettings = skySettings[timeOfDay];
-    
+
     const canvas = document.createElement('canvas');
     canvas.width = 2;
     canvas.height = 256;
@@ -180,7 +180,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     gradient.addColorStop(1, currentSettings.skyBottom);
     context.fillStyle = gradient;
     context.fillRect(0, 0, 2, 256);
-    
+
     const texture = new THREE.CanvasTexture(canvas);
     scene.background = texture;
     scene.fog = new THREE.Fog(currentSettings.fogColor, 100, 400);
@@ -218,7 +218,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     if (timeOfDay === 'night') {
       const starGeometry = new THREE.SphereGeometry(0.5, 8, 8);
       const starMaterial = new THREE.MeshBasicMaterial({ color: 0xffffff });
-      
+
       for (let i = 0; i < 200; i++) {
         const star = new THREE.Mesh(starGeometry, starMaterial);
         star.position.set(
@@ -244,7 +244,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     ocean.rotation.x = -Math.PI / 2;
     ocean.position.y = -2;
     scene.add(ocean);
-    
+
     const oceanVertices = oceanGeometry.attributes.position;
     const originalPositions = [];
     for (let i = 0; i < oceanVertices.count; i++) {
@@ -283,7 +283,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       const radius = Math.max(boundaryBoxWidth, boundaryBoxDepth) / 2 + 3;
       const x = platformCenterX + Math.cos(angle) * radius;
       const z = platformCenterZ + Math.sin(angle) * radius;
-      
+
       const trunkGeometry = new THREE.CylinderGeometry(0.3, 0.4, 8, 8);
       const trunkMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513, roughness: 0.9 });
       const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
@@ -292,7 +292,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       palmTrees.push(trunk);
       geometriesToDispose.push(trunkGeometry);
       materialsToDispose.push(trunkMaterial);
-      
+
       for (let j = 0; j < 6; j++) {
         const leafAngle = (j / 6) * Math.PI * 2;
         const leafGeometry = new THREE.ConeGeometry(1.5, 4, 4);
@@ -316,7 +316,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     for (let i = 0; i < numFlowers; i++) {
       const t = i / numFlowers;
       let x, z;
-      
+
       if (t < 0.25) {
         x = minX + (t * 4) * (maxX - minX);
         z = minZ;
@@ -330,9 +330,9 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         x = minX;
         z = maxZ - ((t - 0.75) * 4) * (maxZ - minZ);
       }
-      
+
       const flowerGeometry = new THREE.SphereGeometry(0.3, 8, 8);
-      const flowerMaterial = new THREE.MeshStandardMaterial({ 
+      const flowerMaterial = new THREE.MeshStandardMaterial({
         color: Math.random() > 0.5 ? 0xff1493 : 0xff69b4,
         emissive: 0xff1493,
         emissiveIntensity: 0.2
@@ -350,9 +350,9 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       const radius = Math.max(boundaryBoxWidth, boundaryBoxDepth) / 2 + 1.5;
       const x = platformCenterX + Math.cos(angle) * radius + (Math.random() - 0.5) * 2;
       const z = platformCenterZ + Math.sin(angle) * radius + (Math.random() - 0.5) * 2;
-      
+
       const shellGeometry = new THREE.ConeGeometry(0.2, 0.3, 6);
-      const shellMaterial = new THREE.MeshStandardMaterial({ 
+      const shellMaterial = new THREE.MeshStandardMaterial({
         color: 0xfff5ee,
         roughness: 0.8
       });
@@ -371,7 +371,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       const radius = Math.max(boundaryBoxWidth, boundaryBoxDepth) / 2 + 2;
       const x = platformCenterX + Math.cos(angle) * radius;
       const z = platformCenterZ + Math.sin(angle) * radius;
-      
+
       const poleGeometry = new THREE.CylinderGeometry(0.05, 0.05, 3, 8);
       const poleMaterial = new THREE.MeshStandardMaterial({ color: 0x8b7355 });
       const pole = new THREE.Mesh(poleGeometry, poleMaterial);
@@ -379,10 +379,10 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       scene.add(pole);
       geometriesToDispose.push(poleGeometry);
       materialsToDispose.push(poleMaterial);
-      
+
       const umbrellaGeometry = new THREE.ConeGeometry(1.2, 1.5, 8);
       const umbrellaColors = [0xff6b6b, 0x4ecdc4, 0xffe66d, 0x95e1d3];
-      const umbrellaMaterial = new THREE.MeshStandardMaterial({ 
+      const umbrellaMaterial = new THREE.MeshStandardMaterial({
         color: umbrellaColors[i % umbrellaColors.length]
       });
       const umbrella = new THREE.Mesh(umbrellaGeometry, umbrellaMaterial);
@@ -390,7 +390,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       scene.add(umbrella);
       geometriesToDispose.push(umbrellaGeometry);
       materialsToDispose.push(umbrellaMaterial);
-      
+
       const chairGeometry = new THREE.BoxGeometry(0.8, 0.1, 1);
       const chairMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
       const chair = new THREE.Mesh(chairGeometry, chairMaterial);
@@ -404,13 +404,13 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     const numDolphins = 3;
     for (let i = 0; i < numDolphins; i++) {
       const dolphinGeometry = new THREE.SphereGeometry(0.8, 8, 8);
-      const dolphinMaterial = new THREE.MeshStandardMaterial({ 
+      const dolphinMaterial = new THREE.MeshStandardMaterial({
         color: 0x4a90e2,
         metalness: 0.3,
         roughness: 0.7
       });
       const dolphin = new THREE.Mesh(dolphinGeometry, dolphinMaterial);
-      
+
       const angle = (i / numDolphins) * Math.PI * 2;
       const radius = platformSize * 1.2;
       dolphin.position.set(
@@ -419,7 +419,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         platformCenterZ + Math.sin(angle) * radius
       );
       dolphin.scale.set(1, 0.6, 1.5);
-      
+
       scene.add(dolphin);
       dolphins.push({ mesh: dolphin, angle: angle, phase: i * 2 });
       geometriesToDispose.push(dolphinGeometry);
@@ -429,7 +429,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     const numBoats = 4;
     for (let i = 0; i < numBoats; i++) {
       const boatGroup = new THREE.Group();
-      
+
       const hullGeometry = new THREE.BoxGeometry(2, 0.5, 4);
       const hullMaterial = new THREE.MeshStandardMaterial({ color: 0x8b4513 });
       const hull = new THREE.Mesh(hullGeometry, hullMaterial);
@@ -437,7 +437,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       boatGroup.add(hull);
       geometriesToDispose.push(hullGeometry);
       materialsToDispose.push(hullMaterial);
-      
+
       const mastGeometry = new THREE.CylinderGeometry(0.1, 0.1, 4, 8);
       const mastMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
       const mast = new THREE.Mesh(mastGeometry, mastMaterial);
@@ -445,10 +445,10 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       boatGroup.add(mast);
       geometriesToDispose.push(mastGeometry);
       materialsToDispose.push(mastMaterial);
-      
+
       const sailGeometry = new THREE.PlaneGeometry(1.5, 3);
       const sailColors = [0xff6b6b, 0xffffff, 0x4ecdc4, 0xffe66d];
-      const sailMaterial = new THREE.MeshStandardMaterial({ 
+      const sailMaterial = new THREE.MeshStandardMaterial({
         color: sailColors[i % sailColors.length],
         side: THREE.DoubleSide
       });
@@ -457,7 +457,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       boatGroup.add(sail);
       geometriesToDispose.push(sailGeometry);
       materialsToDispose.push(sailMaterial);
-      
+
       const angle = (i / numBoats) * Math.PI * 2;
       const radius = platformSize * 1.5;
       boatGroup.position.set(
@@ -466,14 +466,14 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         platformCenterZ + Math.sin(angle) * radius
       );
       boatGroup.rotation.y = angle + Math.PI / 2;
-      
+
       scene.add(boatGroup);
       boats.push({ group: boatGroup, angle: angle, radius: radius });
     }
 
     const lighthouseX = platformCenterX + Math.max(boundaryBoxWidth, boundaryBoxDepth) / 2 + 5;
     const lighthouseZ = platformCenterZ + Math.max(boundaryBoxWidth, boundaryBoxDepth) / 2 + 5;
-    
+
     const baseGeometry = new THREE.CylinderGeometry(1.5, 2, 3, 8);
     const baseMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff });
     const base = new THREE.Mesh(baseGeometry, baseMaterial);
@@ -481,9 +481,9 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     scene.add(base);
     geometriesToDispose.push(baseGeometry);
     materialsToDispose.push(baseMaterial);
-    
+
     const towerGeometry = new THREE.CylinderGeometry(1, 1.2, 12, 8);
-    const towerMaterial = new THREE.MeshStandardMaterial({ 
+    const towerMaterial = new THREE.MeshStandardMaterial({
       color: 0xff6347,
       roughness: 0.7
     });
@@ -492,9 +492,9 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     scene.add(tower);
     geometriesToDispose.push(towerGeometry);
     materialsToDispose.push(towerMaterial);
-    
+
     const lightGeometry = new THREE.CylinderGeometry(1.2, 1.2, 2, 8);
-    const lightMaterial = new THREE.MeshStandardMaterial({ 
+    const lightMaterial = new THREE.MeshStandardMaterial({
       color: 0xffff00,
       emissive: 0xffff00,
       emissiveIntensity: timeOfDay === 'night' ? 1 : 0.3
@@ -504,7 +504,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     scene.add(lighthouseLight);
     geometriesToDispose.push(lightGeometry);
     materialsToDispose.push(lightMaterial);
-    
+
     const beaconLight = new THREE.SpotLight(0xffff00, timeOfDay === 'night' ? 2 : 0.5, 100, Math.PI / 6);
     beaconLight.position.set(lighthouseX, 16, lighthouseZ);
     beaconLight.target.position.set(lighthouseX + 50, 0, lighthouseZ);
@@ -519,7 +519,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
 
       building.blocks.forEach((block, blockIndex) => {
         let blockWidth, blockDepth;
-        
+
         if (blockIndex === 0) {
           blockWidth = building.baseSize;
           blockDepth = building.baseSize;
@@ -532,7 +532,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         blockDepth = Math.max(blockDepth, minBlockSize);
 
         const geometry = new THREE.BoxGeometry(blockWidth, block.height, blockDepth);
-        
+
         const material = new THREE.MeshStandardMaterial({
           color: block.color,
           roughness: 0.2,
@@ -540,7 +540,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
           emissive: block.color,
           emissiveIntensity: 0.1
         });
-        
+
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.set(
           building.x,
@@ -549,7 +549,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         );
         mesh.castShadow = true;
         mesh.receiveShadow = true;
-        
+
         mesh.userData = {
           ...block,
           filename: building.filename,
@@ -559,23 +559,23 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
           width: blockWidth,
           depth: blockDepth
         };
-        
+
         scene.add(mesh);
         blockMeshes.push(mesh);
         geometriesToDispose.push(geometry);
         materialsToDispose.push(material);
 
         const edges = new THREE.EdgesGeometry(geometry);
-        const lineMaterial = new THREE.LineBasicMaterial({ 
-          color: 0xffffff, 
-          opacity: 0.6, 
-          transparent: true 
+        const lineMaterial = new THREE.LineBasicMaterial({
+          color: 0xffffff,
+          opacity: 0.6,
+          transparent: true
         });
         const wireframe = new THREE.LineSegments(edges, lineMaterial);
         mesh.add(wireframe);
         geometriesToDispose.push(edges);
         materialsToDispose.push(lineMaterial);
-        
+
         currentHeight += block.height;
       });
     });
@@ -597,12 +597,12 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     const initialEuler = new THREE.Euler().setFromQuaternion(camera.quaternion);
     let yaw = initialEuler.y;
     let pitch = initialEuler.x;
-    
+
     let isMouseLocked = false;
-    
+
     const onMouseClick = (event) => {
       if (!mountRef.current) return;
-      
+
       const rect = mountRef.current.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -612,15 +612,24 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       if (intersects.length > 0 && onFunctionClick && !isMouseLocked) {
         const clickedMesh = intersects[0].object;
         const blockData = clickedMesh.userData;
-        
+
         if (blockData.startLine) {
-          onFunctionClick({
-            filename: blockData.filename,
-            functionName: blockData.functionName,
-            startLine: blockData.startLine,
-            nloc: blockData.nloc,
-            complexity: blockData.complexity
-          });
+          if (onFileClick) {
+            onFileClick({
+              filename: blockData.filename,
+              // Add other file props if needed for the lookup
+            });
+          }
+
+          if (onFunctionClick) {
+            onFunctionClick({
+              filename: blockData.filename,
+              functionName: blockData.functionName,
+              startLine: blockData.startLine,
+              nloc: blockData.nloc,
+              complexity: blockData.complexity
+            });
+          }
         }
       } else {
         if (!isMouseLocked) {
@@ -640,7 +649,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
 
     const onMouseMove = (event) => {
       if (!mountRef.current) return;
-      
+
       if (!isMouseLocked) {
         const rect = mountRef.current.getBoundingClientRect();
         mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
@@ -668,7 +677,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
       } else {
         const movementX = event.movementX || 0;
         const movementY = event.movementY || 0;
-        
+
         yaw -= movementX * 0.002;
         pitch -= movementY * 0.002;
         pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
@@ -678,7 +687,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     document.addEventListener('pointerlockchange', onPointerLockChange);
     mountRef.current.addEventListener('click', onMouseClick);
     mountRef.current.addEventListener('mousemove', onMouseMove);
-    
+
     if (mountRef.current) {
       mountRef.current.style.cursor = 'crosshair';
     }
@@ -687,7 +696,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
     const animate = () => {
       animationIdRef.current = requestAnimationFrame(animate);
       time += 0.01;
-      
+
       for (let i = 0; i < oceanVertices.count; i++) {
         const x = oceanVertices.getX(i);
         const y = oceanVertices.getY(i);
@@ -695,19 +704,19 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         oceanVertices.setZ(i, originalPositions[i] + wave);
       }
       oceanVertices.needsUpdate = true;
-      
+
       palmTrees.forEach((tree, i) => {
         if (tree.geometry.type === 'CylinderGeometry') {
           tree.rotation.z = Math.sin(time + i) * 0.05;
         }
       });
-      
+
       dolphins.forEach(dolphin => {
         const jumpHeight = Math.sin(time * 2 + dolphin.phase) * 3;
         dolphin.mesh.position.y = -1.5 + Math.max(0, jumpHeight);
         dolphin.mesh.rotation.x = jumpHeight > 0 ? Math.sin(time * 2 + dolphin.phase) * 0.5 : 0;
       });
-      
+
       boats.forEach(boat => {
         boat.angle += 0.001;
         boat.group.position.x = platformCenterX + Math.cos(boat.angle) * boat.radius;
@@ -715,44 +724,44 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         boat.group.rotation.y = boat.angle + Math.PI / 2;
         boat.group.position.y = -1.5 + Math.sin(time) * 0.2;
       });
-      
+
       if (beaconLight.target) {
         const beaconAngle = time * 0.5;
         beaconLight.target.position.x = lighthouseX + Math.cos(beaconAngle) * 50;
         beaconLight.target.position.z = lighthouseZ + Math.sin(beaconAngle) * 50;
       }
-      
+
       const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
       camera.quaternion.setFromEuler(euler);
-      
+
       const keys = keysRef.current;
       const moveVector = new THREE.Vector3();
-      
+
       if (keys['w']) moveVector.z -= moveSpeed;
       if (keys['s']) moveVector.z += moveSpeed;
       if (keys['a']) moveVector.x -= moveSpeed;
       if (keys['d']) moveVector.x += moveSpeed;
       if (keys['q']) moveVector.y += moveSpeed;
       if (keys['e']) moveVector.y -= moveSpeed;
-      
+
       if (moveVector.length() > 0) {
         const cameraDirection = new THREE.Vector3();
         camera.getWorldDirection(cameraDirection);
         cameraDirection.y = 0;
         cameraDirection.normalize();
-        
+
         const rightVector = new THREE.Vector3();
         rightVector.crossVectors(cameraDirection, new THREE.Vector3(0, 1, 0));
-        
+
         const forwardMovement = cameraDirection.multiplyScalar(-moveVector.z);
         const rightMovement = rightVector.multiplyScalar(moveVector.x);
         const verticalMovement = new THREE.Vector3(0, moveVector.y, 0);
-        
+
         camera.position.add(forwardMovement);
         camera.position.add(rightMovement);
         camera.position.add(verticalMovement);
       }
-      
+
       renderer.render(scene, camera);
     };
     animate();
@@ -831,31 +840,28 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick }) {
         <div className="flex gap-2">
           <button
             onClick={() => setTimeOfDay('day')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              timeOfDay === 'day'
-                ? 'bg-blue-500 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${timeOfDay === 'day'
+              ? 'bg-blue-500 text-white shadow-md'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             ☀️ Day
           </button>
           <button
             onClick={() => setTimeOfDay('sunset')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              timeOfDay === 'sunset'
-                ? 'bg-orange-500 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${timeOfDay === 'sunset'
+              ? 'bg-orange-500 text-white shadow-md'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             🌅 Sunset
           </button>
           <button
             onClick={() => setTimeOfDay('night')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              timeOfDay === 'night'
-                ? 'bg-indigo-900 text-white shadow-md'
-                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-            }`}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${timeOfDay === 'night'
+              ? 'bg-indigo-900 text-white shadow-md'
+              : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+              }`}
           >
             🌙 Night
           </button>
