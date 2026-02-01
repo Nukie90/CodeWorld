@@ -360,7 +360,7 @@ function ResultsPage() {
       >
         <div className="h-full flex flex-col p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Git Graph</h3>
+            <h3 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-blue-800 bg-clip-text text-transparent">Git Graph</h3>
           </div>
 
           <div className={`flex items-center gap-2 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-100/50'} backdrop-blur-sm px-3 py-2 rounded-xl mb-4 border ${borderColor}`}>
@@ -500,7 +500,7 @@ function ResultsPage() {
       >
         <div className="h-full flex flex-col p-6">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">Raw Code</h3>
+            <h3 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-teal-500 bg-clip-text text-transparent">Raw Code</h3>
           </div>
 
           {/* Code Display Options */}
@@ -510,8 +510,8 @@ function ResultsPage() {
                 <button
                   onClick={() => setCodeDisplayMode('plain')}
                   className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${codeDisplayMode === 'plain'
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                    : `${textColor} hover:bg-gray-200 dark:hover:bg-gray-700`
+                    ? 'bg-gradient-to-r from-blue-500 to-teal-500 text-white shadow-lg'
+                    : `${textColor} hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-white`
                     }`}
                   title="Plain text"
                 >
@@ -521,8 +521,8 @@ function ResultsPage() {
                 <button
                   onClick={() => setCodeDisplayMode('highlighted')}
                   className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${codeDisplayMode === 'highlighted'
-                    ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg'
-                    : `${textColor} hover:bg-gray-200 dark:hover:bg-gray-700`
+                    ? 'bg-gradient-to-r from-blue-500 to-teal-500 text-white shadow-lg'
+                    : `${textColor} hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-white`
                     }`}
                   title="Syntax highlighted"
                 >
@@ -534,8 +534,8 @@ function ResultsPage() {
               <button
                 onClick={() => setShowLineNumbers(!showLineNumbers)}
                 className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all border ${showLineNumbers
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white border-transparent shadow-lg'
-                  : `${panelBg} ${textColor} ${borderColor} hover:bg-gray-200 dark:hover:bg-gray-700`
+                  ? 'bg-gradient-to-r from-blue-500 to-teal-500 text-white border-transparent shadow-lg'
+                  : `${panelBg} ${textColor} ${borderColor} hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-white`
                   }`}
                 title="Toggle line numbers"
               >
@@ -546,8 +546,8 @@ function ResultsPage() {
               <button
                 onClick={() => setWordWrap(!wordWrap)}
                 className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all border ${wordWrap
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white border-transparent shadow-lg'
-                  : `${panelBg} ${textColor} ${borderColor} hover:bg-gray-200 dark:hover:bg-gray-700`
+                  ? 'bg-gradient-to-r from-blue-500 to-teal-500 text-white border-transparent shadow-lg'
+                  : `${panelBg} ${textColor} ${borderColor} hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-white`
                   }`}
                 title="Toggle word wrap"
               >
@@ -556,7 +556,7 @@ function ResultsPage() {
 
               <button
                 onClick={handleCopyCode}
-                className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 ${panelBg} ${textColor} border ${borderColor} hover:bg-gray-200 dark:hover:bg-gray-700 transition-all shadow-sm`}
+                className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 ${panelBg} ${textColor} border ${borderColor} hover:bg-gray-200 hover:text-white dark:hover:bg-gray-700 transition-all shadow-sm`}
                 title="Copy code"
               >
                 {copied ? <Check size={14} strokeWidth={2.5} className="text-green-600" /> : <Copy size={14} strokeWidth={2.5} />}
@@ -717,7 +717,7 @@ function ResultsPage() {
                 key={key}
                 onClick={() => setActiveTab(key)}
                 className={`px-6 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === key
-                  ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-2xl scale-110'
+                  ? 'bg-gradient-to-r from-blue-400 to-blue-700 text-white backdrop-blur-xl shadow-2xl scale-110'
                   : `${isDarkMode ? 'bg-gray-800/50 text-gray-300 hover:bg-gray-700' : 'bg-gray-100/50 text-gray-700 hover:bg-gray-200'} border ${borderColor}`
                   }`}
               >
@@ -749,11 +749,11 @@ function ResultsPage() {
       >
         <div className="h-full flex flex-col overflow-hidden">
           {/* Tab System - Modern Design */}
-          <div className={`flex ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-100/30'} backdrop-blur-sm p-2 m-6 mb-4 rounded-2xl border ${isDarkMode ? 'border-white/10' : 'border-gray-200/50'} shadow-lg`}>
+          <div className={`flex ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-100/30'} backdrop-blur-sm p-1.5 m-6 mb-4 rounded-xl border ${isDarkMode ? 'border-white/10' : 'border-gray-200/50'} shadow-lg gap-2`}>
             <button
               onClick={() => setRightPanelTab('summary')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold uppercase tracking-wider transition-all rounded-xl ${rightPanelTab === 'summary'
-                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-2xl scale-105'
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider transition-all rounded-lg ${rightPanelTab === 'summary'
+                ? 'bg-gradient-to-r from-blue-500 to-teal-600 text-white shadow-lg'
                 : `${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50' : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'}`
                 }`}
             >
@@ -761,8 +761,8 @@ function ResultsPage() {
             </button>
             <button
               onClick={() => setRightPanelTab('analysis')}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-bold uppercase tracking-wider transition-all rounded-xl ${rightPanelTab === 'analysis'
-                ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-2xl scale-105'
+              className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider transition-all rounded-lg ${rightPanelTab === 'analysis'
+                ? 'bg-gradient-to-r from-blue-500 to-teal-600 text-white shadow-lg'
                 : `${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50' : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'}`
                 }`}
             >
@@ -780,7 +780,7 @@ function ResultsPage() {
                   {Object.entries(folderSummary).map(([key, value]) => (
                     <div key={key} className={`${isDarkMode ? 'bg-gray-800/50' : 'bg-gradient-to-br from-blue-50 to-purple-50'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg hover:shadow-xl transition-all`}>
                       <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">{key}</span>
-                      <span className="font-black text-2xl bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{value}</span>
+                      <span className={`font-black text-2xl ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{value}</span>
                     </div>
                   ))}
                 </div>
@@ -788,66 +788,78 @@ function ResultsPage() {
             ) : (
               /* File Analysis Content */
               <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                {selectedFileForCard ? (
-                  <div className={`${isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-700' : 'bg-gradient-to-br from-white to-blue-50'} rounded-2xl p-6 border-l-4 border-l-blue-500 shadow-2xl`}>
-                    <div className="mb-6">
-                      <h3 className="text-xs font-bold text-blue-500 opacity-70 uppercase tracking-wider mb-2">Selected File</h3>
-                      <h4 className="text-base font-black break-all leading-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                        {selectedFileForCard.filename}
-                      </h4>
-                    </div>
+                {selectedFileForCard ? (() => {
+                  // Ensure we have the full file data
+                  const fullFileData = individual_files?.find(f => f.filename === selectedFileForCard.filename) || selectedFileForCard;
+                  const totalNloc = fullFileData.functions?.reduce((sum, fn) => sum + (fn.nloc || 0), 0) || 0;
 
-                    <div className="grid grid-cols-4 gap-4 mb-6">
-                      <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Total LOC</span>
-                        <span className="text-xl font-black bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">{selectedFileForCard.loc}</span>
+                  return (
+                    <div className={`${isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-700' : 'bg-gradient-to-br from-white to-blue-50'} rounded-2xl p-6 border-l-4 border-l-blue-500 shadow-2xl`}>
+                      <div className="mb-6">
+                        <h3 className="text-xs font-bold text-blue-500 opacity-70 uppercase tracking-wider mb-2">Selected File</h3>
+                        <h4 className="text-base font-black break-all leading-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                          {fullFileData.filename}
+                        </h4>
                       </div>
-                      <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Logical LOC</span>
-                        <span className="text-xl font-black bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">{selectedFileForCard.nloc}</span>
-                      </div>
-                      <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Max Complexity</span>
-                        <span className="text-xl font-black bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">{selectedFileForCard.complexity_max}</span>
-                      </div>
-                      <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
-                        <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Functions</span>
-                        <span className="text-xl font-black bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">{selectedFileForCard.function_count}</span>
-                      </div>
-                    </div>
 
-                    <div>
-                      <h3 className="text-sm font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-3">Functions List</h3>
-                      <div className="grid grid-cols-2 gap-3 max-h-40 overflow-y-auto">
-                        {selectedFileForCard.functions?.map((fn, idx) => (
-                          <button
-                            key={idx}
-                            onClick={() => handleFunctionClick({
-                              filename: selectedFileForCard.filename,
-                              functionName: fn.name,
-                              startLine: fn.start_line,
-                              nloc: fn.nloc
-                            })}
-                            className={`${isDarkMode ? 'bg-gray-800/70 hover:bg-gray-700' : 'bg-white/70 hover:bg-blue-50'} backdrop-blur-sm rounded-xl p-3 text-left transition-all border ${borderColor} shadow-md hover:shadow-xl hover:scale-105`}
-                          >
-                            <div className="flex justify-between items-start">
-                              <div className="flex flex-col flex-1 min-w-0">
-                                <span className="font-bold text-sm truncate">{fn.name}</span>
-                                <span className="text-xs opacity-60 font-medium">Lines: {fn.nloc}</span>
+                      <div className="grid grid-cols-4 gap-4 mb-6">
+                        <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Total LOC</span>
+                          <span className={`text-xl font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                            {fullFileData.loc || fullFileData.total_loc || totalNloc || "—"}
+                          </span>
+                        </div>
+                        <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Logical LOC</span>
+                          <span className={`text-xl font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                            {fullFileData.nloc || fullFileData.total_nloc || totalNloc || "—"}
+                          </span>
+                        </div>
+                        <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Max Complexity</span>
+                          <span className="text-xl font-black bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">{fullFileData.complexity_max || fullFileData.complexity || "—"}</span>
+                        </div>
+                        <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Functions</span>
+                          <span className={`text-xl font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                            {fullFileData.function_count || fullFileData.functions?.length || 0}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="text-sm font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-3">Functions List</h3>
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 max-h-60 overflow-y-auto pr-2">
+                          {selectedFileForCard.functions?.map((fn, idx) => (
+                            <button
+                              key={idx}
+                              onClick={() => handleFunctionClick({
+                                filename: selectedFileForCard.filename,
+                                functionName: fn.name,
+                                startLine: fn.start_line,
+                                nloc: fn.nloc
+                              })}
+                              className={`${isDarkMode ? 'bg-gray-800/70 hover:bg-gray-700' : 'bg-white/70 hover:bg-blue-50'} backdrop-blur-sm rounded-xl p-3 text-left transition-all border ${borderColor} shadow-md hover:shadow-lg hover:border-blue-400 group`}
+                            >
+                              <div className="flex justify-between items-start">
+                                <div className="flex flex-col flex-1 min-w-0">
+                                  <span className="font-bold text-sm truncate group-hover:text-blue-500 transition-colors">{fn.name}</span>
+                                  <span className="text-xs opacity-60 font-medium">Lines: {fn.nloc}</span>
+                                </div>
+                                <span className={`ml-2 px-2.5 py-1 rounded-lg text-xs font-black ${fn.cyclomatic_complexity > 10
+                                  ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg'
+                                  : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
+                                  }`}>
+                                  CC {fn.cyclomatic_complexity}
+                                </span>
                               </div>
-                              <span className={`ml-2 px-2.5 py-1 rounded-lg text-xs font-black ${fn.cyclomatic_complexity > 10
-                                ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg'
-                                : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                                }`}>
-                                CC {fn.cyclomatic_complexity}
-                              </span>
-                            </div>
-                          </button>
-                        ))}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ) : (
+                  );
+                })() : (
                   <div className={`h-64 flex flex-col items-center justify-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'} text-center px-6 border-2 border-dashed ${borderColor} rounded-2xl backdrop-blur-sm`}>
                     <Code size={48} className="mb-4 opacity-20" strokeWidth={1.5} />
                     <p className="text-sm font-bold uppercase tracking-widest mb-2">No File Selected</p>
@@ -861,19 +873,24 @@ function ResultsPage() {
       </div>
 
       {/* Bottom Panel Toggle Button - Circular like play button */}
-      <button
-        onClick={() => setIsBottomPanelOpen(!isBottomPanelOpen)}
-        className={`absolute left-1/2 -translate-x-1/2 bottom-4 bg-white/10 dark:bg-black/20 backdrop-blur-xl shadow-2xl rounded-full p-4 z-40 transition-all hover:bg-white/20 dark:hover:bg-black/30 hover:scale-110 border border-white/20 dark:border-white/10`}
+      {/* Bottom Panel Toggle Button - Circular like play button */}
+      <div
+        className="absolute left-1/2 -translate-x-1/2 bottom-4 z-40 transition-all"
         style={{
           transform: `translateX(-50%) translateY(${isBottomPanelOpen ? '-420px' : '0'})`
         }}
       >
-        {isBottomPanelOpen ? (
-          <ChevronDown size={24} strokeWidth={2.5} className="text-gray-700 dark:text-gray-300" />
-        ) : (
-          <ChevronUp size={24} strokeWidth={2.5} className="text-gray-700 dark:text-gray-300" />
-        )}
-      </button>
+        <button
+          onClick={() => setIsBottomPanelOpen(!isBottomPanelOpen)}
+          className={`bg-white/10 dark:bg-black/20 backdrop-blur-xl shadow-2xl rounded-full p-4 transition-all hover:bg-white/20 dark:hover:bg-black/30 hover:scale-110 border border-white/20 dark:border-white/10`}
+        >
+          {isBottomPanelOpen ? (
+            <ChevronDown size={24} strokeWidth={2.5} className="text-gray-700 dark:text-gray-300" />
+          ) : (
+            <ChevronUp size={24} strokeWidth={2.5} className="text-gray-700 dark:text-gray-300" />
+          )}
+        </button>
+      </div>
 
       {/* Main Visualization Area - Full Screen */}
       <div className={`h-full w-full flex items-center justify-center p-0 ${bgColor}`}>
