@@ -9,6 +9,7 @@ import TreemapVisualization from '../components/results/visualizations/TreemapVi
 import ForceTreeVisualization from '../components/results/visualizations/ForceTreeVisualization';
 import RadarChartVisualization from '../components/results/visualizations/RadarChartVisualization';
 import CodeCity3DVisualization from '../components/results/visualizations/CodeCity3DVisualization';
+import Island3DVisualization from '../components/results/visualizations/Island3DVisualization';
 import CodeGalaxySolarSystem from '../components/results/visualizations/CodeGalaxySolarSystem';
 import GitGraph from '../components/git/GitGraph';
 
@@ -482,7 +483,7 @@ function ResultsPage() {
               {/* Tab Navigation */}
               <div className="flex gap-6 mb-6 border-b border-gray-200 justify-between items-center">
                 <div className="flex gap-6">
-                  {['bar', 'block', 'tree', 'treemap', 'flower', 'city', 'galaxy'].map((tab) => (
+                  {['bar', 'block', 'tree', 'treemap', 'flower', 'city', 'island', 'galaxy'].map((tab) => (
                     <button
                       key={tab}
                       onClick={() => setActiveTab(tab)}
@@ -491,7 +492,7 @@ function ResultsPage() {
                         : 'text-gray-500 hover:text-gray-700'
                         }`}
                     >
-                      {tab === 'bar' ? 'Bar' : tab === 'block' ? 'Block' : tab === 'flower' ? 'Flower' : tab === 'city' ? 'City 3D' : tab.charAt(0).toUpperCase() + tab.slice(1)}
+                      {tab === 'bar' ? 'Bar' : tab === 'block' ? 'Block' : tab === 'flower' ? 'Flower' : tab === 'city' ? 'City 3D' : tab === 'island' ? 'Island 3D' : tab.charAt(0).toUpperCase() + tab.slice(1)}
                     </button>
                   ))}
                 </div>
@@ -512,7 +513,7 @@ function ResultsPage() {
               </div>
 
               {/* Visualization Content */}
-              <div className={`h-[55vh] ${activeTab === 'city' ? 'overflow-hidden' : 'overflow-auto'}`}>
+              <div className={`h-[55vh] ${activeTab === 'city' || activeTab === 'island' ? 'overflow-hidden' : 'overflow-auto'}`}>
                 {activeTab === 'bar' && individual_files?.length > 0 && (
                   <BarChartVisualization
                     individualFiles={individual_files}
@@ -534,6 +535,12 @@ function ResultsPage() {
                 )}
                 {activeTab === 'city' && individual_files?.length > 0 && (
                   <CodeCity3DVisualization
+                    individualFiles={individual_files}
+                    onFunctionClick={handleFunctionClick}
+                  />
+                )}
+                {activeTab === 'island' && individual_files?.length > 0 && (
+                  <Island3DVisualization
                     individualFiles={individual_files}
                     onFunctionClick={handleFunctionClick}
                   />
