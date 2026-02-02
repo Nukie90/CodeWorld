@@ -712,7 +712,8 @@ function ResultsPage() {
               { key: 'treemap', label: 'Treemap' },
               { key: 'flower', label: 'Flower' },
               { key: 'city', label: 'City 3D' },
-              { key: 'galaxy', label: 'Galaxy' }
+              { key: 'galaxy', label: 'Galaxy' },
+              { key: 'island3D', label: 'Island 3D' }
             ].map(({ key, label }) => (
               <button
                 key={key}
@@ -944,6 +945,13 @@ function ResultsPage() {
             )}
             {activeTab === 'galaxy' && individual_files?.length > 0 && (
               <CodeGalaxySolarSystem
+                individualFiles={individual_files}
+                onFunctionClick={handleFunctionClick}
+                onFileClick={handleFileClickFrom3D}
+              />
+            )}
+            {activeTab === 'island3D' && individual_files?.length > 0 && (
+              <Island3DVisualization
                 individualFiles={individual_files}
                 onFunctionClick={handleFunctionClick}
                 onFileClick={handleFileClickFrom3D}
