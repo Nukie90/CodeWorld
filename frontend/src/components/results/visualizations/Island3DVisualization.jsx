@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import * as d3 from 'd3';
+import FunctionMoleculeVisualization from './FunctionMoleculeVisualization';
 
 function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode }) {
     const mountRef = useRef(null);
@@ -803,6 +804,21 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
         setMenuPosition(null);
         setActiveFileForMenu(null);
     };
+
+    // If in functions mode, render the separate component
+    if (viewMode === 'functions' && focusedFile) {
+        return (
+            <FunctionMoleculeVisualization
+                file={focusedFile}
+                isDarkMode={isDarkMode}
+                onFunctionClick={onFunctionClick}
+                onBack={() => {
+                    setViewMode('island');
+                    setFocusedFile(null);
+                }}
+            />
+        );
+    }
 
     return (
         <div className="relative w-full h-full">
