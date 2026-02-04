@@ -159,6 +159,9 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
                 start_line: fn.start_line,
                 filename: file.filename,
                 originalEmissive: isDarkMode ? 0.4 : 0.2,
+                originalPosition: { x: 0, y: currentY + height / 2, z: 0 },
+                shakeOffset: { x: 0, y: 0, z: 0 },
+                isHovered: false,
                 index: actualIndex
             };
 
@@ -238,14 +241,16 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
                 if (block.material.emissive) {
                     block.material.emissiveIntensity = block.userData.originalEmissive;
                 }
+                block.userData.isHovered = false;
             });
 
             if (intersects.length > 0) {
                 const block = intersects[0].object;
                 setHoveredFunction(block.userData);
-                // Highlight
+                block.userData.isHovered = true;
+                // Highlight with stronger glow
                 if (block.material.emissive) {
-                    block.material.emissiveIntensity = isDarkMode ? 1.0 : 0.8;
+                    block.material.emissiveIntensity = isDarkMode ? 1.2 : 1.0;
                 }
             } else {
                 setHoveredFunction(null);
@@ -287,6 +292,24 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
         const animate = () => {
             animationIdRef.current = requestAnimationFrame(animate);
             time += 0.01;
+
+            // Animate blocks (shake on hover)
+            functionBlocks.forEach((block, index) => {
+                if (block.userData.isHovered) {
+                    // Shake animation
+                    const shakeIntensity = 0.15;
+                    const shakeSpeed = 15;
+                    block.userData.shakeOffset.x = Math.sin(time * shakeSpeed) * shakeIntensity;
+                    block.userData.shakeOffset.z = Math.cos(time * shakeSpeed * 1.3) * shakeIntensity;
+
+                    block.position.x = block.userData.originalPosition.x + block.userData.shakeOffset.x;
+                    block.position.z = block.userData.originalPosition.z + block.userData.shakeOffset.z;
+                } else {
+                    // Smoothly return to original position
+                    block.position.x += (block.userData.originalPosition.x - block.position.x) * 0.1;
+                    block.position.z += (block.userData.originalPosition.z - block.position.z) * 0.1;
+                }
+            });
 
             // Camera controls
             const keys = keysRef.current;
