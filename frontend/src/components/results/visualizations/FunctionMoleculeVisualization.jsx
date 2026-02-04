@@ -91,8 +91,7 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
             0.1,
             1000
         );
-        camera.position.set(0, 40, 100);
-        camera.lookAt(0, 0, 0);
+
         cameraRef.current = camera;
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -119,25 +118,23 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
         const materialsToDispose = [];
         const functionBlocks = [];
 
-        // --- Build Function Blocks ---
+        // --- Build Function Tower (Vertical Stack) ---
         const functions = file.functions || [];
 
-        // Arrange blocks in a grid from left to right, top to bottom
-        const blocksPerRow = Math.ceil(Math.sqrt(functions.length));
-        const blockSpacing = 12;
-        const blockWidth = 8;
-        const blockDepth = 8;
+        // Stack blocks vertically, first function at the top
+        const blockWidth = 15;
+        const blockDepth = 15;
 
-        functions.forEach((fn, index) => {
-            const row = Math.floor(index / blocksPerRow);
-            const col = index % blocksPerRow;
+        let currentY = 0;
 
-            // Position in grid
-            const x = (col - blocksPerRow / 2) * blockSpacing;
-            const z = (row - Math.ceil(functions.length / blocksPerRow) / 2) * blockSpacing;
+        // Reverse to build from bottom up (so first function ends up on top)
+        const reversedFunctions = [...functions].reverse();
+
+        reversedFunctions.forEach((fn, index) => {
+            const actualIndex = functions.length - 1 - index; // Original index
 
             // Height based on LOC
-            const height = Math.max(3, Math.min(30, (fn.nloc || 1) * 0.3));
+            const height = Math.max(3, Math.min(20, (fn.nloc || 1) * 0.2));
 
             const blockGeo = new THREE.BoxGeometry(blockWidth, height, blockDepth);
             const blockColor = getComplexityColor(fn.cyclomatic_complexity);
@@ -150,7 +147,7 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
             });
 
             const block = new THREE.Mesh(blockGeo, blockMat);
-            block.position.set(x, height / 2, z);
+            block.position.set(0, currentY + height / 2, 0);
             block.castShadow = true;
             block.receiveShadow = true;
 
@@ -162,7 +159,7 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
                 start_line: fn.start_line,
                 filename: file.filename,
                 originalEmissive: isDarkMode ? 0.4 : 0.2,
-                index: index
+                index: actualIndex
             };
 
             scene.add(block);
@@ -170,20 +167,42 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
             geometriesToDispose.push(blockGeo);
             materialsToDispose.push(blockMat);
 
-            // Add base platform
-            const baseGeo = new THREE.BoxGeometry(blockWidth + 0.5, 0.5, blockDepth + 0.5);
-            const baseMat = new THREE.MeshStandardMaterial({
-                color: isDarkMode ? 0x1e293b : 0x94a3b8,
-                roughness: 0.8,
-                metalness: 0.2
-            });
-            const base = new THREE.Mesh(baseGeo, baseMat);
-            base.position.set(x, 0.25, z);
-            base.receiveShadow = true;
-            scene.add(base);
-            geometriesToDispose.push(baseGeo);
-            materialsToDispose.push(baseMat);
+            // Add separator line between blocks
+            if (index < reversedFunctions.length - 1) {
+                const lineGeo = new THREE.BoxGeometry(blockWidth + 0.5, 0.2, blockDepth + 0.5);
+                const lineMat = new THREE.MeshStandardMaterial({
+                    color: isDarkMode ? 0x475569 : 0x64748b,
+                    roughness: 0.6,
+                    metalness: 0.4
+                });
+                const line = new THREE.Mesh(lineGeo, lineMat);
+                line.position.set(0, currentY + height, 0);
+                scene.add(line);
+                geometriesToDispose.push(lineGeo);
+                materialsToDispose.push(lineMat);
+            }
+
+            currentY += height;
         });
+
+        // Add base platform at bottom
+        const baseGeo = new THREE.CylinderGeometry(blockWidth * 0.7, blockWidth * 0.8, 2, 32);
+        const baseMat = new THREE.MeshStandardMaterial({
+            color: isDarkMode ? 0x1e293b : 0x94a3b8,
+            roughness: 0.7,
+            metalness: 0.3
+        });
+        const base = new THREE.Mesh(baseGeo, baseMat);
+        base.position.set(0, -1, 0);
+        base.receiveShadow = true;
+        scene.add(base);
+        geometriesToDispose.push(baseGeo);
+        materialsToDispose.push(baseMat);
+
+        // Position camera to view the whole tower
+        const towerHeight = currentY;
+        camera.position.set(40, towerHeight / 2, 60);
+        camera.lookAt(0, towerHeight / 2, 0);
 
         // Add floor
         const floorGeo = new THREE.PlaneGeometry(200, 200);
@@ -194,7 +213,7 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
         });
         const floor = new THREE.Mesh(floorGeo, floorMat);
         floor.rotation.x = -Math.PI / 2;
-        floor.position.y = 0;
+        floor.position.y = -2;
         floor.receiveShadow = true;
         scene.add(floor);
         geometriesToDispose.push(floorGeo);
@@ -358,6 +377,10 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
                         </div>
                         <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
                             <div className="flex justify-between gap-4">
+                                <span>Position:</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-100">#{hoveredFunction.index + 1}</span>
+                            </div>
+                            <div className="flex justify-between gap-4">
                                 <span>Complexity:</span>
                                 <span className="font-medium text-gray-900 dark:text-gray-100">{hoveredFunction.complexity}</span>
                             </div>
@@ -397,7 +420,7 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
             {/* Legend */}
             <div className="absolute bottom-4 right-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl shadow-lg p-4 z-10 border border-white/50 dark:border-slate-700/50">
                 <h4 className="font-bold text-sm mb-3 text-gray-800 dark:text-gray-100 flex items-center gap-2">
-                    <span className="text-base">📊</span> Function Blocks
+                    <span className="text-base">🗼</span> Function Tower
                 </h4>
                 <div className="space-y-2 text-xs text-gray-600 dark:text-gray-300">
                     <div className="flex items-center gap-2">
@@ -409,7 +432,7 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
                         <span>Color = Complexity</span>
                     </div>
                     <div className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-                        Ordered from first to last
+                        ⬆️ Top = First function
                     </div>
                 </div>
             </div>
