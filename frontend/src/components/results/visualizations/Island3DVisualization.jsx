@@ -12,6 +12,12 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
     const [hoveredObject, setHoveredObject] = useState(null);
     const [hoverInfoPosition, setHoverInfoPosition] = useState({ x: 0, y: 0 });
 
+    // New Interaction State
+    const [viewMode, setViewMode] = useState('island'); // 'island' | 'functions'
+    const [focusedFile, setFocusedFile] = useState(null);
+    const [menuPosition, setMenuPosition] = useState(null); // { x, y }
+    const [activeFileForMenu, setActiveFileForMenu] = useState(null);
+
     const keysRef = useRef({});
     const moveSpeed = 0.5;
 
@@ -443,41 +449,132 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
             }
         };
 
-        if (individualFiles.length > 0) {
-            renderNode(root);
-        }
+        if (viewMode === 'island') {
+            if (individualFiles.length > 0) {
+                renderNode(root);
+            }
 
-        // --- Decorations ---
-        // Add dolphins roaming
-        for (let i = 0; i < 4; i++) {
-            const dolphinGroup = new THREE.Group();
-            const bodyGeometry = new THREE.SphereGeometry(1.5, 16, 12);
-            const dolphinMaterial = new THREE.MeshStandardMaterial({
-                color: isDarkMode ? 0x94a3b8 : 0x64748b,
-                metalness: 0.4,
-                roughness: 0.5
+            // --- Decorations (Only for Island) ---
+            // Add dolphins roaming
+            for (let i = 0; i < 4; i++) {
+                const dolphinGroup = new THREE.Group();
+                const bodyGeometry = new THREE.SphereGeometry(1.5, 16, 12);
+                const dolphinMaterial = new THREE.MeshStandardMaterial({
+                    color: isDarkMode ? 0x94a3b8 : 0x64748b,
+                    metalness: 0.4,
+                    roughness: 0.5
+                });
+                const body = new THREE.Mesh(bodyGeometry, dolphinMaterial);
+                body.scale.set(1, 0.5, 2);
+                dolphinGroup.add(body);
+
+                // Fin
+                const finGeo = new THREE.ConeGeometry(0.5, 1, 4);
+                const fin = new THREE.Mesh(finGeo, dolphinMaterial);
+                fin.position.set(0, 0.8, 0.5);
+                fin.rotation.x = -0.5;
+                dolphinGroup.add(fin);
+                geometriesToDispose.push(finGeo);
+
+                const radius = 350 + Math.random() * 100;
+                const angle = (i / 4) * Math.PI * 2;
+
+                dolphinGroup.position.set(islandCenterX + Math.cos(angle) * radius, -3, islandCenterZ + Math.sin(angle) * radius);
+                scene.add(dolphinGroup);
+                dolphins.push({ group: dolphinGroup, angle, radius, phase: Math.random() * Math.PI });
+
+                geometriesToDispose.push(bodyGeometry);
+                materialsToDispose.push(dolphinMaterial);
+            }
+        } else if (viewMode === 'functions' && focusedFile) {
+            // --- Function Visualization (Satellites) ---
+
+            // Central Core (File)
+            const coreRadius = 20;
+            const coreGeo = new THREE.SphereGeometry(coreRadius, 64, 64);
+            const coreColor = getComplexityColor(focusedFile.avgComplexity);
+            const coreMat = new THREE.MeshStandardMaterial({
+                color: coreColor,
+                roughness: 0.2,
+                metalness: 0.8,
+                emissive: coreColor,
+                emissiveIntensity: isDarkMode ? 0.5 : 0.2
             });
-            const body = new THREE.Mesh(bodyGeometry, dolphinMaterial);
-            body.scale.set(1, 0.5, 2);
-            dolphinGroup.add(body);
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            core.position.set(islandCenterX, 50, islandCenterZ);
+            scene.add(core);
+            geometriesToDispose.push(coreGeo);
+            materialsToDispose.push(coreMat);
 
-            // Fin
-            const finGeo = new THREE.ConeGeometry(0.5, 1, 4);
-            const fin = new THREE.Mesh(finGeo, dolphinMaterial);
-            fin.position.set(0, 0.8, 0.5);
-            fin.rotation.x = -0.5;
-            dolphinGroup.add(fin);
-            geometriesToDispose.push(finGeo);
+            // Orbiting Functions
+            const functionData = focusedFile.functions || [];
+            const orbitRadiusBase = 40;
 
-            const radius = 350 + Math.random() * 100;
-            const angle = (i / 4) * Math.PI * 2;
+            functionData.forEach((fn, index) => {
+                const layer = Math.floor(index / 8) + 1;
+                const radius = orbitRadiusBase + (layer * 15);
+                const angle = (index % 8) * (Math.PI * 2 / 8) + (layer * 0.5);
 
-            dolphinGroup.position.set(islandCenterX + Math.cos(angle) * radius, -3, islandCenterZ + Math.sin(angle) * radius);
-            scene.add(dolphinGroup);
-            dolphins.push({ group: dolphinGroup, angle, radius, phase: Math.random() * Math.PI });
+                const size = Math.max(2, Math.min(8, Math.sqrt(fn.nloc || 1)));
+                const fnGeo = new THREE.SphereGeometry(size, 32, 32);
+                const fnColor = getComplexityColor(fn.cyclomatic_complexity);
+                const fnMat = new THREE.MeshStandardMaterial({
+                    color: fnColor,
+                    roughness: 0.3,
+                    metalness: 0.5,
+                    emissive: fnColor,
+                    emissiveIntensity: isDarkMode ? 0.8 : 0.4
+                });
 
-            geometriesToDispose.push(bodyGeometry);
-            materialsToDispose.push(dolphinMaterial);
+                const satellite = new THREE.Mesh(fnGeo, fnMat);
+
+                // Initial position (will be animated)
+                satellite.position.set(
+                    islandCenterX + Math.cos(angle) * radius,
+                    50 + (Math.random() - 0.5) * 10,
+                    islandCenterZ + Math.sin(angle) * radius
+                );
+
+                satellite.userData = {
+                    type: 'function',
+                    name: fn.name,
+                    nloc: fn.nloc,
+                    complexity: fn.cyclomatic_complexity,
+                    fileData: focusedFile
+                };
+
+                scene.add(satellite);
+                interactableMeshes.push(satellite);
+                geometriesToDispose.push(fnGeo);
+                materialsToDispose.push(fnMat);
+
+                // Orbit visual ring
+                const orbitGeo = new THREE.TorusGeometry(radius, 0.1, 16, 100);
+                const orbitMat = new THREE.MeshBasicMaterial({
+                    color: isDarkMode ? 0x475569 : 0xcbcbcb,
+                    transparent: true,
+                    opacity: 0.3
+                });
+                const orbit = new THREE.Mesh(orbitGeo, orbitMat);
+                orbit.position.set(islandCenterX, 50, islandCenterZ);
+                orbit.rotation.x = Math.PI / 2;
+                scene.add(orbit);
+                geometriesToDispose.push(orbitGeo);
+                materialsToDispose.push(orbitMat);
+
+                // Store for animation
+                dolphins.push({ // Reusing dolphins array for generic animatables
+                    mesh: satellite,
+                    radius: radius,
+                    angle: angle,
+                    speed: 0.005 + (Math.random() * 0.005) * (layer % 2 === 0 ? 1 : -1),
+                    y: satellite.position.y
+                });
+            });
+
+            // Adjust Camera focus
+            camera.position.set(islandCenterX, 150, islandCenterZ + 150);
+            camera.lookAt(islandCenterX, 50, islandCenterZ);
         }
 
         // --- Controls & interaction ---
@@ -510,17 +607,24 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
             }
             oceanVertices.needsUpdate = true;
 
-            // Dolphins
+            // Dolphins / Satellites Animation
             dolphins.forEach(d => {
-                d.angle += 0.003;
-                d.group.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
-                d.group.position.z = islandCenterZ + Math.sin(d.angle) * d.radius;
-                d.group.rotation.y = -d.angle;
+                if (viewMode === 'island') {
+                    d.angle += 0.003;
+                    d.group.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
+                    d.group.position.z = islandCenterZ + Math.sin(d.angle) * d.radius;
+                    d.group.rotation.y = -d.angle;
 
-                // Jump
-                const jump = Math.sin(time * 1.5 + d.phase) * 6;
-                d.group.position.y = -4 + Math.max(0, jump);
-                d.group.rotation.x = jump > 1 ? -0.5 : 0;
+                    // Jump
+                    const jump = Math.sin(time * 1.5 + d.phase) * 6;
+                    d.group.position.y = -4 + Math.max(0, jump);
+                    d.group.rotation.x = jump > 1 ? -0.5 : 0;
+                } else {
+                    // Satellites
+                    d.angle += d.speed;
+                    d.mesh.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
+                    d.mesh.position.z = islandCenterZ + Math.sin(d.angle) * d.radius;
+                }
             });
 
             // Camera Movement
@@ -547,20 +651,55 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
 
         const onMouseClick = (event) => {
             if (!mountRef.current) return;
-            const rect = mountRef.current.getBoundingClientRect();
-            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+            // Determine raycast coordinates based on lock state
+            if (isMouseLocked) {
+                // If locked, raycast from center of screen
+                mouse.x = 0;
+                mouse.y = 0;
+            } else {
+                // If unlocked, use mouse coordinates
+                const rect = mountRef.current.getBoundingClientRect();
+                mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+                mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            }
+
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(interactableMeshes);
 
-            if (intersects.length > 0 && !isMouseLocked) {
+            if (intersects.length > 0) {
                 const obj = intersects[0].object;
-                if (obj.userData.type === 'file' && onFunctionClick) {
-                    onFunctionClick(obj.userData);
+
+                if (viewMode === 'island') {
+                    if (obj.userData.type === 'file') {
+                        // Open Context Menu
+                        setActiveFileForMenu(obj.userData);
+
+                        // Interaction handling:
+                        // If locked, we MUST unlock to let the user use the menu.
+                        // We also place the menu in the center of the screen since that's where they were looking.
+                        if (isMouseLocked) {
+                            setMenuPosition({
+                                x: window.innerWidth / 2,
+                                y: window.innerHeight / 2
+                            });
+                            document.exitPointerLock();
+                        } else {
+                            // If unlocked, place menu at mouse cursor
+                            setMenuPosition({
+                                x: event.clientX,
+                                y: event.clientY
+                            });
+                        }
+                    }
+                } else if (viewMode === 'functions') {
+                    // Future interaction for function mode
                 }
             } else {
+                // If clicked on nothing:
+                // If locked, do nothing (or remain locked)
+                // If unlocked, and we clicked background, capture mouse
                 if (!isMouseLocked) mountRef.current.requestPointerLock();
-                else document.exitPointerLock();
             }
         };
 
@@ -597,7 +736,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
                     // Highlight
                     const mat = obj.material;
                     if (mat) {
-                        if (obj.userData.type === 'file') {
+                        if (obj.userData.type === 'file' || obj.userData.type === 'function') {
                             mat.emissiveIntensity = isDarkMode ? 1.0 : 0.6; // Glow in both modes
                         } else if (obj.userData.type === 'directory') {
                             mat.emissiveIntensity = isDarkMode ? 0.4 : 0.2; // Subtle glow for base
@@ -650,11 +789,90 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
             renderer.dispose();
         };
 
-    }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, isDarkMode]);
+    }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile]);
+
+    const handleMenuAction = (action) => {
+        if (!activeFileForMenu) return;
+
+        if (action === 'code') {
+            if (onFunctionClick) onFunctionClick(activeFileForMenu);
+        } else if (action === 'functions') {
+            setFocusedFile(activeFileForMenu);
+            setViewMode('functions');
+        }
+        setMenuPosition(null);
+        setActiveFileForMenu(null);
+    };
 
     return (
         <div className="relative w-full h-full">
             <div ref={mountRef} className="w-full h-full" style={{ minHeight: '55vh' }} />
+
+            {/* Back Button (Functions Mode) */}
+            {viewMode === 'functions' && (
+                <div className="absolute top-4 left-4 z-50">
+                    <button
+                        onClick={() => {
+                            setViewMode('island');
+                            setFocusedFile(null);
+                        }}
+                        className="flex items-center gap-2 px-4 py-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl shadow-lg hover:scale-105 transition-all border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-gray-100 font-bold"
+                    >
+                        <span>← Back to Island</span>
+                    </button>
+                    {focusedFile && (
+                        <div className="mt-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur rounded-xl p-4 border border-gray-200 dark:border-slate-700">
+                            <h2 className="text-xl font-black bg-gradient-to-r from-blue-500 to-purple-500 bg-clip-text text-transparent transform scale-x-0 transition-transform origin-left animate-in fill-mode-forwards duration-500 ease-out" style={{ opacity: 1, transform: 'scaleX(1)' }}>
+                                {focusedFile.name}
+                            </h2>
+                            <div className="flex gap-4 mt-2 text-sm text-gray-600 dark:text-gray-300">
+                                <span>Functions: <b>{focusedFile.numFunctions}</b></span>
+                                <span>LOC: <b>{focusedFile.totalLoc}</b></span>
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Context Menu */}
+            {menuPosition && activeFileForMenu && (
+                <>
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 z-[59]"
+                        onClick={() => {
+                            setMenuPosition(null);
+                            setActiveFileForMenu(null);
+                        }}
+                    />
+
+                    {/* Menu */}
+                    <div
+                        className="fixed z-[60] min-w-[160px] bg-white dark:bg-slate-800 rounded-lg shadow-2xl border border-gray-200 dark:border-slate-700 overflow-hidden animate-in fade-in zoom-in-95 duration-200"
+                        style={{
+                            left: `${menuPosition.x}px`,
+                            top: `${menuPosition.y}px`
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                    >
+                        <div className="px-4 py-2 border-b border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-900/50">
+                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{activeFileForMenu.name}</span>
+                        </div>
+                        <button
+                            className="w-full text-left px-4 py-3 hover:bg-blue-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200"
+                            onClick={() => handleMenuAction('code')}
+                        >
+                            <span>View Code</span>
+                        </button>
+                        <button
+                            className="w-full text-left px-4 py-3 hover:bg-purple-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200"
+                            onClick={() => handleMenuAction('functions')}
+                        >
+                            <span>View Functions</span>
+                        </button>
+                    </div>
+                </>
+            )}
 
             {/* Tooltip */}
             {hoveredObject && (
@@ -668,8 +886,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
                 >
                     <div className="bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-4 border border-gray-200/50">
                         <div className="flex items-center gap-2 mb-2">
-                            {hoveredObject.type === 'file' ? (
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `#${getComplexityColor(parseFloat(hoveredObject.avgComplexity)).toString(16).padStart(6, '0')}` }} />
+                            {hoveredObject.type === 'file' || hoveredObject.type === 'function' ? (
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `#${getComplexityColor(parseFloat(hoveredObject.complexity || hoveredObject.avgComplexity)).toString(16).padStart(6, '0')}` }} />
                             ) : (
                                 <div className="w-3 h-3 rounded-sm bg-amber-200" />
                             )}
@@ -694,6 +912,18 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
                         {hoveredObject.type === 'directory' && (
                             <div className="text-xs text-gray-500 italic max-w-[200px] break-all">
                                 {hoveredObject.path}
+                            </div>
+                        )}
+                        {hoveredObject.type === 'function' && (
+                            <div className="space-y-1 text-sm text-gray-600">
+                                <div className="flex justify-between gap-4">
+                                    <span>Complexity:</span>
+                                    <span className="font-medium text-gray-900">{hoveredObject.complexity}</span>
+                                </div>
+                                <div className="flex justify-between gap-4">
+                                    <span>LOC:</span>
+                                    <span className="font-medium text-gray-900">{hoveredObject.nloc}</span>
+                                </div>
                             </div>
                         )}
                     </div>
