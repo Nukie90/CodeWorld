@@ -955,6 +955,7 @@ function ResultsPage() {
                 individualFiles={individual_files}
                 onFunctionClick={handleFunctionClick}
                 onFileClick={handleFileClickFrom3D}
+                isDarkMode={isDarkMode}
               />
             )}
             {(!individual_files?.length || individual_files.length === 0) && (

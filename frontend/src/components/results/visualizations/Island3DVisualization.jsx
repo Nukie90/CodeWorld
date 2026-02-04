@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import * as d3 from 'd3';
 
-function Island3DVisualization({ individualFiles, onFunctionClick }) {
+function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode }) {
     const mountRef = useRef(null);
     const sceneRef = useRef(null);
     const rendererRef = useRef(null);
@@ -17,7 +17,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
 
     if (!individualFiles || individualFiles.length === 0) {
         return (
-            <div className="flex items-center justify-center h-full text-gray-400">
+            <div className={`flex items-center justify-center h-full ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
                 No files to visualize
             </div>
         );
@@ -103,6 +103,20 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
         }
         const normalized = (complexity - minComplexity) / (maxComplexity - minComplexity);
 
+        if (isDarkMode) {
+            // Neon Gradient: Cyan -> Pink -> Purple -> Red
+            if (normalized < 0.33) {
+                const t = normalized * 3;
+                return new THREE.Color(0x06b6d4).lerp(new THREE.Color(0xec4899), t).getHex();
+            } else if (normalized < 0.66) {
+                const t = (normalized - 0.33) * 3;
+                return new THREE.Color(0xec4899).lerp(new THREE.Color(0xa855f7), t).getHex();
+            } else {
+                const t = (normalized - 0.66) * 3;
+                return new THREE.Color(0xa855f7).lerp(new THREE.Color(0xff0055), t).getHex();
+            }
+        }
+
         // Green -> Yellow -> Red
         if (normalized < 0.5) {
             const t = normalized * 2;
@@ -121,6 +135,18 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
 
     // Directory colors based on depth
     const getDirectoryColor = (depth) => {
+        if (isDarkMode) {
+            // Dark Slate / Grey tones
+            const colors = [
+                0x1e293b, // Depth 0 (Root) - Dark Slate 800
+                0x334155, // Depth 1 - Slate 700
+                0x475569, // Depth 2 - Slate 600
+                0x64748b, // Depth 3 - Slate 500
+                0x94a3b8, // Depth 4 - Slate 400
+            ];
+            return colors[Math.min(depth, colors.length - 1)];
+        }
+
         // Depth-based terrain colors
         const colors = [
             0xf5d5a8, // Depth 0 (Root) - Sandy
@@ -166,12 +192,18 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
         canvas.height = 512;
         const context = canvas.getContext('2d');
         const gradient = context.createLinearGradient(0, 0, 0, 512);
-        gradient.addColorStop(0, '#0ea5e9'); // Sky blue
-        gradient.addColorStop(1, '#e0f2fe'); // Horizon
+        if (isDarkMode) {
+            gradient.addColorStop(0, '#020617'); // Dark Midnight
+            gradient.addColorStop(1, '#1e293b'); // Dark Slate
+            scene.fog = new THREE.Fog(0x0f172a, 200, 900);
+        } else {
+            gradient.addColorStop(0, '#0ea5e9'); // Sky blue
+            gradient.addColorStop(1, '#e0f2fe'); // Horizon
+            scene.fog = new THREE.Fog(0x7dd3fc, 200, 900);
+        }
         context.fillStyle = gradient;
         context.fillRect(0, 0, 2, 512);
         scene.background = new THREE.CanvasTexture(canvas);
-        scene.fog = new THREE.Fog(0x7dd3fc, 200, 900);
 
         // Camera
         const camera = new THREE.PerspectiveCamera(55, mountRef.current.clientWidth / mountRef.current.clientHeight, 0.1, 2000);
@@ -193,10 +225,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
         mountRef.current.appendChild(renderer.domElement);
 
         // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+        const ambientLight = new THREE.AmbientLight(0xffffff, isDarkMode ? 0.3 : 0.6);
         scene.add(ambientLight);
 
-        const sunLight = new THREE.DirectionalLight(0xfff5e6, 1.5);
+        const sunLight = new THREE.DirectionalLight(isDarkMode ? 0xa5b4fc : 0xfff5e6, isDarkMode ? 0.8 : 1.5); // Moon/Sun
         sunLight.position.set(islandCenterX + 100, 300, islandCenterZ + 100);
         sunLight.castShadow = true;
         sunLight.shadow.mapSize.width = 4096;
@@ -214,7 +246,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
         scene.add(sunLight);
 
         // Fill light
-        const hemiLight = new THREE.HemisphereLight(0x87CEEB, 0x98FB98, 0.4);
+        const hemiLight = new THREE.HemisphereLight(
+            isDarkMode ? 0x0f172a : 0x87CEEB,
+            isDarkMode ? 0x334155 : 0x98FB98,
+            isDarkMode ? 0.4 : 0.4
+        );
         scene.add(hemiLight);
 
         // Interaction arrays
@@ -229,7 +265,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
         // Ocean
         const oceanGeometry = new THREE.PlaneGeometry(3000, 3000, 100, 100);
         const oceanMaterial = new THREE.MeshStandardMaterial({
-            color: 0x0891b2,
+            color: isDarkMode ? 0x1e1b4b : 0x0891b2, // Deep Indigo vs Cyan
             roughness: 0.1,
             metalness: 0.8,
             transparent: true,
@@ -270,8 +306,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
 
                 const material = new THREE.MeshStandardMaterial({
                     color: color,
-                    roughness: 0.9,
-                    metalness: 0.1
+                    roughness: isDarkMode ? 0.6 : 0.9,
+                    metalness: isDarkMode ? 0.3 : 0.1,
+                    emissive: color,
+                    emissiveIntensity: 0
                 });
 
                 const mesh = new THREE.Mesh(geometry, material);
@@ -294,7 +332,13 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
 
                 // Add border ring for definition
                 const ringGeo = new THREE.TorusGeometry(r + 0.2, 0.3, 8, 64);
-                const ringMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.1 });
+                const ringMat = new THREE.MeshStandardMaterial({
+                    color: isDarkMode ? 0x38bdf8 : 0xffffff,
+                    transparent: true,
+                    opacity: isDarkMode ? 0.4 : 0.1,
+                    emissive: isDarkMode ? 0x0ea5e9 : 0x000000,
+                    emissiveIntensity: isDarkMode ? 0.5 : 0
+                });
                 const ring = new THREE.Mesh(ringGeo, ringMat);
                 ring.rotation.x = Math.PI / 2;
                 ring.position.set(x, y, z);
@@ -314,7 +358,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
                         // Simple Palm Tree
                         const trunkH = 4 + Math.random() * 2;
                         const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, trunkH, 8);
-                        const trunkMat = new THREE.MeshStandardMaterial({ color: 0x8b5a2b });
+                        const trunkMat = new THREE.MeshStandardMaterial({ color: isDarkMode ? 0x57534e : 0x8b5a2b });
                         const trunk = new THREE.Mesh(trunkGeo, trunkMat);
                         trunk.position.set(treeX, y + trunkH / 2, treeZ);
                         scene.add(trunk);
@@ -323,7 +367,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
                         materialsToDispose.push(trunkMat);
 
                         const leafGeo = new THREE.ConeGeometry(1.5, 3, 5);
-                        const leafMat = new THREE.MeshStandardMaterial({ color: 0x22c55e });
+                        const leafMat = new THREE.MeshStandardMaterial({
+                            color: isDarkMode ? 0x15803d : 0x22c55e,
+                            emissive: isDarkMode ? 0x22c55e : 0x000000,
+                            emissiveIntensity: isDarkMode ? 0.2 : 0
+                        });
                         const foliage = new THREE.Mesh(leafGeo, leafMat);
                         foliage.position.set(treeX, y + trunkH + 1, treeZ);
                         scene.add(foliage);
@@ -348,7 +396,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
                 const material = new THREE.MeshStandardMaterial({
                     color: color,
                     roughness: 0.3,
-                    metalness: 0.6
+                    metalness: 0.6,
+                    emissive: color,
+                    emissiveIntensity: isDarkMode ? 0.6 : 0
                 });
 
                 const mesh = new THREE.Mesh(geometry, material);
@@ -380,7 +430,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
 
                 // Cap
                 const capGeo = new THREE.CylinderGeometry(towerRadius, towerRadius, 0.2, 32);
-                const capMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: color, emissiveIntensity: 0.4 });
+                const capMat = new THREE.MeshStandardMaterial({
+                    color: 0xffffff,
+                    emissive: color,
+                    emissiveIntensity: isDarkMode ? 0.9 : 0.4
+                });
                 const cap = new THREE.Mesh(capGeo, capMat);
                 cap.position.set(x, parentTopY + towerHeight + 0.1, z);
                 scene.add(cap);
@@ -398,7 +452,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
         for (let i = 0; i < 4; i++) {
             const dolphinGroup = new THREE.Group();
             const bodyGeometry = new THREE.SphereGeometry(1.5, 16, 12);
-            const dolphinMaterial = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.4, roughness: 0.5 });
+            const dolphinMaterial = new THREE.MeshStandardMaterial({
+                color: isDarkMode ? 0x94a3b8 : 0x64748b,
+                metalness: 0.4,
+                roughness: 0.5
+            });
             const body = new THREE.Mesh(bodyGeometry, dolphinMaterial);
             body.scale.set(1, 0.5, 2);
             dolphinGroup.add(body);
@@ -525,8 +583,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
 
                 // Reset emissions
                 interactableMeshes.forEach(m => {
-                    if (m.material.emissive) m.material.emissiveIntensity = 0.4; // cap default
-                    else if (m.userData.type === 'directory') m.material.emissiveIntensity = 0;
+                    const defaultIntensity = isDarkMode
+                        ? (m.userData.type === 'file' ? 0.6 : 0)
+                        : 0; // Light mode default is 0
+
+                    if (m.material.emissive) m.material.emissiveIntensity = defaultIntensity;
                 });
 
                 if (intersects.length > 0) {
@@ -536,11 +597,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
                     // Highlight
                     const mat = obj.material;
                     if (mat) {
-                        // Creating a clone might be expensive per frame, but ok for hover
-                        // Actually better to just modify prop.
-                        // Standard material has emissive.
                         if (obj.userData.type === 'file') {
-                            mat.emissiveIntensity = 0.8;
+                            mat.emissiveIntensity = isDarkMode ? 1.0 : 0.6; // Glow in both modes
+                        } else if (obj.userData.type === 'directory') {
+                            mat.emissiveIntensity = isDarkMode ? 0.4 : 0.2; // Subtle glow for base
                         }
                     }
                 } else {
@@ -590,7 +650,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick }) {
             renderer.dispose();
         };
 
-    }, [individualFiles, onFunctionClick, minComplexity, maxComplexity]);
+    }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, isDarkMode]);
 
     return (
         <div className="relative w-full h-full">
