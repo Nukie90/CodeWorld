@@ -19,6 +19,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
     const [menuPosition, setMenuPosition] = useState(null); // { x, y }
     const [activeFileForMenu, setActiveFileForMenu] = useState(null);
 
+    // Visualization Options
+    const [towerOpacity, setTowerOpacity] = useState(1.0); // 0.0 to 1.0
+    const [showDecorations, setShowDecorations] = useState(false);
+    const [showOptionsPanel, setShowOptionsPanel] = useState(false);
+
     const keysRef = useRef({});
     const moveSpeed = 0.5;
 
@@ -354,7 +359,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
                 materialsToDispose.push(ringMat);
 
                 // Add Palm Trees to the root island (shoreline)
-                if (node.depth === 0) {
+                if (node.depth === 0 && showDecorations) {
                     const numTrees = Math.floor(r / 5);
                     for (let i = 0; i < numTrees; i++) {
                         const angle = Math.random() * Math.PI * 2;
@@ -405,7 +410,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
                     roughness: 0.3,
                     metalness: 0.6,
                     emissive: color,
-                    emissiveIntensity: isDarkMode ? 0.6 : 0
+                    emissiveIntensity: isDarkMode ? 0.6 : 0,
+                    transparent: towerOpacity < 1.0,
+                    opacity: towerOpacity
                 });
 
                 const mesh = new THREE.Mesh(geometry, material);
@@ -440,7 +447,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
                 const capMat = new THREE.MeshStandardMaterial({
                     color: 0xffffff,
                     emissive: color,
-                    emissiveIntensity: isDarkMode ? 0.9 : 0.4
+                    emissiveIntensity: isDarkMode ? 0.9 : 0.4,
+                    transparent: towerOpacity < 1.0,
+                    opacity: towerOpacity
                 });
                 const cap = new THREE.Mesh(capGeo, capMat);
                 cap.position.set(x, parentTopY + towerHeight + 0.1, z);
@@ -456,36 +465,38 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
             }
 
             // --- Decorations (Only for Island) ---
-            // Add dolphins roaming
-            for (let i = 0; i < 4; i++) {
-                const dolphinGroup = new THREE.Group();
-                const bodyGeometry = new THREE.SphereGeometry(1.5, 16, 12);
-                const dolphinMaterial = new THREE.MeshStandardMaterial({
-                    color: isDarkMode ? 0x94a3b8 : 0x64748b,
-                    metalness: 0.4,
-                    roughness: 0.5
-                });
-                const body = new THREE.Mesh(bodyGeometry, dolphinMaterial);
-                body.scale.set(1, 0.5, 2);
-                dolphinGroup.add(body);
+            if (showDecorations) {
+                // Add dolphins roaming
+                for (let i = 0; i < 4; i++) {
+                    const dolphinGroup = new THREE.Group();
+                    const bodyGeometry = new THREE.SphereGeometry(1.5, 16, 12);
+                    const dolphinMaterial = new THREE.MeshStandardMaterial({
+                        color: isDarkMode ? 0x94a3b8 : 0x64748b,
+                        metalness: 0.4,
+                        roughness: 0.5
+                    });
+                    const body = new THREE.Mesh(bodyGeometry, dolphinMaterial);
+                    body.scale.set(1, 0.5, 2);
+                    dolphinGroup.add(body);
 
-                // Fin
-                const finGeo = new THREE.ConeGeometry(0.5, 1, 4);
-                const fin = new THREE.Mesh(finGeo, dolphinMaterial);
-                fin.position.set(0, 0.8, 0.5);
-                fin.rotation.x = -0.5;
-                dolphinGroup.add(fin);
-                geometriesToDispose.push(finGeo);
+                    // Fin
+                    const finGeo = new THREE.ConeGeometry(0.5, 1, 4);
+                    const fin = new THREE.Mesh(finGeo, dolphinMaterial);
+                    fin.position.set(0, 0.8, 0.5);
+                    fin.rotation.x = -0.5;
+                    dolphinGroup.add(fin);
+                    geometriesToDispose.push(finGeo);
 
-                const radius = 350 + Math.random() * 100;
-                const angle = (i / 4) * Math.PI * 2;
+                    const radius = 350 + Math.random() * 100;
+                    const angle = (i / 4) * Math.PI * 2;
 
-                dolphinGroup.position.set(islandCenterX + Math.cos(angle) * radius, -3, islandCenterZ + Math.sin(angle) * radius);
-                scene.add(dolphinGroup);
-                dolphins.push({ group: dolphinGroup, angle, radius, phase: Math.random() * Math.PI });
+                    dolphinGroup.position.set(islandCenterX + Math.cos(angle) * radius, -3, islandCenterZ + Math.sin(angle) * radius);
+                    scene.add(dolphinGroup);
+                    dolphins.push({ group: dolphinGroup, angle, radius, phase: Math.random() * Math.PI });
 
-                geometriesToDispose.push(bodyGeometry);
-                materialsToDispose.push(dolphinMaterial);
+                    geometriesToDispose.push(bodyGeometry);
+                    materialsToDispose.push(dolphinMaterial);
+                }
             }
         } else if (viewMode === 'functions' && focusedFile) {
             // --- Function Visualization (Satellites) ---
@@ -790,7 +801,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
             renderer.dispose();
         };
 
-    }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile]);
+    }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile, towerOpacity, showDecorations]);
 
     const handleMenuAction = (action) => {
         if (!activeFileForMenu) return;
@@ -946,30 +957,84 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
                 </div>
             )}
 
+            {/* Options Panel */}
+            <div className="absolute top-4 right-4 z-10">
+                <button
+                    onClick={() => setShowOptionsPanel(!showOptionsPanel)}
+                    className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl shadow-lg px-4 py-2 border border-white/50 dark:border-slate-700/50 hover:scale-105 transition-all font-bold text-sm text-gray-800 dark:text-gray-100"
+                >
+                    Options
+                </button>
+
+                {showOptionsPanel && (
+                    <div className="mt-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl shadow-lg p-4 border border-white/50 dark:border-slate-700/50 min-w-[250px]">
+                        <h4 className="font-bold text-sm mb-3 text-gray-800 dark:text-gray-100">Visualization Options</h4>
+
+                        {/* Tower Opacity Slider */}
+                        <div className="mb-4">
+                            <label className="text-xs text-gray-600 dark:text-gray-300 mb-1 block">
+                                Tower Transparency: {Math.round((1 - towerOpacity) * 100)}%
+                            </label>
+                            <input
+                                type="range"
+                                min="0.6"
+                                max="1"
+                                step="0.1"
+                                value={towerOpacity}
+                                onChange={(e) => setTowerOpacity(parseFloat(e.target.value))}
+                                className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                            />
+                            <div className="flex justify-between text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                                <span>Transparent</span>
+                                <span>Opaque</span>
+                            </div>
+                        </div>
+
+                        {/* Decorations Toggle */}
+                        <div className="flex items-center justify-between">
+                            <span className="text-xs text-gray-600 dark:text-gray-300">Show Decorations</span>
+                            <button
+                                onClick={() => setShowDecorations(!showDecorations)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showDecorations ? 'bg-blue-500' : 'bg-gray-300 dark:bg-slate-600'
+                                    }`}
+                            >
+                                <span
+                                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${showDecorations ? 'translate-x-6' : 'translate-x-1'
+                                        }`}
+                                />
+                            </button>
+                        </div>
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                            {showDecorations ? 'Trees & dolphins visible' : 'Trees & dolphins hidden'}
+                        </p>
+                    </div>
+                )}
+            </div>
+
             {/* Controls Help */}
-            <div className="absolute bottom-4 left-4 bg-white/80 backdrop-blur-md rounded-xl shadow-lg p-4 z-10 border border-white/50">
-                <h4 className="font-bold text-sm mb-2 text-gray-800 flex items-center gap-2">
-                    <span className="text-base">🎮</span> Controls
+            <div className="absolute bottom-4 left-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl shadow-lg p-4 z-10 border border-white/50 dark:border-slate-700/50">
+                <h4 className="font-bold text-sm mb-2 text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                    Controls
                 </h4>
-                <div className="space-y-1 text-xs text-gray-600">
+                <div className="space-y-1 text-xs text-gray-600 dark:text-gray-300">
                     <div className="flex items-center gap-2">
-                        <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono">WASD</kbd><span>Move</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-[10px] font-mono">WASD</kbd><span>Move</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono">Click</kbd><span>Capture Mouse</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-[10px] font-mono">Click</kbd><span>Capture Mouse</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <kbd className="px-1.5 py-0.5 bg-gray-100 rounded text-[10px] font-mono">ESC</kbd><span>Release Mouse</span>
+                        <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-[10px] font-mono">ESC</kbd><span>Release Mouse</span>
                     </div>
                 </div>
             </div>
 
             {/* Legend */}
-            <div className="absolute bottom-4 right-4 bg-white/80 backdrop-blur-md rounded-xl shadow-lg p-4 z-10 border border-white/50">
-                <h4 className="font-bold text-sm mb-3 text-gray-800 flex items-center gap-2">
-                    <span className="text-base">🏝️</span> Terraced Map
+            <div className="absolute bottom-4 right-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl shadow-lg p-4 z-10 border border-white/50 dark:border-slate-700/50">
+                <h4 className="font-bold text-sm mb-3 text-gray-800 dark:text-gray-100 flex items-center gap-2">
+                    Terraced Map
                 </h4>
-                <div className="space-y-2 text-xs text-gray-600">
+                <div className="space-y-2 text-xs text-gray-600 dark:text-gray-300">
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-[#f5d5a8] rounded-sm" />
                         <span>Platform = Directory</span>
