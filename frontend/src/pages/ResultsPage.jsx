@@ -40,7 +40,6 @@ function ResultsPage() {
   const [codeLoading, setCodeLoading] = useState(false)
   const [codeDisplayMode, setCodeDisplayMode] = useState('plain')
   const [showLineNumbers, setShowLineNumbers] = useState(false)
-  const [wordWrap, setWordWrap] = useState(true)
   const [copied, setCopied] = useState(false)
   const [isAnimating, setIsAnimating] = useState(false)
   const isAnimatingRef = useRef(false)
@@ -586,16 +585,7 @@ function ResultsPage() {
                 Lines
               </button>
 
-              <button
-                onClick={() => setWordWrap(!wordWrap)}
-                className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all border ${wordWrap
-                  ? 'bg-gradient-to-r from-blue-500 to-teal-500 text-white border-transparent shadow-lg'
-                  : `${panelBg} ${textColor} ${borderColor} hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-white`
-                  }`}
-                title="Toggle word wrap"
-              >
-                Wrap
-              </button>
+
 
               <button
                 onClick={handleCopyCode}
@@ -649,8 +639,7 @@ function ResultsPage() {
                         </div>
                       )}
                       <pre
-                        className={`text-xs font-mono ${wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'
-                          } break-words`}
+                        className="text-xs font-mono whitespace-pre inline-block min-w-full w-fit"
                         style={{
                           backgroundColor: '#1e1e1e',
                           color: '#d4d4d4',
@@ -658,7 +647,8 @@ function ResultsPage() {
                           paddingLeft: showLineNumbers ? '4rem' : '1rem',
                           borderRadius: '0.75rem',
                           lineHeight: '1.5',
-                          margin: 0
+                          margin: 0,
+                          display: 'block'
                         }}
                       >
                         <code style={{ color: '#d4d4d4' }}>
@@ -699,8 +689,7 @@ function ResultsPage() {
                         </div>
                       )}
                       <pre
-                        className={`text-xs font-mono ${textColor} ${wordWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'
-                          } break-words`}
+                        className={`text-xs font-mono ${textColor} whitespace-pre inline-block min-w-full w-fit`}
                         style={{
                           paddingLeft: showLineNumbers ? '4rem' : '0',
                           paddingTop: '1rem',
