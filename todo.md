@@ -7,9 +7,10 @@
 - ai for complexity reduce
 - ai summarize for the file/project
 - ai chatbot for the project
-- make raw code tabs slidable
+- make raw code tabs and git graph tabs slidable
 - [/] build 3d visualization for the fucntions of each file too.
 - get raw code of a whole file when clicked on a file
 - timeline play for 3d
 - backend need to give code quality score as well as detail to use it as color in frontend and description
 - add an options to the island3d so that it allow to change the transparent of the tower and options of decoration
+- add options to change the circle packing to bezier curve
