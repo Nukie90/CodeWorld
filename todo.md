@@ -1,6 +1,6 @@
 # bugs
 - 3d visualization re-render every time when clicked on any file, it should not re-render
-- fix ui bugs of raw code when add lines, wraps
+- [/] fix ui bugs of raw code when add lines, wraps
 - right now it fake load when load new project, fix it
 - login and logout
 
