@@ -2,6 +2,7 @@
 - 3d visualization re-render every time when clicked on any file, it should not re-render
 - fix ui bugs of raw code when add lines, wraps
 - right now it fake load when load new project, fix it
+- login and logout
 
 # features left to implement
 - ai for complexity reduce
@@ -14,3 +15,4 @@
 - backend need to give code quality score as well as detail to use it as color in frontend and description
 - add an options to the island3d so that it allow to change the transparent of the tower and options of decoration
 - add options to change the circle packing to bezier curve
+- the display of sigle files in a frontend shold be the design that able to show the fucntion inside fucntion feature?

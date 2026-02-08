@@ -414,6 +414,7 @@ async def get_file_content(payload: FileContentRequest):
             payload.repo_url,
             payload.commit_hash,
             payload.file_path,
+            
             token=payload.token
         )
         return {"content": content}

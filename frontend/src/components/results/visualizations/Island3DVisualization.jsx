@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import * as d3 from 'd3';
 import FunctionMoleculeVisualization from './FunctionMoleculeVisualization';
 
-function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode }) {
+function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, isDarkMode }) {
     const mountRef = useRef(null);
     const sceneRef = useRef(null);
     const rendererRef = useRef(null);
@@ -807,7 +807,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
         if (!activeFileForMenu) return;
 
         if (action === 'code') {
-            if (onFunctionClick) onFunctionClick(activeFileForMenu);
+            if (onFileClick) onFileClick(activeFileForMenu);
         } else if (action === 'functions') {
             setFocusedFile(activeFileForMenu);
             setViewMode('functions');
@@ -854,7 +854,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
                             </h2>
                             <div className="flex gap-4 mt-2 text-sm text-gray-600 dark:text-gray-300">
                                 <span>Functions: <b>{focusedFile.numFunctions}</b></span>
-                                <span>LOC: <b>{focusedFile.totalLoc}</b></span>
+                                <span>LLOC: <b>{focusedFile.totalLoc}</b></span>
                             </div>
                         </div>
                     )}
@@ -927,7 +927,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
                                     <span className="font-medium text-gray-900">{hoveredObject.avgComplexity}</span>
                                 </div>
                                 <div className="flex justify-between gap-4">
-                                    <span>LOC:</span>
+                                    <span>LLOC:</span>
                                     <span className="font-medium text-gray-900">{hoveredObject.totalLoc}</span>
                                 </div>
                                 <div className="flex justify-between gap-4">
@@ -948,7 +948,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, isDarkMode })
                                     <span className="font-medium text-gray-900">{hoveredObject.complexity}</span>
                                 </div>
                                 <div className="flex justify-between gap-4">
-                                    <span>LOC:</span>
+                                    <span>LLOC:</span>
                                     <span className="font-medium text-gray-900">{hoveredObject.nloc}</span>
                                 </div>
                             </div>

@@ -144,6 +144,46 @@ function ResultsPage() {
     }
   }
 
+  const handleFileCodeFetch = async (fileData) => {
+    if (!analysisResult?.repo_url) return;
+
+    setCodeLoading(true);
+    setSelectedCode(null);
+    setIsRightPanelOpen(true);
+
+    try {
+      const resp = await axios.post('http://127.0.0.1:8000/api/repo/file-content', {
+        repo_url: analysisResult.repo_url,
+        file_path: fileData.filename,
+        commit_hash: animatingCommit?.hash || currentBranch || 'HEAD',
+        token: token
+      });
+
+      const onlyfilename = fileData.filename.split('/').pop();
+
+      if (resp.data) {
+        setSelectedCode({
+          code: resp.data.content,
+          filename: fileData.filename,
+          functionName: onlyfilename,
+          startLine: 1,
+          endLine: resp.data.content.split('\n').length
+        });
+      }
+    } catch (err) {
+      console.error('Failed to fetch file code', err);
+      setSelectedCode({
+        code: `// Error loading file code: ${err.response?.data?.detail || err.message}`,
+        filename: fileData.filename,
+        functionName: 'Error',
+        startLine: 1,
+        endLine: null
+      });
+    } finally {
+      setCodeLoading(false);
+    }
+  };
+
   const handleFileClickFrom3D = (fileData) => {
     const fullFileData = individual_files.find(f => f.filename === fileData.filename);
     setSelectedFileForCard(fullFileData);
@@ -152,6 +192,8 @@ function ResultsPage() {
 
     if (fileData.startLine) {
       handleFunctionClick(fileData);
+    } else {
+      handleFileCodeFetch(fileData);
     }
   };
 
