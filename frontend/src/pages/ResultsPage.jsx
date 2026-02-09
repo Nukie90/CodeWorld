@@ -924,7 +924,7 @@ function ResultsPage() {
                         </div>
                         <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
                           <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Max Complexity</span>
-                          <span className="text-xl font-black bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">{fullFileData.complexity_max || fullFileData.complexity || "—"}</span>
+                          <span className="text-xl font-black bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">{fullFileData.total_complexity || "—"}</span>
                         </div>
                         <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
                           <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Functions</span>
