@@ -105,7 +105,7 @@ function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, 
                   style={{ height: `${Math.max(fileHeightPercentage, 1)}%`, minHeight: '1px' }}
                 >
                   {functions.map((fn, fnIdx) => {
-                    const fnHeight = (fn.nloc || 0) * scale;
+                    const fnHeightPercentage = fileTotalNloc > 0 ? ((fn.nloc || 0) / fileTotalNloc) * 100 : 0;
                     // const complexity = fn.cyclomatic_complexity;
                     const complexity = fn.total_cognitive_complexity;
                     const color = getComplexityColor(complexity);
