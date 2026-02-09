@@ -226,38 +226,58 @@ async def get_function_code(payload: FunctionCodeRequest):
         if is_python:
             # Python: use indentation-based detection
             start_line_content = lines[start_idx]
+            
             # Find the base indentation of the function definition
-            base_indent = len(start_line_content) - len(start_line_content.lstrip())
+            # Handle async def or just def
+            def_line_stripped = start_line_content.lstrip()
+            base_indent = len(start_line_content) - len(def_line_stripped)
             
-            # Find the end of the function by looking for lines with less or equal indentation
-            # that are not blank and not part of the function body
+            # First, find the end of the function definition (handling multi-line defs)
+            # The function body starts after the line ending with ':'
+            body_start_idx = start_idx
+            paren_count = 0
+            
+            # Scan forward to find end of definition (colon)
+            # We track parentheses to avoid false positives inside args
+            for i in range(start_idx, min(start_idx + 20, len(lines))):
+                line = lines[i]
+                for char in line:
+                    if char == '(': paren_count += 1
+                    elif char == ')': paren_count -= 1
+                
+                stripped = line.strip()
+                if stripped.endswith(':') and paren_count == 0:
+                    body_start_idx = i + 1
+                    break
+            
+            # Now find the end of the function body
             max_search_lines = min(start_idx + payload.nloc * 5 + 100, len(lines))
+            actual_end_idx = body_start_idx
             
-            for i in range(start_idx + 1, max_search_lines):
+            for i in range(body_start_idx, max_search_lines):
                 line = lines[i]
                 stripped = line.lstrip()
                 
-                # Skip blank lines
+                # Skip blank lines (but not comments)
                 if not stripped:
                     continue
                 
+                # Check indentation for comments too
+                # If a comment is dedented to base_indent, it likely belongs to the outer scope
                 current_indent = len(line) - len(stripped)
                 
-                # If we find a line at the same or less indentation that's not a continuation,
-                # we've reached the end of the function
-                if current_indent <= base_indent and stripped:
-                    # Check if it's a decorator (starts with @) - still part of function
+                # If we find a line with indentation <= base_indent, the function has ended
+                if current_indent <= base_indent:
+                     # Check if it's a decorator (starts with @) - could be next function
                     if stripped.startswith('@'):
-                        continue
-                    # Check if it's a comment - still part of function if indented
-                    if stripped.startswith('#'):
-                        continue
-                    # Otherwise, we've found the end
+                        actual_end_idx = i
+                        break
+                    # Otherwise it's code/comment outside the function
                     actual_end_idx = i
                     break
             else:
-                # If we didn't break, use the last searched line
-                actual_end_idx = max_search_lines
+                 # If we hit the loop limit, just take all lines we searched
+                 actual_end_idx = max_search_lines
         else:
             # For brace-based languages (JS, Java, C++, etc.)
             # We need to find the opening brace first, then match it
@@ -377,3 +397,28 @@ async def get_commit_details(payload: CommitDetailsRequest):
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to get commit details: {str(exc)}")
+
+
+class FileContentRequest(BaseModel):
+    repo_url: str
+    commit_hash: str
+    file_path: str
+    token: Optional[str] = None
+
+
+@router.post("/repo/file-content")
+async def get_file_content(payload: FileContentRequest):
+    """Get the full content of a file at a specific commit."""
+    try:
+        content = repo_manager.get_file_content(
+            payload.repo_url,
+            payload.commit_hash,
+            payload.file_path,
+            
+            token=payload.token
+        )
+        return {"content": content}
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to get file content: {str(exc)}")

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-function BarChartVisualization({ individualFiles, onFunctionClick, fixedFileOrder }) {
+function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, fixedFileOrder }) {
   const [hoveredFunction, setHoveredFunction] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
@@ -54,9 +54,7 @@ function BarChartVisualization({ individualFiles, onFunctionClick, fixedFileOrde
     return `rgb(${red}, ${green}, ${blue})`;
   };
 
-  const maxHeight = 350; // Fixed max height for bars (matches container better)
-  const barWidth = '60px'; // Change this to a fixed width like '60px' or use 'auto' for flex-1
-  const scale = maxHeight / maxTotalNloc;
+  const barWidth = '60px';
 
   const handleMouseEnter = (event, functionData) => {
     setHoveredFunction(functionData);
@@ -80,11 +78,10 @@ function BarChartVisualization({ individualFiles, onFunctionClick, fixedFileOrde
   };
 
   return (
-    <div className="relative w-full overflow-x-auto">
-      <div className="inline-block min-w-full">
+    <div className="relative w-full h-full overflow-x-auto flex flex-col justify-end">
+      <div className="inline-flex min-w-full h-full items-end pb-8">
         <div
-          className="flex items-end justify-start gap-3 px-4"
-          style={{ height: `${maxHeight}px`, minHeight: `${maxHeight}px` }}
+          className="flex items-end justify-start gap-3 px-4 h-full"
           onMouseMove={handleMouseMove}
         >
           {(fixedFileOrder || individualFiles).map((baseFile, fileIdx) => {
@@ -93,15 +90,19 @@ function BarChartVisualization({ individualFiles, onFunctionClick, fixedFileOrde
             const file = individualFiles.find(f => f.filename === fileName);
             const functions = file?.functions || [];
 
+            // Calculate total NLOC for this file to normalize local bar heights
+            const fileTotalNloc = functions.reduce((sum, fn) => sum + (fn.nloc || 0), 0);
+            const fileHeightPercentage = (fileTotalNloc / maxTotalNloc) * 100;
+
             return (
               <div
                 key={baseFile.filename || fileIdx}
-                className="flex flex-col items-center justify-end flex-shrink-0 transition-all duration-500 ease-in-out"
-                style={{ width: barWidth, height: `${maxHeight}px` }}
+                className="flex flex-col items-center justify-end flex-shrink-0 transition-all duration-500 ease-in-out group h-full justify-end"
+                style={{ width: barWidth }}
               >
                 <div
                   className="w-full flex flex-col-reverse relative"
-                  style={{ height: `${maxHeight}px` }}
+                  style={{ height: `${Math.max(fileHeightPercentage, 1)}%`, minHeight: '1px' }}
                 >
                   {functions.map((fn, fnIdx) => {
                     const fnHeight = (fn.nloc || 0) * scale;
@@ -114,7 +115,7 @@ function BarChartVisualization({ individualFiles, onFunctionClick, fixedFileOrde
                         key={fn.name || fnIdx}
                         className="w-full transition-all duration-500 ease-in-out cursor-pointer hover:opacity-80"
                         style={{
-                          height: `${fnHeight}px`,
+                          height: `${fnHeightPercentage}%`,
                           backgroundColor: color
                         }}
                         onMouseEnter={(e) => handleMouseEnter(e, {
@@ -123,7 +124,14 @@ function BarChartVisualization({ individualFiles, onFunctionClick, fixedFileOrde
                           nloc: fn.nloc || 0
                         })}
                         onMouseLeave={handleMouseLeave}
-                        onClick={() => {
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent duplicate calls if we add file click handler
+
+                          // Trigger file selection for detailed view
+                          if (onFileClick && file) {
+                            onFileClick(file);
+                          }
+
                           if (onFunctionClick && fn.start_line && file) {
                             onFunctionClick({
                               filename: file.filename,
@@ -138,34 +146,22 @@ function BarChartVisualization({ individualFiles, onFunctionClick, fixedFileOrde
                     );
                   })}
                   {file && functions.length === 0 && (
+                    // Placeholder for empty files
                     <div
                       className="w-full bg-gray-200 rounded-t"
-                      style={{ height: '20px' }}
-                    />
-                  )}
-                  {!file && (
-                    <div
-                      className="w-full border-b border-gray-100"
-                      style={{ height: '1px' }}
+                      style={{ height: '2px' }}
                     />
                   )}
                 </div>
+
+                {/* File Label */}
+                <span
+                  className="text-xs text-gray-500 text-center break-words mt-2 w-full truncate block"
+                  title={fileName}
+                >
+                  {fileName?.split('/').pop() || `File ${fileIdx + 1}`}
+                </span>
               </div>
-            );
-          })}
-        </div>
-        {/* File names row - separate from bars for better alignment */}
-        <div className="flex justify-start gap-3 px-4 mt-2">
-          {(fixedFileOrder || individualFiles).map((file, fileIdx) => {
-            const fileName = file.filename?.split('/').pop() || `File ${fileIdx + 1}`;
-            return (
-              <span
-                key={file.filename || fileIdx}
-                className="text-xs text-gray-600 text-center break-words flex-shrink-0 transition-all duration-500"
-                style={{ width: barWidth }}
-              >
-                {fileName}
-              </span>
             );
           })}
         </div>
