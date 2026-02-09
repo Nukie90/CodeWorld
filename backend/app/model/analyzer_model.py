@@ -1,20 +1,29 @@
 # models.py
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 
 class FunctionMetric(BaseModel):
     name: str
-    start_line: Optional[int]
+    long_name: str
+    start_line: Optional[int] = None
+    end_line: Optional[int] = None
     nloc: int
-    cyclomatic_complexity: int
+    cognitive_complexity: Optional[int] = None
+    cyclomatic_complexity: Optional[int] = None
+    total_cognitive_complexity: Optional[int] = None
+    max_nesting_depth: int
+    token_count: int
+    id: Optional[int] = None
+    parentId: Optional[int] = None
+    children: List['FunctionMetric'] = Field(default_factory=list)
 
 class FileMetrics(BaseModel):
     filename: str
-    language: Optional[str]
+    language: Optional[str] = None
     total_loc: int
     total_nloc: int
     function_count: int
-    complexity_avg: float
+    total_complexity: int
     complexity_max: int
     functions: List[FunctionMetric]
 
@@ -24,10 +33,13 @@ class FolderMetrics(BaseModel):
     total_loc: int
     total_nloc: int
     total_functions: int
-    complexity_avg: float
+    total_complexity: int
     complexity_max: int
     files: List[FileMetrics]
 
 class FolderAnalysisResult(BaseModel):
     folder_metrics: FolderMetrics
-    individual_files: list[FileMetrics]
+    individual_files: List[FileMetrics]
+
+# Rebuild the model to handle recursion
+FunctionMetric.model_rebuild()

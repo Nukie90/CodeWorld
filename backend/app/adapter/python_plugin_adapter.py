@@ -1,12 +1,12 @@
 from app.adapter.adapter import AnalysisAdapter
 from typing import Optional
 from app.model.analyzer_model import FileMetrics
-from app.utils.get_file_matrix_js import get_file_matrix_js
+from app.python_plugin.python_analyzer import calculate_metrics
 
-class JSPluginAdapter(AnalysisAdapter):
+class PythonPluginAdapter(AnalysisAdapter):
     def supports(self, filename: str) -> bool:
-        return filename.lower().endswith(('.js', '.jsx', '.ts', '.tsx'))
+        return filename.lower().endswith(('.py', '.pyw'))
 
     async def analyze_content(self, content: str, filename: str) -> Optional[FileMetrics]:
         # Reuse the logic which already calls the node service and returns FileMetrics
-        return get_file_matrix_js(content, filename)
+        return calculate_metrics(content, filename)

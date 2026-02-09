@@ -1,4 +1,3 @@
-from string import printable
 from fastapi import APIRouter, UploadFile, File
 from app.adapter.factory import get_analysis_adapter
 from app.utils.normalize import normalize_node_metrics, normalize_node_zip
