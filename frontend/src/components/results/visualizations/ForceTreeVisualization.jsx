@@ -77,7 +77,7 @@ function ForceTreeVisualization({ individualFiles, folderName }) {
         currentNode.children.push({
           name: pathParts[pathParts.length - 1],
           type: 'file',
-          complexity: file.complexity_avg || 0,
+          complexity: file.total_complexity || 0,
           nloc: file.total_nloc || 0,
           children: (file.functions || []).map(fn => ({
             name: fn.name,

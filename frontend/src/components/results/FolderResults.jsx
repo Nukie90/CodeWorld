@@ -109,7 +109,7 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
     { label: "Total lines", value: folder_metrics?.total_loc },
     { label: "Logical LOC", value: folder_metrics?.total_nloc },
     { label: "Total functions", value: folder_metrics?.total_functions },
-    { label: "Avg. complexity", value: folder_metrics?.complexity_avg },
+    { label: "Total complexity", value: folder_metrics?.total_complexity },
     { label: "Max complexity", value: folder_metrics?.complexity_max },
   ];
 
@@ -257,7 +257,7 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
                       <span>Functions: {file.function_count}</span>
                     </div>
                     <div className="metric-row">
-                      <span>Avg Complexity: {file.complexity_avg}</span>
+                      <span>Total Complexity: {file.total_complexity}</span>
                       <span>Max Complexity: {file.complexity_max}</span>
                     </div>
                   </div>

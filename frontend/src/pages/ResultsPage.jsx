@@ -91,7 +91,7 @@ function ResultsPage() {
     'Total lines': folderMetrics?.total_loc,
     'Logical LOC': folderMetrics?.total_nloc,
     'Total function': folderMetrics?.total_functions,
-    'Avg. complexity': folderMetrics?.complexity_avg,
+    'Total complexity': folderMetrics?.total_complexity,
     'Max complexity': folderMetrics?.complexity_max
   };
 

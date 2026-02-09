@@ -31,7 +31,7 @@ function CirclePackingVisualization({ individualFiles, folderName }) {
       .style('box-shadow', '0 2px 10px rgba(0,0,0,0.1)')
 
     const complexities = individualFiles
-      .map(f => f.complexity_avg)
+      .map(f => f.total_complexity)
       .filter(Boolean)
     const minComplexity = complexities.length > 0 ? Math.min(...complexities) : 1
     const maxComplexity = complexities.length > 0 ? Math.max(...complexities) : 10
@@ -45,7 +45,7 @@ function CirclePackingVisualization({ individualFiles, folderName }) {
       children: individualFiles.map(file => ({
         name: file.filename.split('/').pop(),
         total_nloc: file.total_nloc || 0,
-        complexity_avg: file.complexity_avg || 0,
+        total_complexity: file.total_complexity || 0,
         complexity_max: file.complexity_max || 0,
         function_count: file.function_count || 0,
         functions: file.functions || []
@@ -69,7 +69,7 @@ function CirclePackingVisualization({ individualFiles, folderName }) {
       .attr('cx', d => d.x + margin)
       .attr('cy', d => d.y + margin)
       .attr('r', d => d.r)
-      .attr('fill', d => colorScale(d.data.complexity_avg))
+      .attr('fill', d => colorScale(d.data.total_complexity))
       .attr('stroke', 'white')
       .attr('stroke-width', 1)
       .on('mouseover', function(event, d) {
@@ -100,7 +100,7 @@ function CirclePackingVisualization({ individualFiles, folderName }) {
         <h4 style="margin: 0 0 10px 0;">${d.name}</h4>
         <p><strong>Logical LOC:</strong> ${d.total_nloc}</p>
         <p><strong>Functions:</strong> ${d.function_count}</p>
-        <p><strong>Avg. Complexity:</strong> ${d.complexity_avg}</p>
+        <p><strong>Avg. Complexity:</strong> ${d.total_complexity}</p>
         <p><strong>Max. Complexity:</strong> ${d.complexity_max}</p>
       `
       if (d.functions.length > 0) {

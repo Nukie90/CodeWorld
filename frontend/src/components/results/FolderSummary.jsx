@@ -16,7 +16,7 @@ function FolderSummary({ folderMetrics }) {
     { label: 'Total lines', value: folderMetrics?.total_loc },
     { label: 'Logical LOC', value: folderMetrics?.total_nloc },
     { label: 'Total functions', value: folderMetrics?.total_functions },
-    { label: 'Avg. complexity', value: folderMetrics?.complexity_avg },
+    { label: 'Total complexity', value: folderMetrics?.total_complexity },
     { label: 'Max complexity', value: folderMetrics?.complexity_max },
   ]
 

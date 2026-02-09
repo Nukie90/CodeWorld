@@ -41,18 +41,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const calculateFileMetrics = (file) => {
         const functions = file.functions || [];
         const totalLoc = file.nloc || file.loc || functions.reduce((sum, fn) => sum + (fn.nloc || 0), 0) || 1;
+        const totalComplexity = file.total_complexity || 0;
 
-        let avgComplexity = 0;
-        if (functions.length > 0) {
-            const complexities = functions
-                .map(fn => fn.cyclomatic_complexity)
-                .filter(c => c !== undefined && c !== null);
-            if (complexities.length > 0) {
-                avgComplexity = complexities.reduce((sum, c) => sum + c, 0) / complexities.length;
-            }
-        }
-
-        return { totalLoc, avgComplexity, numFunctions: functions.length };
+        return { totalLoc, totalComplexity, numFunctions: functions.length };
     };
 
     const buildHierarchy = (files) => {
@@ -69,13 +60,13 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
                 if (!existingNode) {
                     if (isFile) {
-                        const { totalLoc, avgComplexity, numFunctions } = calculateFileMetrics(file);
+                        const { totalLoc, totalComplexity, numFunctions } = calculateFileMetrics(file);
                         existingNode = {
                             name: part,
                             type: 'file',
                             fileData: file,
                             value: totalLoc, // D3 pack uses 'value' for size
-                            avgComplexity: avgComplexity,
+                            totalComplexity: totalComplexity,
                             totalLoc: totalLoc,
                             numFunctions: numFunctions
                         };
@@ -101,8 +92,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     // Calculate global metrics for coloring
     let allComplexities = [];
     individualFiles.forEach(file => {
-        const { avgComplexity } = calculateFileMetrics(file);
-        if (avgComplexity > 0) allComplexities.push(avgComplexity);
+        const { totalComplexity } = calculateFileMetrics(file);
+        if (totalComplexity > 0) allComplexities.push(totalComplexity);
     });
     const minComplexity = allComplexities.length > 0 ? Math.min(...allComplexities) : 1;
     const maxComplexity = allComplexities.length > 0 ? Math.max(...allComplexities) : 10;
@@ -398,7 +389,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
             } else {
                 // Files -> Towers
-                const complexity = node.data.avgComplexity || 1;
+                const complexity = node.data.totalComplexity || 1;
                 const towerHeight = 10 + (complexity * 5); // Taller towers
 
                 // Radius slightly smaller than allocated circle
@@ -433,7 +424,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     type: 'file',
                     name: node.data.name,
                     ...node.data.fileData,
-                    avgComplexity: complexity.toFixed(2),
+                    totalComplexity: complexity.toFixed(2),
                     totalLoc: node.data.totalLoc,
                     numFunctions: node.data.numFunctions
                 };
@@ -505,7 +496,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             // Central Core (File)
             const coreRadius = 20;
             const coreGeo = new THREE.SphereGeometry(coreRadius, 64, 64);
-            const coreColor = getComplexityColor(focusedFile.avgComplexity);
+            const coreColor = getComplexityColor(focusedFile.totalComplexity);
             const coreMat = new THREE.MeshStandardMaterial({
                 color: coreColor,
                 roughness: 0.2,
@@ -915,7 +906,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     <div className="bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-4 border border-gray-200/50">
                         <div className="flex items-center gap-2 mb-2">
                             {hoveredObject.type === 'file' || hoveredObject.type === 'function' ? (
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `#${getComplexityColor(parseFloat(hoveredObject.complexity || hoveredObject.avgComplexity)).toString(16).padStart(6, '0')}` }} />
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `#${getComplexityColor(parseFloat(hoveredObject.complexity || hoveredObject.totalComplexity)).toString(16).padStart(6, '0')}` }} />
                             ) : (
                                 <div className="w-3 h-3 rounded-sm bg-amber-200" />
                             )}
@@ -924,8 +915,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         {hoveredObject.type === 'file' && (
                             <div className="space-y-1 text-sm text-gray-600">
                                 <div className="flex justify-between gap-4">
-                                    <span>Avg. Complexity:</span>
-                                    <span className="font-medium text-gray-900">{hoveredObject.avgComplexity}</span>
+                                    <span>Total Complexity:</span>
+                                    <span className="font-medium text-gray-900">{hoveredObject.totalComplexity}</span>
                                 </div>
                                 <div className="flex justify-between gap-4">
                                     <span>LLOC:</span>

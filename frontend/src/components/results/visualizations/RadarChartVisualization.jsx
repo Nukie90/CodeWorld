@@ -24,7 +24,7 @@ function RadarChartVisualization({ individualFiles }) {
   // Find maximum values for normalization
   const maxValues = {
     nloc: Math.max(...individualFiles.map(f => f.total_nloc || f.total_loc || 0)),
-    complexity: Math.max(...individualFiles.map(f => f.complexity_avg || 0)),
+    complexity: Math.max(...individualFiles.map(f => f.total_complexity || 0)),
     functions: Math.max(...individualFiles.map(f => f.function_count || 0)),
     maxComplexity: Math.max(...individualFiles.map(f => f.complexity_max || 0)),
     avgFunctionSize: Math.max(...individualFiles.map(f => 
@@ -36,7 +36,7 @@ function RadarChartVisualization({ individualFiles }) {
   const chartData = individualFiles.map(file => ({
     name: file.filename,
     'Lines of Code': normalizeValue(file.total_nloc || file.total_loc || 0, maxValues.nloc),
-    'Avg Complexity': normalizeValue(file.complexity_avg || 0, maxValues.complexity),
+    'Avg Complexity': normalizeValue(file.total_complexity || 0, maxValues.complexity),
     'Function Count': normalizeValue(file.function_count || 0, maxValues.functions),
     'Max Complexity': normalizeValue(file.complexity_max || 0, maxValues.maxComplexity),
     'Avg Function Size': normalizeValue(
@@ -46,7 +46,7 @@ function RadarChartVisualization({ individualFiles }) {
     // Store original values for tooltip
     original: {
       'Lines of Code': file.total_nloc || file.total_loc || 0,
-      'Avg Complexity': file.complexity_avg || 0,
+      'Avg Complexity': file.total_complexity || 0,
       'Function Count': file.function_count || 0,
       'Max Complexity': file.complexity_max || 0,
       'Avg Function Size': file.total_nloc && file.function_count 

@@ -18,7 +18,7 @@ function SingleFileResults({ analysisResult, onBack }) {
     { label: 'Total lines', value: analysis?.total_loc },
     { label: 'Logical LOC', value: analysis?.total_nloc },
     { label: 'Functions', value: analysis?.function_count },
-    { label: 'Avg. complexity', value: analysis?.complexity_avg },
+    { label: 'Total complexity', value: analysis?.total_complexity },
     { label: 'Max complexity', value: analysis?.complexity_max },
     { label: 'Language', value: analysis?.language },
   ]

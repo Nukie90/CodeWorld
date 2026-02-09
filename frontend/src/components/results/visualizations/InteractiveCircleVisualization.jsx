@@ -57,7 +57,7 @@ function InteractiveCircleVisualization({ individualFiles, folderName }) {
           name: pathParts[pathParts.length - 1],
           type: 'file',
           size: file.total_nloc || 0,
-          complexity: file.complexity_avg || 0,
+          complexity: file.total_complexity || 0,
           children: (file.functions || []).map(fn => ({
             name: fn.name,
             type: 'function',
