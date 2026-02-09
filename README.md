@@ -33,7 +33,7 @@ GITHUB_REDIRECT_URI=http://127.0.0.1:8000/api/auth/github/callback
 2. uvicorn app.main:app --reload
 
 # Next Start JS Server port 3001
-1. cd app/js-plugin
+1. cd app/js_plugin
 2. npm install
 3. npm start
 
