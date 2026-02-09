@@ -23,7 +23,7 @@ class FileMetrics(BaseModel):
     total_loc: int
     total_nloc: int
     function_count: int
-    complexity_avg: float
+    total_complexity: int
     complexity_max: int
     functions: List[FunctionMetric]
 
@@ -33,7 +33,7 @@ class FolderMetrics(BaseModel):
     total_loc: int
     total_nloc: int
     total_functions: int
-    complexity_avg: float
+    total_complexity: int
     complexity_max: int
     files: List[FileMetrics]
 

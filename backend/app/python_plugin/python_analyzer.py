@@ -340,7 +340,7 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         total_loc=len(code.splitlines()),
         total_nloc=nloc,
         function_count=len(functions),
-        complexity_avg=complexity_avg,
+        total_complexity=complexity_sum,
         complexity_max=complexity_max,
         functions=roots
     )

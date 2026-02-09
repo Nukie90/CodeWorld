@@ -31,7 +31,7 @@ def get_file_matrix_js(code: str, filename: str) -> Optional[FileMetrics]:
             total_loc=data["total_loc"],
             total_nloc=data["total_nloc"],
             function_count=data["function_count"],
-            complexity_avg=data["complexity_avg"],
+            total_complexity=data["total_complexity"],
             complexity_max=data["complexity_max"],
             functions=functions,
         )

@@ -13,10 +13,3 @@ class AnalysisAdapter(ABC):
     async def analyze_content(self, content: str, filename: str) -> Optional[FileMetrics]:
         """Analyze the content of a file and return metrics."""
         pass
-
-    # Legacy/Future methods for direct file upload handling
-    async def analyze_file(self, file: UploadFile):
-        pass
-
-    async def analyze_zip(self, file: UploadFile):
-        pass

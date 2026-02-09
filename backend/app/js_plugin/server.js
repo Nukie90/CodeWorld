@@ -559,7 +559,7 @@ app.post('/analyze-code', express.json(), (req, res) => {
             total_loc: babelMetrics.LOC,
             total_nloc: babelMetrics.NLOC,
             function_count: function_count,
-            complexity_avg: complexity_avg,
+            total_complexity: complexity_sum,
             complexity_max: complexity_max,
             functions: hierarchicalFunctions, // Returns roots with nested children
         };

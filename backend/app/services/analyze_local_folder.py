@@ -23,11 +23,12 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
             relative_path = os.path.relpath(file_path, path)
             all_files.append((file_path, relative_path))
 
+
     file_metrics_list: List[FileMetrics] = []
     total_loc = 0
     total_nloc = 0
     total_functions = 0
-    complexity_sum = 0
+    total_complexity = 0
     complexity_max = 0
 
     for file_path, relative_path in all_files:
@@ -55,8 +56,7 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
             total_loc += file_metrics.total_loc
             total_nloc += file_metrics.total_nloc
             total_functions += file_metrics.function_count
-            # Ensure complexity_avg and function_count are not None before multiplying
-            complexity_sum += (file_metrics.complexity_avg or 0) * (file_metrics.function_count or 0)
+            total_complexity += file_metrics.total_complexity
             if (file_metrics.complexity_max or 0) > complexity_max:
                 complexity_max = file_metrics.complexity_max
 
@@ -65,15 +65,13 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
             # skip unreadable files or other unexpected errors
             continue
 
-    folder_complexity_avg = round(complexity_sum / total_functions, 2) if total_functions > 0 else 0.0
-
     folder_metrics = FolderMetrics(
         folder_name=os.path.basename(path),
         total_files=len(file_metrics_list),
         total_loc=total_loc,
         total_nloc=total_nloc,
         total_functions=total_functions,
-        complexity_avg=folder_complexity_avg,
+        total_complexity=total_complexity,
         complexity_max=complexity_max,
         files=file_metrics_list,
     )

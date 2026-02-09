@@ -59,7 +59,7 @@ async def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnaly
         total_loc = 0
         total_nloc = 0
         total_functions = 0
-        complexity_sum = 0
+        total_complexity = 0
         complexity_max = 0
         
         # Get list of adapters
@@ -77,14 +77,10 @@ async def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnaly
                 total_functions += file_metrics.function_count
                 
                 # Ensure complexity_avg is treated as a number
-                c_avg = file_metrics.complexity_avg if file_metrics.complexity_avg is not None else 0
-                complexity_sum += c_avg * file_metrics.function_count
+                total_complexity += file_metrics.total_complexity
                 
                 if file_metrics.complexity_max > complexity_max:
                     complexity_max = file_metrics.complexity_max
-        
-        # Calculate folder-level averages
-        folder_complexity_avg = round(complexity_sum / total_functions, 2) if total_functions > 0 else 0.0
         
         folder_metrics = FolderMetrics(
             folder_name=folder_name,
@@ -92,7 +88,7 @@ async def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnaly
             total_loc=total_loc,
             total_nloc=total_nloc,
             total_functions=total_functions,
-            complexity_avg=folder_complexity_avg,
+            total_complexity=total_complexity,
             complexity_max=complexity_max,
             files=file_metrics_list
         )

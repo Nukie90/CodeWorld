@@ -45,7 +45,7 @@ def normalize_node_metrics(
             cc_max = cc
 
     function_count = len(funcs)
-    complexity_avg = (cc_sum / function_count) if function_count else 0.0
+
 
     # comment_lines unavailable; approximate so total_loc matches LOC
     comment_lines = max(loc - nloc, 0)
@@ -57,7 +57,7 @@ def normalize_node_metrics(
         total_loc=total_loc,
         total_nloc=nloc,
         function_count=function_count,
-        complexity_avg=round(complexity_avg, 2),
+        total_complexity=cc_sum,
         complexity_max=cc_max,
         functions=funcs,
     )
@@ -80,18 +80,21 @@ def normalize_node_zip(node_result: Dict[str, Any], folder_name: str = "src") ->
         filename = file_result.get("fileName")
         metrics = file_result.get("metrics", {})
         # Convert each file metrics
-        fm = normalize_node_metrics(metrics, filename)
-        all_files.append(fm)
+        try:
+            fm = normalize_node_metrics(metrics, filename)
+            all_files.append(fm)
 
-        # Aggregate folder-level totals
-        total_loc += fm.total_loc
-        total_nloc += fm.total_nloc
-        total_functions += fm.function_count
-        cc_sum += fm.complexity_avg * fm.function_count
-        cc_max_global = max(cc_max_global, fm.complexity_max)
+            # Aggregate folder metrics
+            total_loc += fm.total_loc
+            total_nloc += fm.total_nloc
+            total_functions += fm.function_count
+            cc_sum += fm.total_complexity
+            cc_max_global = max(cc_max_global, fm.complexity_max)
+        except Exception:
+            # Handle potential errors during normalization
+            continue
 
     total_files = len(all_files)
-    complexity_avg = round(cc_sum / total_functions, 2) if total_functions else 0.0
 
     folder_metrics = FolderMetrics(
         folder_name=folder_name,
@@ -99,7 +102,7 @@ def normalize_node_zip(node_result: Dict[str, Any], folder_name: str = "src") ->
         total_loc=total_loc,
         total_nloc=total_nloc,
         total_functions=total_functions,
-        complexity_avg=complexity_avg,
+        total_complexity=cc_sum,
         complexity_max=cc_max_global,
         files=all_files,
     )
