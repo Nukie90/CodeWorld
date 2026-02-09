@@ -44,8 +44,17 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
                 print("To Python PLUGIN")
                 file_metrics = get_file_matrix_python(content, relative_path)
             else:
-                # Fallback or skip other languages for now
-                pass
+                # send the name of the file to the front end
+                print(relative_path)
+                file_metrics = FileMetrics(
+                    filename=f"{relative_path}\n(unsupported)",
+                    total_loc=0,
+                    total_nloc=0,
+                    function_count=0,
+                    total_complexity=0,
+                    complexity_max=0,
+                    functions=[]
+                )
 
             if file_metrics is None:
                 # Skip file if analysis failed (e.g., service down or parse error)
