@@ -207,67 +207,94 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         def __init__(self):
             self._current_parent_id = None
             self._parent_stack = []
+            # Stack to track structural nesting level at each function scope
+            # Element is (nesting_level, is_decorator_inner)
+            # Initial state: base nesting 0, not a decorator scope
+            self._nesting_stack = [(0, False)] 
 
         def visit_FunctionDef(self, node):
             self._process_function(node)
         
         def visit_AsyncFunctionDef(self, node):
             self._process_function(node)
+
+        def _is_decorator_eligible(self, node: ast.FunctionDef) -> bool:
+            """
+            Check if a function matches the decorator exception pattern:
+            It must contain ONLY a nested function and a return statement.
+            Excludes docs/comments.
+            """
             
+            non_empty_stmts = []
+            for stmt in node.body:
+                if isinstance(stmt, ast.Expr) and (isinstance(stmt.value, ast.Str) or isinstance(stmt.value, ast.Constant)):
+                     # Docstring or constant expression -> ignore
+                     continue
+                if isinstance(stmt, ast.Pass):
+                    continue
+                non_empty_stmts.append(stmt)
+            
+            if len(non_empty_stmts) != 2:
+                return False
+                
+            has_func = isinstance(non_empty_stmts[0], (ast.FunctionDef, ast.AsyncFunctionDef)) or \
+                       isinstance(non_empty_stmts[1], (ast.FunctionDef, ast.AsyncFunctionDef))
+            has_ret = isinstance(non_empty_stmts[0], ast.Return) or \
+                      isinstance(non_empty_stmts[1], ast.Return)
+                      
+            return has_func and has_ret
+
+        def visit_If(self, node):
+            self.generic_visit(node)
+
         def _process_function(self, node):
-            # Name
             name = node.name
-            
-            # Lines
             start_line = node.lineno
             end_line = node.end_lineno if hasattr(node, 'end_lineno') else start_line
+
+            # Determine parent nesting
+            parent_nesting, parent_is_decorator = self._nesting_stack[-1]
             
-            # Nesting & Complexity
-            # Calculate base nesting? 
-            # In JS we walk up parents. Here we are visiting top-down.
-            # We can track nesting level in the visitor.
-            # For now, let's just calculate logic strictly inside the function
-            # assuming it's top-level or handling nesting if we track it.
+            if parent_is_decorator:
+                base_nesting = 0 # Exception applied!
+            else:
+                 # Standard increment for being a nested function
+                 if len(self._nesting_stack) == 1:
+                     base_nesting = 0
+                 else:
+                     base_nesting = parent_nesting + 1
+
+            # Calculate metrics
+            res = calculate_cognitive_complexity(node, base_nesting=base_nesting, function_name=name)
             
-            # NOTE: To correctly handle nesting level *of the function definition itself*, 
-            # we would need to track generated depth during visitation.
-            # Since we are just stripping it out for now, let's assume 0 base for simplicity
-            # or we can inspect the parents if we maintained a stack.
-            
-            res = calculate_cognitive_complexity(node, base_nesting=0, function_name=name)
-            
-            # Function NLOC
-            # Approximate by line range for now, or token counting if strict
-            func_nloc = 0
-            # Simple approximation: end - start + 1
-            # Better: count non-empty/non-comment lines in that range from source
-            # We can reuse the `lines_with_code` set if we make it accessible
+            # NLOC calculation
             func_nloc = len([l for l in lines_with_code if start_line <= l <= end_line])
 
             functions.append(FunctionMetric(
                 name=name,
-                long_name=name, # Could build path e.g. Class.method
-                cyclomatic_complexity=res["complexity"], # Using CC field for Cognitive Complexity as per user request/parity
+                long_name=name,
+                cyclomatic_complexity=res["complexity"],
                 nloc=func_nloc,
-                token_count=0, # Not strictly counted
+                token_count=0,
                 start_line=start_line,
                 end_line=end_line,
                 max_nesting_depth=res["max_nesting"],
-                # Extra fields for hierarchy reconstruction in testers
-                id=start_line, # Using start_line as ID for now (or unique offset)
+                id=start_line,
                 parentId=self._current_parent_id
             ))
             
-            # Continue traversal to find nested functions (they will be added as separate metrics)
-            # Push current function as parent using its start_line as ID
+            # Push state for children
+            is_me_decorator = self._is_decorator_eligible(node)
+            self._nesting_stack.append((base_nesting, is_me_decorator))
+            
             self._current_parent_id = start_line
             self._parent_stack.append(start_line)
             
             self.generic_visit(node)
             
-            # Pop parent
             self._parent_stack.pop()
             self._current_parent_id = self._parent_stack[-1] if self._parent_stack else None
+            self._nesting_stack.pop()
 
     FunctionVisitor().visit(tree)
     
