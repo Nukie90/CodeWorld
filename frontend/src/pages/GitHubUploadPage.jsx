@@ -26,9 +26,22 @@ function GitHubUploadPage() {
     setStatusMessage('Cloning and analyzing repository...')
     setProgress(0)
 
+    // Simulation of progress
     const interval = setInterval(() => {
-      setProgress(p => (p >= 95 ? 95 : p + 5))
-    }, 300)
+      setProgress(oldProgress => {
+        // Start fast, then slow down as it gets higher
+        if (oldProgress >= 90) {
+          // Very slow increment near the end (90-99%)
+          return oldProgress < 99 ? oldProgress + 0.1 : 99
+        } else if (oldProgress >= 60) {
+          // Moderate speed (60-90%)
+          return oldProgress + 0.5
+        } else {
+          // Fast start (0-60%)
+          return oldProgress + 5
+        }
+      })
+    }, 100)
 
     try {
       const resp = await axios.post(
@@ -38,6 +51,10 @@ function GitHubUploadPage() {
 
       clearInterval(interval)
       setProgress(100)
+
+      // Short delay to show 100% completion
+      await new Promise(resolve => setTimeout(resolve, 600))
+
       setUploadStatus('success')
 
       navigate('/results', {
@@ -135,10 +152,10 @@ function GitHubUploadPage() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-sm font-medium text-gray-700">
-                      Uploading...
+                      Analyzing repository...
                     </span>
                     <span className="text-sm text-blue-600 font-semibold">
-                      {progress}%
+                      {Math.floor(progress)}%
                     </span>
                   </div>
                   <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
