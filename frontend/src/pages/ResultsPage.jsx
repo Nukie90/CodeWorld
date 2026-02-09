@@ -33,6 +33,15 @@ function ResultsPage() {
   const [rightPanelTab, setRightPanelTab] = useState('summary'); // 'summary' or 'analysis'
   const [selectedFileForCard, setSelectedFileForCard] = useState(null);
 
+  // Resizable Panel State
+  const [leftPanelWidth, setLeftPanelWidth] = useState(400);
+  const [rightPanelWidth, setRightPanelWidth] = useState(520);
+  const [isDragging, setIsDragging] = useState(false);
+  const isResizingLeft = useRef(false);
+  const isResizingRight = useRef(false);
+  const startX = useRef(0);
+  const startWidth = useRef(0);
+
   const [branches, setBranches] = useState([])
   const [currentBranch, setCurrentBranch] = useState("")
   const [branchLoading, setBranchLoading] = useState(false)
@@ -109,6 +118,7 @@ function ResultsPage() {
     setCodeLoading(true)
     setSelectedCode(null)
     setIsRightPanelOpen(true)
+    setIsBottomPanelOpen(false)
 
     try {
       const resp = await axios.post('http://127.0.0.1:8000/api/repo/function-code', {
@@ -149,6 +159,7 @@ function ResultsPage() {
     setCodeLoading(true);
     setSelectedCode(null);
     setIsRightPanelOpen(true);
+    setIsBottomPanelOpen(false);
 
     try {
       const resp = await axios.post('http://127.0.0.1:8000/api/repo/file-content', {
@@ -188,6 +199,7 @@ function ResultsPage() {
     setSelectedFileForCard(fullFileData);
     setRightPanelTab('analysis'); // Switch to Analysis tab when clicked
     setIsRightPanelOpen(true); // Open the right panel
+    setIsBottomPanelOpen(false);
 
     if (fileData.startLine) {
       handleFunctionClick(fileData);
@@ -372,6 +384,52 @@ function ResultsPage() {
   const panelBg = isDarkMode ? 'bg-gray-800' : 'bg-white';
   const borderColor = isDarkMode ? 'border-gray-700' : 'border-gray-200';
 
+  const startResizingLeft = (e) => {
+    isResizingLeft.current = true;
+    setIsDragging(true);
+    startX.current = e.clientX;
+    startWidth.current = leftPanelWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  const startResizingRight = (e) => {
+    isResizingRight.current = true;
+    setIsDragging(true);
+    startX.current = e.clientX;
+    startWidth.current = rightPanelWidth;
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  const stopResizing = () => {
+    isResizingLeft.current = false;
+    isResizingRight.current = false;
+    setIsDragging(false);
+    document.body.style.cursor = 'default';
+    document.body.style.userSelect = 'auto';
+  };
+
+  const resize = (e) => {
+    if (isResizingLeft.current) {
+      const newWidth = startWidth.current + (e.clientX - startX.current);
+      if (newWidth > 200 && newWidth < window.innerWidth * 0.8) setLeftPanelWidth(newWidth);
+    }
+    if (isResizingRight.current) {
+      const newWidth = startWidth.current - (e.clientX - startX.current);
+      if (newWidth > 300 && newWidth < window.innerWidth * 0.8) setRightPanelWidth(newWidth);
+    }
+  };
+
+  useEffect(() => {
+    window.addEventListener('mousemove', resize);
+    window.addEventListener('mouseup', stopResizing);
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, []);
+
   return (
     <div className={`h-screen overflow-hidden ${bgColor} ${textColor} relative`}>
       {/* Top Control Bar with Home and Theme Toggle - Modern Glassmorphism */}
@@ -394,13 +452,18 @@ function ResultsPage() {
 
       {/* Left Panel - Git Graph (Slide in/out) - Modern Design */}
       <div
-        className={`absolute left-0 top-0 h-full ${isDarkMode ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-xl shadow-2xl transition-transform duration-300 z-30 border-r ${isDarkMode ? 'border-white/10' : 'border-gray-200/50'}`}
+        className={`absolute left-0 top-0 h-full ${isDarkMode ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-xl shadow-2xl ${isDragging ? 'transition-none duration-0' : 'transition-transform duration-300'} z-30 border-r ${isDarkMode ? 'border-white/10' : 'border-gray-200/50'}`}
         style={{
-          width: '400px',
-          transform: isLeftPanelOpen ? 'translateX(0)' : 'translateX(-400px)'
+          width: `${leftPanelWidth}px`,
+          transform: isLeftPanelOpen ? 'translateX(0)' : `translateX(-${leftPanelWidth}px)`
         }}
       >
-        <div className="h-full flex flex-col p-6">
+        <div className="h-full flex flex-col p-6 relative">
+          {/* Resize Handle */}
+          <div
+            className="absolute right-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500/50 transition-colors z-50"
+            onMouseDown={startResizingLeft}
+          />
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-blue-800 bg-clip-text text-transparent">Git Graph</h3>
           </div>
@@ -519,10 +582,13 @@ function ResultsPage() {
 
       {/* Left Panel Toggle Button */}
       <button
-        onClick={() => setIsLeftPanelOpen(!isLeftPanelOpen)}
-        className={`absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 dark:bg-black/20 backdrop-blur-xl shadow-2xl rounded-full p-4 z-40 transition-all hover:bg-white/20 dark:hover:bg-black/30 border border-white/20 dark:border-white/10 group`}
+        onClick={() => {
+          setIsLeftPanelOpen(!isLeftPanelOpen);
+          if (!isLeftPanelOpen) setIsBottomPanelOpen(false);
+        }}
+        className={`absolute left-4 top-1/2 -translate-y-1/2 bg-white/10 dark:bg-black/20 backdrop-blur-xl shadow-2xl rounded-full p-4 z-40 ${isDragging ? 'transition-none duration-0' : 'transition-all'} hover:bg-white/20 dark:hover:bg-black/30 border border-white/20 dark:border-white/10 group`}
         style={{
-          transform: `translateY(-50%) translateX(${isLeftPanelOpen ? '400px' : '0'})`
+          transform: `translateY(-50%) translateX(${isLeftPanelOpen ? `${leftPanelWidth}px` : '0'})`
         }}
       >
         {isLeftPanelOpen ? (
@@ -534,13 +600,18 @@ function ResultsPage() {
 
       {/* Right Panel - Raw Code (Slide in/out) - Modern Design */}
       <div
-        className={`absolute right-0 top-0 h-full ${isDarkMode ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-xl shadow-2xl transition-transform duration-300 z-30 border-l ${isDarkMode ? 'border-white/10' : 'border-gray-200/50'}`}
+        className={`absolute right-0 top-0 h-full ${isDarkMode ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-xl shadow-2xl ${isDragging ? 'transition-none duration-0' : 'transition-transform duration-300'} z-30 border-l ${isDarkMode ? 'border-white/10' : 'border-gray-200/50'}`}
         style={{
-          width: '520px',
-          transform: isRightPanelOpen ? 'translateX(0)' : 'translateX(520px)'
+          width: `${rightPanelWidth}px`,
+          transform: isRightPanelOpen ? 'translateX(0)' : `translateX(${rightPanelWidth}px)`
         }}
       >
-        <div className="h-full flex flex-col p-6">
+        <div className="h-full flex flex-col p-6 relative">
+          {/* Resize Handle */}
+          <div
+            className="absolute left-0 top-0 h-full w-1 cursor-col-resize hover:bg-blue-500/50 transition-colors z-50"
+            onMouseDown={startResizingRight}
+          />
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-teal-500 bg-clip-text text-transparent">Raw Code</h3>
           </div>
@@ -713,10 +784,13 @@ function ResultsPage() {
 
       {/* Right Panel Toggle Button */}
       <button
-        onClick={() => setIsRightPanelOpen(!isRightPanelOpen)}
-        className={`absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 dark:bg-black/20 backdrop-blur-xl shadow-2xl rounded-full p-4 z-40 transition-all hover:bg-white/20 dark:hover:bg-black/30 border border-white/20 dark:border-white/10 group`}
+        onClick={() => {
+          setIsRightPanelOpen(!isRightPanelOpen);
+          if (!isRightPanelOpen) setIsBottomPanelOpen(false);
+        }}
+        className={`absolute right-4 top-1/2 -translate-y-1/2 bg-white/10 dark:bg-black/20 backdrop-blur-xl shadow-2xl rounded-full p-4 z-40 ${isDragging ? 'transition-none duration-0' : 'transition-all'} hover:bg-white/20 dark:hover:bg-black/30 border border-white/20 dark:border-white/10 group`}
         style={{
-          transform: `translateY(-50%) translateX(${isRightPanelOpen ? '-520px' : '0'})`
+          transform: `translateY(-50%) translateX(${isRightPanelOpen ? `-${rightPanelWidth}px` : '0'})`
         }}
       >
         {isRightPanelOpen ? (
@@ -914,7 +988,14 @@ function ResultsPage() {
         }}
       >
         <button
-          onClick={() => setIsBottomPanelOpen(!isBottomPanelOpen)}
+          onClick={() => {
+            const willOpen = !isBottomPanelOpen;
+            setIsBottomPanelOpen(willOpen);
+            if (willOpen) {
+              setIsLeftPanelOpen(false);
+              setIsRightPanelOpen(false);
+            }
+          }}
           className={`bg-white/10 dark:bg-black/20 backdrop-blur-xl shadow-2xl rounded-full p-4 transition-all hover:bg-white/20 dark:hover:bg-black/30 hover:scale-110 border border-white/20 dark:border-white/10`}
         >
           {isBottomPanelOpen ? (

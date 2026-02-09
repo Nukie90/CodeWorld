@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import * as d3 from 'd3';
+import { Settings } from 'lucide-react';
 import FunctionMoleculeVisualization from './FunctionMoleculeVisualization';
 
 function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, isDarkMode }) {
@@ -837,7 +838,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
             {/* Back Button (Functions Mode) */}
             {viewMode === 'functions' && (
-                <div className="absolute top-4 left-4 z-50">
+                <div className="absolute top-20 left-6 z-50">
                     <button
                         onClick={() => {
                             setViewMode('island');
@@ -958,21 +959,26 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             )}
 
             {/* Options Panel */}
-            <div className="absolute top-4 right-4 z-10">
+            <div className="absolute top-6 left-6 z-10">
                 <button
                     onClick={() => setShowOptionsPanel(!showOptionsPanel)}
-                    className="bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl shadow-lg px-4 py-2 border border-white/50 dark:border-slate-700/50 hover:scale-105 transition-all font-bold text-sm text-gray-800 dark:text-gray-100"
+                    className={`p-3 backdrop-blur-xl shadow-2xl rounded-2xl transition-all border ring-1 ring-white/10 ${isDarkMode
+                        ? 'bg-black/20 hover:bg-black/30 border-white/10 text-gray-100'
+                        : 'bg-white/10 hover:bg-white/20 border-white/20 text-gray-800'}`}
+                    title="Visualization Options"
                 >
-                    Options
+                    <Settings size={22} strokeWidth={2.5} />
                 </button>
 
                 {showOptionsPanel && (
-                    <div className="mt-2 bg-white/90 dark:bg-slate-800/90 backdrop-blur-md rounded-xl shadow-lg p-4 border border-white/50 dark:border-slate-700/50 min-w-[250px]">
-                        <h4 className="font-bold text-sm mb-3 text-gray-800 dark:text-gray-100">Visualization Options</h4>
+                    <div className={`mt-2 backdrop-blur-md rounded-xl shadow-lg p-4 border min-w-[250px] animate-in fade-in slide-in-from-top-2 ${isDarkMode
+                        ? 'bg-slate-800/90 border-slate-700/50'
+                        : 'bg-white/90 border-white/50'}`}>
+                        <h4 className={`font-bold text-sm mb-3 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Visualization Options</h4>
 
                         {/* Tower Opacity Slider */}
                         <div className="mb-4">
-                            <label className="text-xs text-gray-600 dark:text-gray-300 mb-1 block">
+                            <label className={`text-xs mb-1 block ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                                 Tower Transparency: {Math.round((1 - towerOpacity) * 100)}%
                             </label>
                             <input
@@ -982,9 +988,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                                 step="0.1"
                                 value={towerOpacity}
                                 onChange={(e) => setTowerOpacity(parseFloat(e.target.value))}
-                                className="w-full h-2 bg-gray-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                className={`w-full h-2 rounded-lg appearance-none cursor-pointer accent-blue-500 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-200'}`}
                             />
-                            <div className="flex justify-between text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                            <div className={`flex justify-between text-[10px] mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                                 <span>Transparent</span>
                                 <span>Opaque</span>
                             </div>
@@ -992,10 +998,12 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
                         {/* Decorations Toggle */}
                         <div className="flex items-center justify-between">
-                            <span className="text-xs text-gray-600 dark:text-gray-300">Show Decorations</span>
+                            <span className={`text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Show Decorations</span>
                             <button
                                 onClick={() => setShowDecorations(!showDecorations)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showDecorations ? 'bg-blue-500' : 'bg-gray-300 dark:bg-slate-600'
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showDecorations
+                                    ? 'bg-blue-500'
+                                    : (isDarkMode ? 'bg-slate-600' : 'bg-gray-300')
                                     }`}
                             >
                                 <span
@@ -1004,7 +1012,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                                 />
                             </button>
                         </div>
-                        <p className="text-[10px] text-gray-500 dark:text-gray-400 mt-1">
+                        <p className={`text-[10px] mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                             {showDecorations ? 'Trees & dolphins visible' : 'Trees & dolphins hidden'}
                         </p>
                     </div>
@@ -1012,29 +1020,33 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             </div>
 
             {/* Controls Help */}
-            <div className="absolute bottom-4 left-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl shadow-lg p-4 z-10 border border-white/50 dark:border-slate-700/50">
-                <h4 className="font-bold text-sm mb-2 text-gray-800 dark:text-gray-100 flex items-center gap-2">
+            <div className={`absolute bottom-4 left-4 backdrop-blur-md rounded-xl shadow-lg p-4 z-10 border ${isDarkMode
+                ? 'bg-slate-800/80 border-slate-700/50'
+                : 'bg-white/80 border-white/50'}`}>
+                <h4 className={`font-bold text-sm mb-2 flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
                     Controls
                 </h4>
-                <div className="space-y-1 text-xs text-gray-600 dark:text-gray-300">
+                <div className={`space-y-1 text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     <div className="flex items-center gap-2">
-                        <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-[10px] font-mono">WASD</kbd><span>Move</span>
+                        <kbd className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>WASD</kbd><span>Move</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-[10px] font-mono">Click</kbd><span>Capture Mouse</span>
+                        <kbd className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>Click</kbd><span>Capture Mouse</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <kbd className="px-1.5 py-0.5 bg-gray-100 dark:bg-slate-700 rounded text-[10px] font-mono">ESC</kbd><span>Release Mouse</span>
+                        <kbd className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>ESC</kbd><span>Release Mouse</span>
                     </div>
                 </div>
             </div>
 
             {/* Legend */}
-            <div className="absolute bottom-4 right-4 bg-white/80 dark:bg-slate-800/80 backdrop-blur-md rounded-xl shadow-lg p-4 z-10 border border-white/50 dark:border-slate-700/50">
-                <h4 className="font-bold text-sm mb-3 text-gray-800 dark:text-gray-100 flex items-center gap-2">
+            <div className={`absolute bottom-4 right-4 backdrop-blur-md rounded-xl shadow-lg p-4 z-10 border ${isDarkMode
+                ? 'bg-slate-800/80 border-slate-700/50'
+                : 'bg-white/80 border-white/50'}`}>
+                <h4 className={`font-bold text-sm mb-3 flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
                     Terraced Map
                 </h4>
-                <div className="space-y-2 text-xs text-gray-600 dark:text-gray-300">
+                <div className={`space-y-2 text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-[#f5d5a8] rounded-sm" />
                         <span>Platform = Directory</span>
