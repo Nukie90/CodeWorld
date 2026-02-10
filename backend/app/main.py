@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes.analyzer_routes import router as analyzer_router
+# from app.routes.analyzer_routes import router as analyzer_router
 from app.routes.github_routes import router as github_router
 
 # Load environment variables from backend/.env when available (development convenience).
@@ -32,7 +32,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-app.include_router(analyzer_router, prefix="/api")
+# app.include_router(analyzer_router, prefix="/api")
 app.include_router(github_router, prefix="/api")
 
 @app.get("/")
