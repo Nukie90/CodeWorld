@@ -37,7 +37,7 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
                 content = f.read()
 
             file_metrics = None
-            if relative_path.endswith(('.js', '.jsx')):
+            if relative_path.endswith(('.js', '.jsx', '.ts', '.tsx')):
                 print("To JS PLUGIN")
                 file_metrics = get_file_matrix_js(content, relative_path)
             elif relative_path.endswith('.py'):
