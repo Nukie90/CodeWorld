@@ -173,7 +173,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         // Pack the circles
         const packLayout = d3.pack()
-            .size([700, 700]) // Arbitrary large workspace size
+            .size([400, 400]) // Arbitrary large workspace size
             .padding(d => d.depth === 0 ? 30 : 20);
 
         packLayout(root);
@@ -396,7 +396,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 const towerRadius = 1.8 + (r * 0.9);
 
                 const geometry = new THREE.CylinderGeometry(towerRadius, towerRadius, towerHeight, 32);
-                const color = getComplexityColor(complexity);
+                const isUnsupported = node.data.fileData?.is_unsupported;
+                const color = isUnsupported
+                    ? (0x9ca3af) // Gray for unsupported
+                    : getComplexityColor(complexity);
                 const material = new THREE.MeshStandardMaterial({
                     color: color,
                     roughness: 0.3,
@@ -883,12 +886,14 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         >
                             <span>View Code</span>
                         </button>
-                        <button
-                            className="w-full text-left px-4 py-3 hover:bg-purple-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200"
-                            onClick={() => handleMenuAction('functions')}
-                        >
-                            <span>View Functions</span>
-                        </button>
+                        {!activeFileForMenu.is_unsupported && (
+                            <button
+                                className="w-full text-left px-4 py-3 hover:bg-purple-50 dark:hover:bg-slate-700 transition-colors flex items-center gap-2 text-sm font-medium text-gray-700 dark:text-gray-200"
+                                onClick={() => handleMenuAction('functions')}
+                            >
+                                <span>View Functions</span>
+                            </button>
+                        )}
                     </div>
                 </>
             )}
@@ -914,18 +919,27 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         </div>
                         {hoveredObject.type === 'file' && (
                             <div className="space-y-1 text-sm text-gray-600">
-                                <div className="flex justify-between gap-4">
-                                    <span>Total Complexity:</span>
-                                    <span className="font-medium text-gray-900">{hoveredObject.totalComplexity}</span>
-                                </div>
-                                <div className="flex justify-between gap-4">
-                                    <span>LLOC:</span>
-                                    <span className="font-medium text-gray-900">{hoveredObject.totalLoc}</span>
-                                </div>
-                                <div className="flex justify-between gap-4">
-                                    <span>Functions:</span>
-                                    <span className="font-medium text-gray-900">{hoveredObject.numFunctions}</span>
-                                </div>
+                                {hoveredObject.is_unsupported ? (
+                                    <div className="flex justify-between gap-4">
+                                        <span>LLOC:</span>
+                                        <span className="font-medium text-gray-900">{hoveredObject.totalLoc}</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="flex justify-between gap-4">
+                                            <span>Total Complexity:</span>
+                                            <span className="font-medium text-gray-900">{hoveredObject.totalComplexity}</span>
+                                        </div>
+                                        <div className="flex justify-between gap-4">
+                                            <span>LLOC:</span>
+                                            <span className="font-medium text-gray-900">{hoveredObject.totalLoc}</span>
+                                        </div>
+                                        <div className="flex justify-between gap-4">
+                                            <span>Functions:</span>
+                                            <span className="font-medium text-gray-900">{hoveredObject.numFunctions}</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         )}
                         {hoveredObject.type === 'directory' && (

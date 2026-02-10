@@ -25,6 +25,7 @@ class FileMetrics(BaseModel):
     function_count: int
     total_complexity: int
     complexity_max: int
+    is_unsupported: bool = False
     functions: List[FunctionMetric]
 
 class FolderMetrics(BaseModel):

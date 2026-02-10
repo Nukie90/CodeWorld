@@ -37,6 +37,7 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
                 content = f.read()
 
             file_metrics = None
+            
             if relative_path.endswith(('.js', '.jsx', '.ts', '.tsx')):
                 print("To JS PLUGIN")
                 file_metrics = get_file_matrix_js(content, relative_path)
@@ -47,12 +48,13 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
                 # send the name of the file to the front end
                 print(relative_path)
                 file_metrics = FileMetrics(
-                    filename=f"{relative_path}\n(unsupported)",
+                    filename=relative_path,
                     total_loc=0,
                     total_nloc=0,
                     function_count=0,
                     total_complexity=0,
                     complexity_max=0,
+                    is_unsupported=True,
                     functions=[]
                 )
 
