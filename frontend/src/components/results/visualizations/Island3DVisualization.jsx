@@ -168,13 +168,13 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         // --- Layout Calculation with D3 ---
         const hierarchyData = buildHierarchy(individualFiles);
         const root = d3.hierarchy(hierarchyData)
-            .sum(d => d.value ? Math.sqrt(d.value) : 0) // Sizing files by LOC (sqrt for area mostly)
+            .sum(d => d.value ? d.value : 0) // Sizing files by LOC (D3 pack uses value for area)
             .sort((a, b) => b.value - a.value);
 
         // Pack the circles
         const packLayout = d3.pack()
-            .size([400, 400]) // Arbitrary large workspace size
-            .padding(d => d.depth === 0 ? 10 : 5);
+            .size([700, 700]) // Arbitrary large workspace size
+            .padding(d => d.depth === 0 ? 30 : 20);
 
         packLayout(root);
 
@@ -199,11 +199,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         if (isDarkMode) {
             gradient.addColorStop(0, '#020617'); // Dark Midnight
             gradient.addColorStop(1, '#1e293b'); // Dark Slate
-            scene.fog = new THREE.Fog(0x0f172a, 200, 900);
+            // scene.fog = new THREE.Fog(0x0f172a, 200, 900);
         } else {
             gradient.addColorStop(0, '#0ea5e9'); // Sky blue
             gradient.addColorStop(1, '#e0f2fe'); // Horizon
-            scene.fog = new THREE.Fog(0x7dd3fc, 200, 900);
+            // scene.fog = new THREE.Fog(0x7dd3fc, 200, 2000);
         }
         context.fillStyle = gradient;
         context.fillRect(0, 0, 2, 512);
@@ -390,10 +390,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             } else {
                 // Files -> Towers
                 const complexity = node.data.totalComplexity || 1;
-                const towerHeight = 10 + (complexity * 5); // Taller towers
+                const towerHeight = 10 + (Math.sqrt(complexity) * 15); // Square root scaling for height
 
-                // Radius slightly smaller than allocated circle
-                const towerRadius = Math.max(0.5, r * 0.8);
+                // Radius smaller than allocated circle to provide breathing room
+                const towerRadius = 1.8 + (r * 0.9);
 
                 const geometry = new THREE.CylinderGeometry(towerRadius, towerRadius, towerHeight, 32);
                 const color = getComplexityColor(complexity);
