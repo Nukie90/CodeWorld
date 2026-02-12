@@ -44,6 +44,35 @@ function calculateMetrics(code) {
             functions: []
         };
 
+        // --- 1. Analyze Global Scope (Virtual Function) ---
+        // We use the entire Program node to calculate complexity of top-level code.
+        // We must exclude function definitions from this calculation to avoid double counting,
+        // which calculateCognitiveComplexity already does by skipping child functions.
+        const { complexity: globalCC, maxNesting: globalMaxNesting } = calculateCognitiveComplexity({
+            traverse: (visitor) => traverse(ast, visitor), // Adapter for traverse
+            node: ast.program
+        }, 0, '(global)');
+
+        // Calculate Global NLOC: Total NLOC - Sum(Child Functions NLOC)
+        // Or more accurately: Count tokens that are NOT inside any child function.
+        // But for simplicity and speed, let's use the token subtraction method if possible,
+        // or just count lines in the file that aren't covered by functions.
+        // Actually, existing countTokenLines(ast.tokens) gives total NLOC.
+        // We need to subtract NLOC of all discovered functions later, or compute it now.
+        // Let's postpone Global NLOC finalization until after we find all functions.
+
+        const globalFunction = {
+            name: '(global)',
+            NLOC: 0, // Will be updated
+            CC: globalCC,
+            maxNesting: globalMaxNesting,
+            lineStart: 1,
+            lineEnd: code.split('\n').length,
+            id: -1, // Special ID for global
+            parentId: null
+        };
+        metrics.functions.push(globalFunction);
+
         traverse(ast, {
             enter(p) {
                 // Only handle function-like nodes (covers FunctionDeclaration/Expression, Arrow, ObjectMethod, ClassMethod)
@@ -101,6 +130,11 @@ function calculateMetrics(code) {
 
                 const { complexity, maxNesting } = calculateCognitiveComplexity(p, baseNesting, functionName);
 
+                // Determine Parent ID
+                // If getFunctionParent returns null, it's a top-level function -> parent is null (sibling of global)
+                const parentFn = p.getFunctionParent();
+                const parentId = parentFn ? (parentFn.node.start ?? null) : null;
+
                 metrics.functions.push({
                     name: functionName,
                     NLOC: countTokenLines(fnTokens),
@@ -109,10 +143,21 @@ function calculateMetrics(code) {
                     lineStart,
                     lineEnd,
                     id: start,
-                    parentId: p.getFunctionParent()?.node?.start ?? null
+                    parentId: parentId
                 });
             }
         });
+
+        // Finalize Global NLOC
+        // Global NLOC = Total NLOC - Sum(Top-Level Functions NLOC).
+        // Top-level functions are those with parentId === null.
+
+        const topLevelFunctionsNLOC = metrics.functions
+            .filter(f => f.parentId === null && f.id !== -1) // Exclude self (though global has id -1, just to be safe)
+            .reduce((sum, f) => sum + f.NLOC, 0);
+
+        globalFunction.NLOC = Math.max(0, metrics.NLOC - topLevelFunctionsNLOC);
+
 
         return metrics;
     } catch (error) {
