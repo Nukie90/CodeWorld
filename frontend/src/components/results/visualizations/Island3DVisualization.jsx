@@ -408,7 +408,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 const geometry = new THREE.CylinderGeometry(towerRadius, towerRadius, towerHeight, 32);
                 const isUnsupported = node.data.fileData?.is_unsupported;
                 const color = isUnsupported
-                    ? (0x9ca3af) // Gray for unsupported
+                    ? (isDarkMode ? 0xcfcfcf : 0x9ca3af) // White in dark mode, Gray for unsupported
                     : getComplexityColor(complexity);
                 const material = new THREE.MeshStandardMaterial({
                     color: color,
