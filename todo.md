@@ -3,6 +3,7 @@
 - [/] fix ui bugs of raw code when add lines, wraps
 - [/] right now it fake load when load new project, fix it
 - login and logout
+- complexity of the function is not correct (some are not visible in the frontend)
 
 # features left to implement
 - ai for complexity reduce

@@ -4,13 +4,7 @@ import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Home, Moon, Sun, Pla
 import { useLocation } from 'react-router-dom'
 import axios from 'axios'
 import BarChartVisualization from '../components/results/visualizations/BarChartVisualization';
-import CirclePackingVisualization from '../components/results/visualizations/CirclePackingVisualization';
-import TreemapVisualization from '../components/results/visualizations/TreemapVisualization';
-import ForceTreeVisualization from '../components/results/visualizations/ForceTreeVisualization';
-import RadarChartVisualization from '../components/results/visualizations/RadarChartVisualization';
-import CodeCity3DVisualization from '../components/results/visualizations/CodeCity3DVisualization';
 import Island3DVisualization from '../components/results/visualizations/Island3DVisualization';
-import CodeGalaxySolarSystem from '../components/results/visualizations/CodeGalaxySolarSystem';
 import GitGraph from '../components/git/GitGraph';
 import CommitDetailModal from '../components/git/CommitDetailModal';
 
@@ -21,7 +15,7 @@ function ResultsPage() {
 
   // Convert analysisResult to state so it can be updated when branch changes
   const [analysisResult, setAnalysisResult] = useState(initialAnalysisResult)
-  const [activeTab, setActiveTab] = useState('bar');
+  const [activeTab, setActiveTab] = useState('island3D');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Panel visibility states
@@ -237,7 +231,7 @@ function ResultsPage() {
     setAnimationProgress(0)
     setAnimatingCommit(null)
     setFixedFileOrder([...individual_files])
-    setActiveTab('bar')
+    setActiveTab('island3D')
 
     try {
       let commits = allCommits;
@@ -812,12 +806,6 @@ function ResultsPage() {
           <div className="flex gap-4">
             {[
               { key: 'bar', label: 'Bar Chart' },
-              { key: 'block', label: 'Blocks' },
-              { key: 'tree', label: 'Tree' },
-              { key: 'treemap', label: 'Treemap' },
-              { key: 'flower', label: 'Flower' },
-              { key: 'city', label: 'City 3D' },
-              { key: 'galaxy', label: 'Galaxy' },
               { key: 'island3D', label: 'Island 3D' }
             ].map(({ key, label }) => (
               <button
@@ -1034,32 +1022,6 @@ function ResultsPage() {
                 onFunctionClick={handleFunctionClick}
                 onFileClick={handleFileClickFrom3D}
                 fixedFileOrder={fixedFileOrder}
-              />
-            )}
-            {activeTab === 'block' && individual_files?.length > 0 && (
-              <CirclePackingVisualization individualFiles={individual_files} folderName={folderName} />
-            )}
-            {activeTab === 'tree' && individual_files?.length > 0 && (
-              <ForceTreeVisualization individualFiles={individual_files} folderName={folderName} />
-            )}
-            {activeTab === 'treemap' && individual_files?.length > 0 && (
-              <TreemapVisualization individualFiles={individual_files} folderName={folderName} />
-            )}
-            {activeTab === 'flower' && individual_files?.length > 0 && (
-              <RadarChartVisualization individualFiles={individual_files} />
-            )}
-            {activeTab === 'city' && individual_files?.length > 0 && (
-              <CodeCity3DVisualization
-                individualFiles={individual_files}
-                onFunctionClick={handleFunctionClick}
-                onFileClick={handleFileClickFrom3D}
-              />
-            )}
-            {activeTab === 'galaxy' && individual_files?.length > 0 && (
-              <CodeGalaxySolarSystem
-                individualFiles={individual_files}
-                onFunctionClick={handleFunctionClick}
-                onFileClick={handleFileClickFrom3D}
               />
             )}
             {activeTab === 'island3D' && individual_files?.length > 0 && (
