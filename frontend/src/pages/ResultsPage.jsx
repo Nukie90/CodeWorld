@@ -232,6 +232,7 @@ function ResultsPage() {
     setAnimatingCommit(null)
     setFixedFileOrder([...individual_files])
     setActiveTab('island3D')
+    setIsTopPanelOpen(false) // Close top panel to show full visualization
 
     try {
       let commits = allCommits;
@@ -811,10 +812,11 @@ function ResultsPage() {
               <button
                 key={key}
                 onClick={() => setActiveTab(key)}
+                disabled={isAnimating}
                 className={`px-6 py-3 rounded-xl font-bold text-sm transition-all ${activeTab === key
                   ? 'bg-gradient-to-r from-blue-400 to-blue-700 text-white backdrop-blur-xl shadow-2xl scale-110'
                   : `${isDarkMode ? 'bg-gray-800/50 text-gray-300 hover:bg-gray-700' : 'bg-gray-100/50 text-gray-700 hover:bg-gray-200'} border ${borderColor}`
-                  }`}
+                  } ${isAnimating ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 {label}
               </button>
@@ -826,7 +828,8 @@ function ResultsPage() {
       {/* Top Panel Toggle Button */}
       <button
         onClick={() => setIsTopPanelOpen(!isTopPanelOpen)}
-        className={`absolute left-1/2 -translate-x-1/2 top-0 bg-white/10 dark:bg-black/20 backdrop-blur-xl shadow-2xl rounded-b-2xl px-6 py-3 z-40 transition-all hover:bg-white/20 dark:hover:bg-black/30 border border-white/20 dark:border-white/10 border-t-0 text-sm font-bold uppercase tracking-wider ${textColor}`}
+        disabled={isAnimating}
+        className={`absolute left-1/2 -translate-x-1/2 top-0 bg-white/10 dark:bg-black/20 backdrop-blur-xl shadow-2xl rounded-b-2xl px-6 py-3 z-40 transition-all hover:bg-white/20 dark:hover:bg-black/30 border border-white/20 dark:border-white/10 border-t-0 text-sm font-bold uppercase tracking-wider ${textColor} ${isAnimating ? 'opacity-50 cursor-not-allowed' : ''}`}
         style={{
           transform: `translateX(-50%) translateY(${isTopPanelOpen ? '90px' : '0'})`
         }}
