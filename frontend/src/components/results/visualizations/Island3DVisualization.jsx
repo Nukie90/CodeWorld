@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import * as d3 from 'd3';
+import gsap from 'gsap';
 import { Settings } from 'lucide-react';
 import FunctionMoleculeVisualization from './FunctionMoleculeVisualization';
+import { SceneDiffer } from '../../../utils/SceneDiffer';
 
 function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, isDarkMode }) {
     const mountRef = useRef(null);
@@ -31,6 +33,12 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     // Persist Camera Orientation
     const yawRef = useRef(0);
     const pitchRef = useRef(-0.6); // Look down
+
+    // Incremental Update Tracking
+    const previousFilesRef = useRef(null);
+    const buildingMeshesRef = useRef(new Map()); // filename -> { mesh, cap, data }
+    const directoryMeshesRef = useRef(new Map()); // path -> { mesh, ring }
+    const sceneInitializedRef = useRef(false);
 
     if (!individualFiles || individualFiles.length === 0) {
         return (
@@ -166,8 +174,213 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         return colors[Math.min(depth, colors.length - 1)];
     };
 
+    // --- Animation Helper Functions ---
+
+    const animateBuildingHeight = (mesh, cap, targetHeight, currentHeight, duration = 0.5) => {
+        const scale = targetHeight / currentHeight;
+
+        gsap.to(mesh.scale, {
+            y: scale,
+            duration: duration,
+            ease: "power2.inOut"
+        });
+
+        // Adjust position to keep bottom fixed
+        const currentY = mesh.position.y;
+        const targetY = currentY + (targetHeight - currentHeight) / 2;
+
+        gsap.to(mesh.position, {
+            y: targetY,
+            duration: duration,
+            ease: "power2.inOut"
+        });
+
+        // Move cap to new top
+        if (cap) {
+            gsap.to(cap.position, {
+                y: cap.position.y + (targetHeight - currentHeight),
+                duration: duration,
+                ease: "power2.inOut"
+            });
+        }
+    };
+
+    const animateBuildingColor = (mesh, cap, targetColor, duration = 0.5) => {
+        const r = ((targetColor >> 16) & 255) / 255;
+        const g = ((targetColor >> 8) & 255) / 255;
+        const b = (targetColor & 255) / 255;
+
+        gsap.to(mesh.material.color, {
+            r, g, b,
+            duration: duration,
+            ease: "power2.inOut"
+        });
+
+        if (mesh.material.emissive) {
+            gsap.to(mesh.material.emissive, {
+                r, g, b,
+                duration: duration,
+                ease: "power2.inOut"
+            });
+        }
+
+        if (cap && cap.material.emissive) {
+            gsap.to(cap.material.emissive, {
+                r, g, b,
+                duration: duration,
+                ease: "power2.inOut"
+            });
+        }
+    };
+
+    const animateBuildingFadeIn = (mesh, cap, duration = 0.5) => {
+        mesh.material.transparent = true;
+        mesh.material.opacity = 0;
+        mesh.visible = true;
+
+        if (cap) {
+            cap.material.transparent = true;
+            cap.material.opacity = 0;
+            cap.visible = true;
+        }
+
+        gsap.to(mesh.material, {
+            opacity: towerOpacity,
+            duration: duration,
+            ease: "power2.inOut",
+            onComplete: () => {
+                if (towerOpacity >= 1.0) {
+                    mesh.material.transparent = false;
+                }
+            }
+        });
+
+        if (cap) {
+            gsap.to(cap.material, {
+                opacity: towerOpacity,
+                duration: duration,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    if (towerOpacity >= 1.0) {
+                        cap.material.transparent = false;
+                    }
+                }
+            });
+        }
+    };
+
+    const animateBuildingFadeOut = (mesh, cap, duration = 0.5, onComplete) => {
+        mesh.material.transparent = true;
+        if (cap) cap.material.transparent = true;
+
+        gsap.to(mesh.material, {
+            opacity: 0,
+            duration: duration,
+            ease: "power2.inOut"
+        });
+
+        if (cap) {
+            gsap.to(cap.material, {
+                opacity: 0,
+                duration: duration,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    mesh.visible = false;
+                    cap.visible = false;
+                    onComplete?.();
+                }
+            });
+        } else {
+            gsap.to(mesh.material, {
+                opacity: 0,
+                duration: duration,
+                ease: "power2.inOut",
+                onComplete: () => {
+                    mesh.visible = false;
+                    onComplete?.();
+                }
+            });
+        }
+    };
+
     useEffect(() => {
         if (!mountRef.current) return;
+
+        // --- Incremental Update Path ---
+        // If scene is already initialized and we have previous files, do incremental update
+        if (sceneInitializedRef.current && previousFilesRef.current && sceneRef.current) {
+            const diff = SceneDiffer.diffFiles(previousFilesRef.current, individualFiles);
+            console.log('[Island3D] Incremental update:', SceneDiffer.getSummary(diff));
+
+            // Handle removed files
+            diff.removed.forEach(file => {
+                const buildingData = buildingMeshesRef.current.get(file.filename);
+                if (buildingData) {
+                    animateBuildingFadeOut(buildingData.mesh, buildingData.cap, 0.3, () => {
+                        sceneRef.current.remove(buildingData.mesh);
+                        sceneRef.current.remove(buildingData.cap);
+                        buildingData.mesh.geometry.dispose();
+                        buildingData.mesh.material.dispose();
+                        buildingData.cap.geometry.dispose();
+                        buildingData.cap.material.dispose();
+                        buildingMeshesRef.current.delete(file.filename);
+                    });
+                }
+            });
+
+            // Handle modified files
+            diff.modified.forEach(({ old: oldFile, new: newFile, filename }) => {
+                const buildingData = buildingMeshesRef.current.get(filename);
+                if (buildingData) {
+                    const oldMetrics = calculateFileMetrics(oldFile);
+                    const newMetrics = calculateFileMetrics(newFile);
+
+                    // Animate height change if LOC changed
+                    if (oldMetrics.totalLoc !== newMetrics.totalLoc) {
+                        const oldHeight = 10 + (Math.sqrt(oldMetrics.totalComplexity || 1) * 15);
+                        const newHeight = 10 + (Math.sqrt(newMetrics.totalComplexity || 1) * 15);
+                        animateBuildingHeight(buildingData.mesh, buildingData.cap, newHeight, oldHeight, 0.5);
+                    }
+
+                    // Animate color change if complexity changed
+                    if (oldMetrics.totalComplexity !== newMetrics.totalComplexity) {
+                        const isUnsupported = newFile.is_unsupported;
+                        const newColor = isUnsupported
+                            ? (isDarkMode ? 0xcfcfcf : 0x9ca3af)
+                            : getComplexityColor(newMetrics.totalComplexity);
+                        animateBuildingColor(buildingData.mesh, buildingData.cap, newColor, 0.5);
+                    }
+
+                    // Update stored data
+                    buildingData.data = newFile;
+                    buildingData.mesh.userData = {
+                        type: 'file',
+                        name: newFile.filename.split('/').pop(),
+                        ...newFile,
+                        totalComplexity: newMetrics.totalComplexity.toFixed(2),
+                        totalLoc: newMetrics.totalLoc,
+                        numFunctions: newMetrics.numFunctions
+                    };
+                }
+            });
+
+            // For added files, we need to do a full rebuild to recalculate layout
+            // This is because D3 pack layout needs all files to calculate positions
+            if (diff.added.length > 0) {
+                console.log('[Island3D] New files added, doing full rebuild for layout recalculation');
+                sceneInitializedRef.current = false; // Force full rebuild
+                buildingMeshesRef.current.clear();
+                directoryMeshesRef.current.clear();
+            } else {
+                // No new files, incremental update complete
+                previousFilesRef.current = individualFiles;
+                return;
+            }
+        }
+
+        // --- Full Scene Rebuild Path ---
+        // This runs on first load or when layout needs recalculation (new files added)
+        console.log('[Island3D] Full scene rebuild');
 
         // --- Layout Calculation with D3 ---
         const hierarchyData = buildHierarchy(individualFiles);
@@ -461,6 +674,19 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 scene.add(cap);
                 geometriesToDispose.push(capGeo);
                 materialsToDispose.push(capMat);
+
+                // Store building reference for incremental updates
+                buildingMeshesRef.current.set(node.data.fileData.filename, {
+                    mesh,
+                    cap,
+                    data: node.data.fileData,
+                    height: towerHeight
+                });
+
+                // Fade in new buildings if this is an incremental update
+                if (sceneInitializedRef.current) {
+                    animateBuildingFadeIn(mesh, cap, 0.5);
+                }
             }
         };
 
@@ -803,6 +1029,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             oceanMaterial.dispose();
             renderer.dispose();
         };
+
+        // Mark scene as initialized for future incremental updates
+        sceneInitializedRef.current = true;
+        previousFilesRef.current = individualFiles;
 
     }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile, towerOpacity, showDecorations]);
 
