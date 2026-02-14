@@ -23,20 +23,39 @@ function GitHubUploadPage() {
     if (!repoUrl) return
 
     setUploadStatus('uploading')
-    setStatusMessage('Cloning and analyzing repository...')
+    setStatusMessage('Initializing analysis...')
     setProgress(0)
 
-    const interval = setInterval(() => {
-      setProgress(p => (p >= 95 ? 95 : p + 5))
-    }, 300)
+    const taskId = crypto.randomUUID()
+
+    // Connect to SSE for progress updates
+    const eventSource = new EventSource(`http://127.0.0.1:8000/api/analyze/progress/${taskId}`)
+
+    eventSource.onmessage = (event) => {
+      const data = JSON.parse(event.data)
+      if (data.progress !== undefined) setProgress(data.progress)
+      if (data.message) setStatusMessage(data.message)
+
+      if (data.done || data.error) {
+        eventSource.close()
+      }
+    }
+
+    eventSource.onerror = (err) => {
+      console.error("SSE Error:", err)
+      eventSource.close()
+    }
 
     try {
       const resp = await axios.post(
         'http://127.0.0.1:8000/api/analyze/repo',
-        { repo_url: repoUrl, token: token || null }
+        {
+          repo_url: repoUrl,
+          token: token || null,
+          task_id: taskId
+        }
       )
 
-      clearInterval(interval)
       setProgress(100)
       setUploadStatus('success')
 
@@ -48,7 +67,7 @@ function GitHubUploadPage() {
         }
       })
     } catch (err) {
-      clearInterval(interval)
+      eventSource.close()
       setUploadStatus('error')
       setStatusMessage(
         err?.response?.data?.detail || 'Failed to analyze repo'

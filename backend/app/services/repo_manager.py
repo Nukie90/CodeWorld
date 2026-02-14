@@ -2,7 +2,7 @@ import os
 import json
 import hashlib
 import subprocess
-from typing import Optional
+from typing import Optional, Callable
 
 
 CACHE_DIR = os.environ.get("REPO_CACHE_DIR", os.path.join(os.getcwd(), "temp_repos"))
@@ -78,7 +78,7 @@ def get_cached_path(repo_url: str) -> Optional[str]:
     return idx.get(url)
 
 
-def clone_repo(repo_url: str, token: Optional[str] = None) -> str:
+def clone_repo(repo_url: str, token: Optional[str] = None, progress_callback: Optional[Callable] = None) -> str:
     """
     Clone the repository into the cache directory if not already present.
 
@@ -96,7 +96,10 @@ def clone_repo(repo_url: str, token: Optional[str] = None) -> str:
     idx = _load_index()
 
     if url in idx and os.path.exists(idx[url]):
+        if progress_callback: progress_callback(30, "Using cached repository")
         return idx[url]
+
+    if progress_callback: progress_callback(5, "Initializing repository")
 
     # determine folder name
     repo_hash = _repo_hash(url)
@@ -112,7 +115,9 @@ def clone_repo(repo_url: str, token: Optional[str] = None) -> str:
 
     # run git clone (shallow)
     try:
+        if progress_callback: progress_callback(10, f"Cloning repository: {repo_name}")
         subprocess.run(["git", "clone", clone_url, target_path], check=True)
+        if progress_callback: progress_callback(30, "Cloning complete")
     except subprocess.CalledProcessError as exc:
         # clean up partial clone if present
         if os.path.exists(target_path):
@@ -136,7 +141,7 @@ def _run_git(path: str, args: list[str]) -> str:
     return res.stdout.decode("utf-8", errors="replace")
 
 
-def list_branches(repo_url: str, token: Optional[str] = None) -> dict:
+def list_branches(repo_url: str, token: Optional[str] = None, progress_callback: Optional[Callable] = None) -> dict:
     """Return dict with local and remote branches and current branch for a cached repo."""
     # prefer querying remote refs directly (ls-remote) so we get all branches even
     # if the cached clone is shallow or hasn't fetched everything.
@@ -159,7 +164,7 @@ def list_branches(repo_url: str, token: Optional[str] = None) -> dict:
     except Exception:
         # fallback to using cached repo if ls-remote failed
         try:
-            path = clone_repo(repo_url, token=token)
+            path = clone_repo(repo_url, token=token, progress_callback=progress_callback)
             subprocess.run(["git", "-C", path, "fetch", "--all", "--prune"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             # get current branch
             try:
@@ -198,9 +203,9 @@ def list_branches(repo_url: str, token: Optional[str] = None) -> dict:
     return {"current": current, "local": local_list, "remote": remote_list}
 
 
-def checkout_branch(repo_url: str, branch: str, token: Optional[str] = None) -> str:
+def checkout_branch(repo_url: str, branch: str, token: Optional[str] = None, progress_callback: Optional[Callable] = None) -> str:
     """Checkout the given branch in the cached repo. Returns the local path."""
-    path = clone_repo(repo_url, token=token)
+    path = clone_repo(repo_url, token=token, progress_callback=progress_callback)
 
     # fetch first
     try:

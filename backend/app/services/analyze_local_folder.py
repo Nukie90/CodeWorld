@@ -1,16 +1,18 @@
 import os
-from typing import List
+from typing import List, Optional, Callable
 from app.utils.get_file_matrix_js import get_file_matrix_js
 from app.python_plugin.python_analyzer import calculate_metrics as get_file_matrix_python
 from app.model.analyzer_model import FileMetrics, FolderMetrics, FolderAnalysisResult
 from app.utils.ignore import build_ignore_checker
 
 
-def analyze_local_folder(path: str) -> FolderAnalysisResult:
+def analyze_local_folder(path: str, progress_callback: Optional[Callable] = None) -> FolderAnalysisResult:
     """Analyze a local folder on disk and return folder analysis result."""
     all_files = []
     # build ignore checker from .gitignore if present at repository root
     is_ignored = build_ignore_checker(path)
+
+    if progress_callback: progress_callback(35, "Scanning directory structure")
 
     for root, dirs, files in os.walk(path):
         # allow os.walk to skip ignored directories early
@@ -23,7 +25,6 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
             relative_path = os.path.relpath(file_path, path)
             all_files.append((file_path, relative_path))
 
-
     file_metrics_list: List[FileMetrics] = []
     total_loc = 0
     total_nloc = 0
@@ -31,22 +32,27 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
     total_complexity = 0
     complexity_max = 0
 
-    for file_path, relative_path in all_files:
+    num_files = len(all_files)
+    if progress_callback: progress_callback(40, f"Starting analysis of {num_files} files")
+
+    for idx, (file_path, relative_path) in enumerate(all_files):
         try:
+            # Update progress within 40% to 95% range
+            if progress_callback and num_files > 0:
+                current_progress = 40 + int((idx / num_files) * 55)
+                progress_callback(current_progress, f"Analyzing: {relative_path}")
+
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
 
             file_metrics = None
             
             if relative_path.endswith(('.js', '.jsx', '.ts', '.tsx')):
-                print("To JS PLUGIN")
                 file_metrics = get_file_matrix_js(content, relative_path)
             elif relative_path.endswith('.py'):
-                print("To Python PLUGIN")
                 file_metrics = get_file_matrix_python(content, relative_path)
             else:
                 # send the name of the file to the front end
-                print(relative_path)
                 file_metrics = FileMetrics(
                     filename=relative_path,
                     total_loc=0,

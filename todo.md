@@ -1,14 +1,14 @@
 # bugs
-- 3d visualization re-render every time when clicked on any file, it should not re-render
+- [/] 3d visualization re-render every time when clicked on any file, it should not re-render
 - [/] fix ui bugs of raw code when add lines, wraps
-- right now it fake load when load new project, fix it
+- [/] right now it fake load when load new project, fix it
 - login and logout
 
 # features left to implement
 - ai for complexity reduce
 - ai summarize for the file/project
 - ai chatbot for the project
-- make raw code tabs and git graph tabs slidable
+- [/] make raw code tabs and git graph tabs slidable
 - [/] build 3d visualization for the fucntions of each file too.
 - [/] get raw code of a whole file when clicked on a file
 - timeline play for 3d
