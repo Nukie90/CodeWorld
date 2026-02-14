@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Home, Moon, Sun, Play, Square, GitCommit, Copy, Check, Code, FileText, Hash, X } from 'lucide-react';
 import { useLocation } from 'react-router-dom'
@@ -112,7 +112,7 @@ function ResultsPage() {
     }
   }
 
-  const handleFunctionClick = async (functionData) => {
+  const handleFunctionClick = useCallback(async (functionData) => {
     if (!analysisResult?.repo_url) return
 
     setCodeLoading(true)
@@ -151,9 +151,9 @@ function ResultsPage() {
     } finally {
       setCodeLoading(false)
     }
-  }
+  }, [analysisResult?.repo_url, token]);
 
-  const handleFileCodeFetch = async (fileData) => {
+  const handleFileCodeFetch = useCallback(async (fileData) => {
     if (!analysisResult?.repo_url) return;
 
     setCodeLoading(true);
@@ -192,9 +192,9 @@ function ResultsPage() {
     } finally {
       setCodeLoading(false);
     }
-  };
+  }, [analysisResult?.repo_url, animatingCommit?.hash, currentBranch, token]);
 
-  const handleFileClickFrom3D = (fileData) => {
+  const handleFileClickFrom3D = useCallback((fileData) => {
     const fullFileData = individual_files.find(f => f.filename === fileData.filename);
     setSelectedFileForCard(fullFileData);
     setRightPanelTab('analysis'); // Switch to Analysis tab when clicked
@@ -206,7 +206,7 @@ function ResultsPage() {
     } else {
       handleFileCodeFetch(fileData);
     }
-  };
+  }, [individual_files, handleFunctionClick, handleFileCodeFetch]);
 
   const handleCopyCode = async () => {
     if (selectedCode?.code) {

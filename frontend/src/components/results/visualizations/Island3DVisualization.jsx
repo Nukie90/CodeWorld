@@ -28,6 +28,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const keysRef = useRef({});
     const moveSpeed = 0.5;
 
+    // Persist Camera Orientation
+    const yawRef = useRef(0);
+    const pitchRef = useRef(-0.6); // Look down
+
     if (!individualFiles || individualFiles.length === 0) {
         return (
             <div className={`flex items-center justify-center h-full ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -217,8 +221,14 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         const islandCenterZ = 200;
 
         // Initial position
-        camera.position.set(islandCenterX, 200, islandCenterZ + 300);
-        camera.lookAt(islandCenterX, 0, islandCenterZ);
+        if (cameraRef.current) {
+            // Restore previous position
+            camera.position.copy(cameraRef.current.position);
+            camera.quaternion.copy(cameraRef.current.quaternion);
+        } else {
+            camera.position.set(islandCenterX, 200, islandCenterZ + 300);
+            camera.lookAt(islandCenterX, 0, islandCenterZ);
+        }
         cameraRef.current = camera;
 
         const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
@@ -595,8 +605,6 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         window.addEventListener('keyup', handleKeyUp);
 
         let isMouseLocked = false;
-        let yaw = 0;
-        let pitch = -0.6; // Look down 
 
         // Animation Loop
         let time = 0;
@@ -635,7 +643,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             });
 
             // Camera Movement
-            const euler = new THREE.Euler(pitch, yaw, 0, 'YXZ');
+            const euler = new THREE.Euler(pitchRef.current, yawRef.current, 0, 'YXZ');
             camera.quaternion.setFromEuler(euler);
 
             const keys = keysRef.current;
@@ -755,9 +763,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
             } else {
                 // Look logic
-                yaw -= event.movementX * 0.002;
-                pitch -= event.movementY * 0.002;
-                pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+                yawRef.current -= event.movementX * 0.002;
+                pitchRef.current -= event.movementY * 0.002;
+                pitchRef.current = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitchRef.current));
             }
         };
 
