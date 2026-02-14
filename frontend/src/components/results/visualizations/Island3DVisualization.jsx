@@ -397,6 +397,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         // --- Three.js Setup ---
 
+        // Store pointer lock state before cleanup
+        const wasPointerLocked = document.pointerLockElement === mountRef.current;
+
         // Cleanup previous
         if (mountRef.current.hasChildNodes()) {
             while (mountRef.current.firstChild) {
@@ -450,6 +453,16 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         renderer.shadowMap.enabled = true;
         renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         mountRef.current.appendChild(renderer.domElement);
+
+        // Restore pointer lock if it was active before rebuild
+        if (wasPointerLocked) {
+            // Use setTimeout to ensure DOM is ready
+            setTimeout(() => {
+                if (mountRef.current) {
+                    mountRef.current.requestPointerLock();
+                }
+            }, 100);
+        }
 
         // Lighting
         const ambientLight = new THREE.AmbientLight(0xffffff, isDarkMode ? 0.3 : 0.6);
