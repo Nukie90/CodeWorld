@@ -18,3 +18,4 @@
 - add options to change the circle packing to bezier curve
 - the display of sigle files in a frontend shold be the design that able to show the fucntion inside fucntion feature? really neccesary for project manager?
 - Backend need to wrap all the non-inside-function code into a single function
+- Backend need to calculate the loc for the non-supported files too and display it in the frontend.
