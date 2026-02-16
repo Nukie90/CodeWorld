@@ -5,6 +5,8 @@ from io import BytesIO
 from typing import List, Dict, Any, Optional
 from app.model.analyzer_model import FileMetrics, FunctionMetric
 
+GLOBAL_FUNC_NAME = "(global)"
+
 def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, function_name: str = None) -> Dict[str, int]:
     complexity = 0
     nesting = base_nesting
@@ -202,11 +204,42 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         nloc = len([l for l in code.splitlines() if l.strip() and not l.strip().startswith('#')])
 
     functions = []
+
+    # --- 1. Analyze Global Scope (Virtual Function) ---
+    # Analyze the Module node (tree) directly.
+    # The visitor naturally skips nested functions (visited by recursion but complexity not added to parent if checks isolate it).
+    # actually calculate_cognitive_complexity's ComplexityVisitor checks `if node is not func_node: return` for FunctionDef.
+    # So if we pass `tree` (Module), it might not work if it expects a FunctionDef or similar.
+    # Wait, `calculate_cognitive_complexity` uses `visit_FunctionDef` to stop traversal.
+    # If we pass `Module`, it visits children. If it encounters a FunctionDef, it will enter `visit_FunctionDef`.
+    # logic: `if node is not func_node: return`.
+    # `func_node` is `tree`. `node` is some function. `node != tree`. So it returns.
+    # This effectively ignores all function bodies, which is exactly what we want for global scope!
+    
+    global_res = calculate_cognitive_complexity(tree, base_nesting=0, function_name=GLOBAL_FUNC_NAME)
+    
+    # Global NLOC will be calculated later or we can estimate it.
+    # Let's set it to 0 initially and correct it like in JS.
+    
+    global_metric = FunctionMetric(
+        name=GLOBAL_FUNC_NAME,
+        long_name=GLOBAL_FUNC_NAME,
+        cyclomatic_complexity=global_res["complexity"],
+        nloc=0, # To be updated
+        token_count=0,
+        start_line=1,
+        end_line=len(code.splitlines()),
+        max_nesting_depth=global_res["max_nesting"],
+        id=-1,
+        parentId=None
+    )
+    functions.append(global_metric)
     
     class FunctionVisitor(ast.NodeVisitor):
         def __init__(self):
+            # Parent ID stack. Start with None (no parent) for top-level functions.
             self._current_parent_id = None
-            self._parent_stack = []
+            self._parent_stack = [None]
             # Stack to track structural nesting level at each function scope
             # Element is (nesting_level, is_decorator_inner)
             # Initial state: base nesting 0, not a decorator scope
@@ -293,10 +326,16 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
             self.generic_visit(node)
             
             self._parent_stack.pop()
-            self._current_parent_id = self._parent_stack[-1] if self._parent_stack else None
+            self._current_parent_id = self._parent_stack[-1] # Stack always has at least -1
             self._nesting_stack.pop()
 
     FunctionVisitor().visit(tree)
+    
+    # Finalize Global NLOC
+    # Global NLOC = Total NLOC - Sum(Top-Level Functions NLOC)
+    # Top-level functions are those with parentId is None
+    top_level_nloc = sum(f.nloc for f in functions if f.parentId is None and f.id != -1)
+    global_metric.nloc = max(0, nloc - top_level_nloc)
     
     # Stats
     complexity_sum = sum(f.cyclomatic_complexity for f in functions)

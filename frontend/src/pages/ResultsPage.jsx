@@ -887,9 +887,7 @@ function ResultsPage() {
               /* File Analysis Content */
               <div className="animate-in fade-in slide-in-from-right-4 duration-300">
                 {selectedFileForCard ? (() => {
-                  // Ensure we have the full file data
                   const fullFileData = individual_files?.find(f => f.filename === selectedFileForCard.filename) || selectedFileForCard;
-                  const totalNloc = fullFileData.functions?.reduce((sum, fn) => sum + (fn.nloc || 0), 0) || 0;
 
                   return (
                     <div className={`${isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-700' : 'bg-gradient-to-br from-white to-blue-50'} rounded-2xl p-6 border-l-4 border-l-blue-500 shadow-2xl`}>
@@ -904,13 +902,13 @@ function ResultsPage() {
                         <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
                           <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Total LOC</span>
                           <span className={`text-xl font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                            {fullFileData.loc || fullFileData.total_loc || totalNloc || "—"}
+                            {fullFileData.total_loc || "—"}
                           </span>
                         </div>
                         <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
                           <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Logical LOC</span>
                           <span className={`text-xl font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                            {fullFileData.nloc || fullFileData.total_nloc || totalNloc || "—"}
+                            {fullFileData.total_nloc || "—"}
                           </span>
                         </div>
                         <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
