@@ -378,7 +378,9 @@ def get_file_content(repo_url: str, commit_hash: str, file_path: str, token: Opt
     try:
         # Use git show commit:path to get file content
         # We use strict path spec to avoid ambiguity
-        return _run_git(path, ["show", f"{commit_hash}:{file_path}"])
+        # Git expects forward slashes for paths in revision specs, even on Windows
+        posix_file_path = file_path.replace("\\", "/")
+        return _run_git(path, ["show", f"{commit_hash}:{posix_file_path}"])
     except subprocess.CalledProcessError:
         # If file doesn't exist in that commit or other git error
         return ""

@@ -241,7 +241,10 @@ async def get_function_code(payload: FunctionCodeRequest):
             local_path = repo_manager.clone_repo(payload.repo_url, token=payload.token)
         
         # Construct full file path
-        file_path = os.path.join(local_path, payload.filename)
+        # payload.filename comes from the frontend/analysis result which is POSIX style (forward slashes)
+        # We need to ensure it's compatible with the local OS (e.g. backslashes on Windows)
+        normalized_filename = os.path.normpath(payload.filename)
+        file_path = os.path.join(local_path, normalized_filename)
         
         if not os.path.exists(file_path):
             raise HTTPException(status_code=404, detail=f"File not found: {payload.filename}")

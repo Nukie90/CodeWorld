@@ -23,7 +23,7 @@ def analyze_local_folder(path: str, progress_callback: Optional[Callable] = None
             # skip ignored files
             if is_ignored(file_path):
                 continue
-            relative_path = os.path.relpath(file_path, path)
+            relative_path = os.path.relpath(file_path, path).replace(os.path.sep, '/')
             all_files.append((file_path, relative_path))
 
     file_metrics_list: List[FileMetrics] = []
@@ -65,7 +65,6 @@ def analyze_local_folder(path: str, progress_callback: Optional[Callable] = None
                     # Ensure we got valid numbers
                     loc = analysis.code_count + analysis.documentation_count + analysis.empty_count
                     nloc = analysis.code_count
-                    print(f"LOC: {loc}, NLOC: {nloc}")
                     file_metrics = FileMetrics(
                         filename=f"{relative_path}\n({analysis.language})",
                         total_loc=loc,
@@ -75,7 +74,6 @@ def analyze_local_folder(path: str, progress_callback: Optional[Callable] = None
                         complexity_max=0,
                         functions=[]
                     )
-                    print(file_metrics)
                 except Exception as e:
                     print(f"Pygount failed for {relative_path}: {e}")
                     # Fallback if pygount fails
