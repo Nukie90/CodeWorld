@@ -1,5 +1,6 @@
 import os
 from typing import List
+import pygount
 from app.utils.get_file_matrix_js import get_file_matrix_js
 from app.python_plugin.python_analyzer import calculate_metrics as get_file_matrix_python
 from app.model.analyzer_model import FileMetrics, FolderMetrics, FolderAnalysisResult
@@ -44,17 +45,42 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
                 print("To Python PLUGIN")
                 file_metrics = get_file_matrix_python(content, relative_path)
             else:
+                # Use pygount for unsupported files
                 # send the name of the file to the front end
-                print(relative_path)
-                file_metrics = FileMetrics(
-                    filename=f"{relative_path}\n(unsupported)",
-                    total_loc=0,
-                    total_nloc=0,
-                    function_count=0,
-                    total_complexity=0,
-                    complexity_max=0,
-                    functions=[]
-                )
+                print(f"Unsupported file (using pygount): {relative_path}")
+                
+                try:
+                    # Create a temporary SourceAnalysis object
+                    # We pass the file path directly to pygount for reliable encoding handling
+                    analysis = pygount.SourceAnalysis.from_file(file_path, group="main")
+                    
+                    # Ensure we got valid numbers
+                    loc = analysis.code_count + analysis.documentation_count + analysis.empty_count
+                    nloc = analysis.code_count
+                    print(f"LOC: {loc}, NLOC: {nloc}")
+                    file_metrics = FileMetrics(
+                        filename=f"{relative_path}\n({analysis.language})",
+                        total_loc=loc,
+                        total_nloc=nloc,
+                        function_count=0,
+                        total_complexity=0, # Complexity not available from pygount
+                        complexity_max=0,
+                        functions=[]
+                    )
+                    print(file_metrics)
+                except Exception as e:
+                    print(f"Pygount failed for {relative_path}: {e}")
+                    # Fallback if pygount fails
+                    total_lines = len(content.splitlines())
+                    file_metrics = FileMetrics(
+                        filename=f"{relative_path}\n(unsupported)",
+                        total_loc=total_lines,
+                        total_nloc=total_lines, # Assume all are code if unknown
+                        function_count=0,
+                        total_complexity=0,
+                        complexity_max=0,
+                        functions=[]
+                    )
 
             if file_metrics is None:
                 # Skip file if analysis failed (e.g., service down or parse error)

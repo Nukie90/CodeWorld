@@ -1,4 +1,4 @@
-const { calculateMetrics } = require('./app/js_plugin/server');
+const { calculateMetrics } = require('./server');
 
 const code = `
 const a = 1;

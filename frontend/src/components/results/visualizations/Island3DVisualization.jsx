@@ -39,11 +39,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     // --- Data Processing Helpers ---
 
     const calculateFileMetrics = (file) => {
-        const functions = file.functions || [];
-        const totalLoc = file.nloc || file.loc || functions.reduce((sum, fn) => sum + (fn.nloc || 0), 0) || 1;
+        const totalLoc = file.total_nloc || file.total_loc || 1;
         const totalComplexity = file.total_complexity || 0;
 
-        return { totalLoc, totalComplexity, numFunctions: functions.length };
+        return { totalLoc, totalComplexity, numFunctions: (file.functions || []).length };
     };
 
     const buildHierarchy = (files) => {

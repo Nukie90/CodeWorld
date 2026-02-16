@@ -35,7 +35,7 @@ GITHUB_REDIRECT_URI=http://127.0.0.1:8000/api/auth/github/callback
 # Next Start JS Server port 3001
 1. cd app/js_plugin
 2. npm install
-3. npm start
+3. npm dev
 
 ## Frontend
 1. npm install
