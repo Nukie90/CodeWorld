@@ -20,7 +20,7 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
             # skip ignored files
             if is_ignored(file_path):
                 continue
-            relative_path = os.path.relpath(file_path, path)
+            relative_path = os.path.relpath(file_path, path).replace("\\", "/")
             all_files.append((file_path, relative_path))
 
     file_metrics_list: List[FileMetrics] = []
@@ -44,6 +44,9 @@ def analyze_local_folder(path: str) -> FolderAnalysisResult:
             if file_metrics is None:
                 # Skip file if analysis failed (e.g., service down or parse error)
                 continue
+            
+            # 3. Force the filename to use our normalized path (in case the service returned backslashes)
+            file_metrics.filename = relative_path
 
             file_metrics_list.append(file_metrics)
 

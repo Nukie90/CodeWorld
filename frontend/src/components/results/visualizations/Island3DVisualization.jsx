@@ -59,7 +59,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         const root = { name: "root", children: [] };
 
         files.forEach(file => {
-            const parts = (file.filename || '').split('/');
+            // Normalize path separators (handle Windows backslashes)
+            const normalizedPath = (file.filename || '').replace(/\\/g, '/');
+            const parts = normalizedPath.split('/');
             let currentLevel = root;
 
             parts.forEach((part, index) => {
