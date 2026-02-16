@@ -1,5 +1,5 @@
 import os
-from typing import List
+from typing import List, Optional, Callable
 import pygount
 from app.utils.get_file_matrix_js import get_file_matrix_js
 from app.python_plugin.python_analyzer import calculate_metrics as get_file_matrix_python
