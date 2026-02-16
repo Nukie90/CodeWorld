@@ -72,10 +72,10 @@ def analyze_local_folder(path: str, progress_callback: Optional[Callable] = None
                         function_count=0,
                         total_complexity=0, # Complexity not available from pygount
                         complexity_max=0,
-                        functions=[]
+                        functions=[],
+                        is_unsupported=True
                     )
                 except Exception as e:
-                    print(f"Pygount failed for {relative_path}: {e}")
                     # Fallback if pygount fails
                     total_lines = len(content.splitlines())
                     file_metrics = FileMetrics(
@@ -85,7 +85,8 @@ def analyze_local_folder(path: str, progress_callback: Optional[Callable] = None
                         function_count=0,
                         total_complexity=0,
                         complexity_max=0,
-                        functions=[]
+                        functions=[],
+                        is_unsupported=True
                     )
 
             if file_metrics is None:
