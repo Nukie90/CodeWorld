@@ -33,6 +33,7 @@ def get_file_matrix_js(code: str, filename: str) -> Optional[FileMetrics]:
             function_count=data["function_count"],
             total_complexity=data["total_complexity"],
             complexity_max=data["complexity_max"],
+            maintainability_index=data.get("maintainability_index"),
             functions=functions,
         )
         return file_metrics

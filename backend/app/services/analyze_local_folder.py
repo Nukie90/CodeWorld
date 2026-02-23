@@ -32,6 +32,8 @@ def analyze_local_folder(path: str, progress_callback: Optional[Callable] = None
     total_functions = 0
     total_complexity = 0
     complexity_max = 0
+    total_mi = 0.0
+    valid_mi_files = 0
 
     num_files = len(all_files)
     if progress_callback: progress_callback(40, f"Starting analysis of {num_files} files")
@@ -101,6 +103,9 @@ def analyze_local_folder(path: str, progress_callback: Optional[Callable] = None
             total_complexity += file_metrics.total_complexity
             if (file_metrics.complexity_max or 0) > complexity_max:
                 complexity_max = file_metrics.complexity_max
+            if file_metrics.maintainability_index is not None:
+                total_mi += file_metrics.maintainability_index
+                valid_mi_files += 1
 
         except Exception as e:
             print(f"Skipping file {relative_path} due to error: {e}")
@@ -115,6 +120,7 @@ def analyze_local_folder(path: str, progress_callback: Optional[Callable] = None
         total_functions=total_functions,
         total_complexity=total_complexity,
         complexity_max=complexity_max,
+        maintainability_index=round(total_mi / valid_mi_files, 2) if valid_mi_files > 0 else None,
         files=file_metrics_list,
     )
 
