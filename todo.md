@@ -10,8 +10,8 @@
 - ai summarize for the file/project
 - ai chatbot for the project
 - increase the speed of timeline play for 3d by optimization
-- visulization of fucntions in each file as a table form (show the sub functions too)
+- [/] visulization of fucntions in each file as a table form (show the sub functions too)
 - backend need to give code quality score as well as detail to use it as color in frontend and description
 - add options to change the circle packing to bezier curve
-- for global functions, display the whole file
+- [/] for global functions, display the whole file
 - add "npx eslint" for js and "pylint" for python to calculate the code quality score and get linting errors
