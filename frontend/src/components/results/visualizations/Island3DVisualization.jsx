@@ -26,7 +26,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const [towerOpacity, setTowerOpacity] = useState(1.0); // 0.0 to 1.0
     const [showDecorations, setShowDecorations] = useState(false);
     const [showOptionsPanel, setShowOptionsPanel] = useState(false);
-    const [vizStyle, setVizStyle] = useState('circular'); // 'circular' | 'honeycomb'
+    const [vizStyle, setVizStyle] = useState('circular'); // 'circular' | 'honeycomb' | 'freeform'
 
     const keysRef = useRef({});
     const moveSpeed = 0.5;
@@ -98,6 +98,100 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         const totalComplexity = file.total_complexity || 0;
 
         return { totalLoc, totalComplexity, numFunctions: (file.functions || []).length };
+    };
+
+    // --- Organic Shape Utilities ---
+    const getConvexHull = (points) => {
+        if (points.length <= 2) return points;
+        // Sort by x, then y
+        const sorted = [...points].sort((a, b) => a.x - b.x || a.y - b.y);
+
+        const cross = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+
+        const upper = [];
+        for (let p of sorted) {
+            while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) upper.pop();
+            upper.push(p);
+        }
+
+        const lower = [];
+        for (let i = sorted.length - 1; i >= 0; i--) {
+            const p = sorted[i];
+            while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) lower.pop();
+            lower.push(p);
+        }
+
+        upper.pop();
+        lower.pop();
+        return upper.concat(lower);
+    };
+
+    const getOrganicShape = (nodes, padding = 15) => {
+        if (nodes.length === 0) return null;
+
+        // 1. Generate point cloud around all children
+        const points = [];
+        nodes.forEach(node => {
+            const r = (node.r || 5) + padding;
+            // Sample points around the circle
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                points.push({
+                    x: node.x + Math.cos(angle) * r,
+                    y: node.y + Math.sin(angle) * r
+                });
+            }
+        });
+
+        // 2. Compute Convex Hull
+        const hull = getConvexHull(points);
+        if (hull.length < 3) return null;
+
+        // 3. Create Three.js Shape with Bezier smoothing
+        const shape = new THREE.Shape();
+
+        // Midpoint start
+        const pLast = hull[hull.length - 1];
+        const pFirst = hull[0];
+        const startX = (pLast.x + pFirst.x) / 2;
+        const startY = (pLast.y + pFirst.y) / 2;
+
+        shape.moveTo(startX, startY);
+
+        const bezierPoints = [];
+        for (let i = 0; i < hull.length; i++) {
+            const p1 = hull[i];
+            const p2 = hull[(i + 1) % hull.length];
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+
+            // Curve through hull vertex p1 to the midpoint of next edge
+            shape.quadraticCurveTo(p1.x, p1.y, midX, midY);
+
+            // Generate dense sampling points for the curve to allow accurate honeycomb filling
+            const prevMidX = i === 0 ? (hull[hull.length - 1].x + hull[0].x) / 2 : (hull[i - 1].x + hull[i].x) / 2;
+            const prevMidY = i === 0 ? (hull[hull.length - 1].y + hull[0].y) / 2 : (hull[i - 1].y + hull[i].y) / 2;
+
+            for (let t = 0; t <= 1; t += 0.2) {
+                const x = (1 - t) * (1 - t) * prevMidX + 2 * (1 - t) * t * p1.x + t * t * midX;
+                const y = (1 - t) * (1 - t) * prevMidY + 2 * (1 - t) * t * p1.y + t * t * midY;
+                bezierPoints.push({ x, y });
+            }
+        }
+
+        return { shape, hull, bezierPoints };
+    };
+
+    const isPointInShape = (px, py, hullPoints) => {
+        let isInside = false;
+        for (let i = 0, j = hullPoints.length - 1; i < hullPoints.length; j = i++) {
+            const xi = hullPoints[i].x, yi = hullPoints[i].y;
+            const xj = hullPoints[j].x, yj = hullPoints[j].y;
+            const intersect = ((yi > py) !== (yj > py)) &&
+                (px < (xj - xi) * (py - yi) / (yj - yi) + xi);
+            if (intersect) isInside = !isInside;
+        }
+        return isInside;
     };
 
     const buildHierarchy = (files) => {
@@ -436,7 +530,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         // Pack the circles
         const packLayout = d3.pack()
             .size([400, 400]) // Arbitrary large workspace size
-            .padding(d => d.depth === 0 ? 30 : 20);
+            .padding(d => d.depth === 0 ? 50 : 45); // Increased padding to ensure spacing between sibling organic shapes
 
         packLayout(root);
 
@@ -676,7 +770,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         // Spread trees randomly on the root platform
                         const numTrees = Math.floor(Math.random() * 5);
                         for (let i = 0; i < numTrees; i++) {
-                            const angle = Math.random() * Math.PI * 2;
+                            const angle = (Math.random() * Math.PI * 2);
                             const r = Math.random() * (node.r - 10);
                             const tx = node.x + Math.cos(angle) * r;
                             const tz = node.y + Math.sin(angle) * r;
@@ -702,116 +796,171 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             renderNode(root);
         };
 
-        const renderHexGrid = (root) => {
-            const hexMap = new Map();
-            const nearContentMap = new Map(); // Track hexes that serve as bridges
+        const renderFreeForm = (root) => {
+            const platformHeight = 2.5;
 
-            // 1. Grid Sampling: Find nodes for each hex
-            // Robust Approach: Iterate through all nodes and assign their areas to hexes
-            root.each(node => {
-                const nodeX = node.x;
-                const nodeZ = node.y;
-                const nodeR = node.r;
+            // 1. Render Platforms (Directories) recursively to handle stacking
+            const renderDirectory = (node) => {
+                if (!node.children || node.children.length === 0) return;
 
-                // Bounding box in pixel space
-                const minX = nodeX - nodeR - HEX_RADIUS;
-                const maxX = nodeX + nodeR + HEX_RADIUS;
-                const minZ = nodeZ - nodeR - HEX_RADIUS;
-                const maxZ = nodeZ + nodeR + HEX_RADIUS;
+                const padding = node.depth === 0 ? 35 : 8;
+                const organicData = getOrganicShape(node.children, padding);
+                if (!organicData) return;
 
-                const qMin = Math.floor((Math.sqrt(3) / 3 * minX - 1 / 3 * maxZ) / HEX_RADIUS) - 1;
-                const qMax = Math.ceil((Math.sqrt(3) / 3 * maxX - 1 / 3 * minZ) / HEX_RADIUS) + 1;
-                const rMin = Math.floor((2 / 3 * minZ) / HEX_RADIUS) - 1;
-                const rMax = Math.ceil((2 / 3 * maxZ) / HEX_RADIUS) + 1;
+                const color = getDirectoryColor(node.depth);
+                const totalDepthHeight = (node.depth + 1) * platformHeight;
 
-                for (let q = qMin; q <= qMax; q++) {
-                    for (let r = rMin; r <= rMax; r++) {
-                        const pos = axialToPixel(q, r);
-                        const d = Math.sqrt(Math.pow(pos.x - nodeX, 2) + Math.pow(pos.z - nodeZ, 2));
+                const extrudeSettings = {
+                    depth: totalDepthHeight,
+                    bevelEnabled: true,
+                    bevelThickness: 0.5,
+                    bevelSize: 0.5,
+                    bevelSegments: 5
+                };
 
-                        // Center hex for this node (essential for small nodes)
-                        const centerAxial = hexRound((Math.sqrt(3) / 3 * nodeX - 1 / 3 * nodeZ) / HEX_RADIUS, (2 / 3 * nodeZ) / HEX_RADIUS);
-                        const isCenterTile = (q === centerAxial.q && r === centerAxial.r);
+                const geometry = new THREE.ExtrudeGeometry(organicData.shape, extrudeSettings);
+                geometry.rotateX(Math.PI / 2); // Flip flat onto floor
 
-                        if (d <= nodeR || isCenterTile) {
-                            const key = `${q},${r}`;
-                            const existing = hexMap.get(key);
-                            if (!existing || node.depth > existing.depth) {
-                                hexMap.set(key, node);
+                const material = new THREE.MeshStandardMaterial({
+                    color: color,
+                    roughness: 0.8,
+                    metalness: 0.2,
+                    emissive: color,
+                    emissiveIntensity: 0
+                });
+
+                const mesh = new THREE.Mesh(geometry, material);
+                // Position: extrude goes along Z, we rotated. Base at y=0.
+                mesh.position.y = totalDepthHeight;
+
+                mesh.receiveShadow = true;
+                mesh.castShadow = true;
+
+                // Tag with directory info for tooltips
+                mesh.userData = {
+                    type: 'directory',
+                    name: node.data.name,
+                    path: node.ancestors().map(n => n.data.name).reverse().join('/'),
+                    depth: node.depth,
+                    node: node
+                };
+
+                scene.add(mesh);
+                interactableMeshes.push(mesh);
+                geometriesToDispose.push(geometry);
+                materialsToDispose.push(material);
+
+                // Recurse to children
+                node.children.forEach(child => {
+                    if (child.children) renderDirectory(child);
+                });
+            };
+
+            renderDirectory(root);
+            renderTowers(root, platformHeight);
+            renderDecorations(root);
+        };
+
+        const renderHoneycomb = (root) => {
+            const platformHeight = 2.5;
+            const hexGeometry = new THREE.CylinderGeometry(HEX_RADIUS - HEX_MARGIN, HEX_RADIUS - HEX_MARGIN, HEX_HEIGHT, 6);
+            hexGeometry.rotateY(Math.PI / 6);
+            geometriesToDispose.push(hexGeometry);
+
+            // 1. Flatten sampling: Create a map of hexKey -> deepestNode
+            const hexToNodeMap = new Map();
+            const padding = 8; // Tighter padding for directory platforms
+            const rootPadding = 35;
+
+            const processNode = (node) => {
+                if (!node.children || node.children.length === 0) return;
+
+                const currentPadding = node.depth === 0 ? rootPadding : padding;
+                const organicData = getOrganicShape(node.children, currentPadding);
+
+                if (organicData) {
+                    const minX = Math.min(...organicData.bezierPoints.map(p => p.x)) - HEX_RADIUS;
+                    const maxX = Math.max(...organicData.bezierPoints.map(p => p.x)) + HEX_RADIUS;
+                    const minZ = Math.min(...organicData.bezierPoints.map(p => p.y)) - HEX_RADIUS;
+                    const maxZ = Math.max(...organicData.bezierPoints.map(p => p.y)) + HEX_RADIUS;
+
+                    const qMin = Math.floor((Math.sqrt(3) / 3 * minX - 1 / 3 * maxZ) / HEX_RADIUS) - 1;
+                    const qMax = Math.ceil((Math.sqrt(3) / 3 * maxX - 1 / 3 * minZ) / HEX_RADIUS) + 1;
+                    const rMin = Math.floor((2 / 3 * minZ) / HEX_RADIUS) - 1;
+                    const rMax = Math.ceil((2 / 3 * maxZ) / HEX_RADIUS) + 1;
+
+                    for (let q = qMin; q <= qMax; q++) {
+                        for (let r = rMin; r <= rMax; r++) {
+                            const pos = axialToPixel(q, r);
+                            if (isPointInShape(pos.x, pos.z, organicData.bezierPoints)) {
+                                const key = `${q},${r}`;
+                                const existing = hexToNodeMap.get(key);
+                                if (!existing || node.depth > existing.depth) {
+                                    hexToNodeMap.set(key, node);
+                                }
                             }
-                        }
-
-                        // Mark hexes that are "near" content (even if they are just root depth)
-                        // This will be used to bridge the gaps between platforms
-                        if (node.depth > 0 && d <= nodeR + HEX_RADIUS * 3.5) {
-                            const key = `${q},${r}`;
-                            const data = hexMap.get(key) || root;
-                            hexMap.set(key, data);
-                            nearContentMap.set(key, true);
                         }
                     }
                 }
-            });
 
-            // 2. Render Hex Tiles
-            const hexGeometry = new THREE.CylinderGeometry(HEX_RADIUS - HEX_MARGIN, HEX_RADIUS - HEX_MARGIN, HEX_HEIGHT, 6);
-            hexGeometry.rotateY(Math.PI / 6); // Pointy top
-            geometriesToDispose.push(hexGeometry);
+                node.children.forEach(child => {
+                    if (child.children) processNode(child);
+                });
+            };
 
-            hexMap.forEach((deepestNode, key) => {
-                // Bridge logic: Only render if it has content OR is near content
-                if (deepestNode.depth === 0 && !nearContentMap.has(key)) return;
+            processNode(root);
 
+            // 2. Group instances by (nodePath, depth)
+            const instanceGroups = new Map();
+            hexToNodeMap.forEach((deepestNode, key) => {
                 const [q, r] = key.split(',').map(Number);
                 const pos = axialToPixel(q, r);
-                const platformHeight = 2.5;
-
-                // Render stalks from bottom up to deepestNode.depth
-                // Ensures "floor space" exists beneath all higher elements
                 for (let d = 0; d <= deepestNode.depth; d++) {
-                    const color = getDirectoryColor(d);
-                    const baseY = d * platformHeight;
-
-                    const material = new THREE.MeshStandardMaterial({
-                        color: color,
-                        roughness: isDarkMode ? 0.6 : 0.8,
-                        metalness: isDarkMode ? 0.3 : 0.1,
-                        emissive: color,
-                        emissiveIntensity: 0
-                    });
-
-                    const mesh = new THREE.Mesh(hexGeometry, material);
-                    mesh.position.set(pos.x, baseY - HEX_HEIGHT / 2, pos.z);
-                    mesh.receiveShadow = true;
-                    mesh.castShadow = true;
-
-                    // Correct Hover Info: Map to the directory node at this depth
                     const nodeAtDepth = deepestNode.ancestors().find(a => a.depth === d) || deepestNode;
-
-                    mesh.userData = {
-                        type: 'directory',
-                        name: nodeAtDepth.data.name,
-                        path: nodeAtDepth.ancestors().map(n => n.data.name).reverse().join('/'),
-                        depth: d,
-                        node: nodeAtDepth
-                    };
-
-                    scene.add(mesh);
-                    interactableMeshes.push(mesh);
-                    materialsToDispose.push(material);
+                    const nodePath = nodeAtDepth.ancestors().map(n => n.data.name).reverse().join('/') || 'root';
+                    const groupKey = `${nodePath}_${d}`;
+                    if (!instanceGroups.has(groupKey)) {
+                        instanceGroups.set(groupKey, { node: nodeAtDepth, depth: d, positions: [] });
+                    }
+                    instanceGroups.get(groupKey).positions.push(pos);
                 }
             });
 
-            // 3. Render Towers (Files)
-            // Place each file at the tile closest to d3-node center
+            // 3. Render InstancedMeshes
+            const tempMatrix = new THREE.Matrix4();
+            instanceGroups.forEach((group) => {
+                const { node, depth, positions } = group;
+                const color = getDirectoryColor(depth);
+                const material = new THREE.MeshStandardMaterial({ color, roughness: 0.8, metalness: 0.2 });
+                const iMesh = new THREE.InstancedMesh(hexGeometry, material, positions.length);
+                const baseY = depth * platformHeight;
+                positions.forEach((pos, i) => {
+                    tempMatrix.setPosition(pos.x, baseY - HEX_HEIGHT / 2, pos.z);
+                    iMesh.setMatrixAt(i, tempMatrix);
+                });
+                iMesh.receiveShadow = iMesh.castShadow = true;
+                iMesh.userData = {
+                    type: 'directory',
+                    name: node.data.name,
+                    path: node.ancestors().map(n => n.data.name).reverse().join('/'),
+                    depth: depth,
+                    node: node,
+                    isInstanced: true
+                };
+                scene.add(iMesh);
+                interactableMeshes.push(iMesh);
+                materialsToDispose.push(material);
+            });
+
+            renderTowers(root, platformHeight);
+            renderDecorations(root);
+        };
+
+        const renderTowers = (root, platformHeight) => {
             root.leaves().forEach(leaf => {
                 const complexity = leaf.data.totalComplexity || 1;
                 const towerHeight = 10 + (Math.sqrt(complexity) * 15);
-                const towerRadius = 3.0; // Fixed radius for towers in hex grid
-
-                // Find hex tile for this leaf
-                const q_r = pixelToAxial(leaf.x, leaf.y);
-                const pos = axialToPixel(q_r.q, q_r.r);
+                const towerRadius = 3.0;
 
                 const geometry = new THREE.CylinderGeometry(towerRadius, towerRadius, towerHeight, 32);
                 const isUnsupported = leaf.data.fileData?.is_unsupported;
@@ -830,9 +979,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 });
 
                 const mesh = new THREE.Mesh(geometry, material);
-                const platformHeight = 2.5;
-                const parentTopY = leaf.depth * platformHeight;
-                mesh.position.set(pos.x, parentTopY + towerHeight / 2, pos.z);
+                const parentTopY = (leaf.depth) * platformHeight;
+                mesh.position.set(leaf.x, parentTopY + towerHeight / 2, leaf.y);
 
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
@@ -861,7 +1009,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     opacity: towerOpacity
                 });
                 const cap = new THREE.Mesh(capGeo, capMat);
-                cap.position.set(pos.x, parentTopY + towerHeight + 0.1, pos.z);
+                cap.position.set(leaf.x, parentTopY + towerHeight + 0.1, leaf.y);
                 scene.add(cap);
                 geometriesToDispose.push(capGeo);
                 materialsToDispose.push(capMat);
@@ -873,51 +1021,47 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     height: towerHeight
                 });
             });
+        };
 
-            // 4. Decorations (Trees)
-            if (showDecorations) {
-                // Pick random hexes at depth 0
-                const depth0Hexes = [];
-                hexMap.forEach((node, key) => {
-                    if (node.depth === 0) depth0Hexes.push(key);
-                });
-
-                const numTrees = Math.floor(depth0Hexes.length / 8);
+        const renderDecorations = (root) => {
+            if (!showDecorations) return;
+            const rootChildren = root.children || [];
+            rootChildren.forEach(child => {
+                const numTrees = 2 + Math.floor(Math.random() * 3);
                 for (let i = 0; i < numTrees; i++) {
-                    const key = depth0Hexes[Math.floor(Math.random() * depth0Hexes.length)];
-                    const [q, r] = key.split(',').map(Number);
-                    const pos = axialToPixel(q, r);
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * (child.r - 2);
+                    const tx = child.x + Math.cos(angle) * dist;
+                    const tz = child.y + Math.sin(angle) * dist;
 
-                    // Add tree
                     const trunkH = 4 + Math.random() * 2;
                     const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, trunkH, 8);
                     const trunkMat = new THREE.MeshStandardMaterial({ color: isDarkMode ? 0x57534e : 0x8b5a2b });
                     const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-                    trunk.position.set(pos.x + (Math.random() - 0.5) * 2, trunkH / 2, pos.z + (Math.random() - 0.5) * 2);
+                    trunk.position.set(tx, trunkH / 2, tz);
                     scene.add(trunk);
                     palmTrees.push(trunk);
 
                     const leafGeo = new THREE.ConeGeometry(1.5, 3, 5);
-                    const leafMat = new THREE.MeshStandardMaterial({
-                        color: isDarkMode ? 0x15803d : 0x22c55e,
-                    });
+                    const leafMat = new THREE.MeshStandardMaterial({ color: isDarkMode ? 0x15803d : 0x22c55e });
                     const foliage = new THREE.Mesh(leafGeo, leafMat);
-                    foliage.position.set(trunk.position.x, trunk.position.y + trunkH / 2 + 1, trunk.position.z);
+                    foliage.position.set(tx, trunkH + 1, tz);
                     scene.add(foliage);
                 }
-            }
+            });
         };
 
 
         if (viewMode === 'island') {
             if (individualFiles.length > 0) {
-                if (vizStyle === 'honeycomb') {
-                    renderHexGrid(root);
+                if (vizStyle === 'freeform') {
+                    renderFreeForm(root);
+                } else if (vizStyle === 'honeycomb') {
+                    renderHoneycomb(root);
                 } else {
                     renderCircularIsland(root);
                 }
             }
-
             // --- Decorations (Only for Island) ---
             if (showDecorations) {
                 // Add dolphins roaming
@@ -1467,11 +1611,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                             <label className={`text-xs mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                                 Platform Style
                             </label>
-                            <div className="flex p-1 bg-gray-100 dark:bg-slate-700 rounded-lg">
+                            <div className="flex p-1 bg-gray-100 dark:bg-slate-700 rounded-lg gap-1">
                                 <button
                                     onClick={() => setVizStyle('circular')}
                                     className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${vizStyle === 'circular'
-                                        ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600 dark:text-blue-400'
+                                        ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-500/20'
                                         : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                         }`}
                                 >
@@ -1480,11 +1624,20 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                                 <button
                                     onClick={() => setVizStyle('honeycomb')}
                                     className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${vizStyle === 'honeycomb'
-                                        ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600 dark:text-blue-400'
+                                        ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-500/20'
                                         : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
                                         }`}
                                 >
                                     Honeycomb
+                                </button>
+                                <button
+                                    onClick={() => setVizStyle('freeform')}
+                                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${vizStyle === 'freeform'
+                                        ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-500/20'
+                                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                        }`}
+                                >
+                                    Free Form
                                 </button>
                             </div>
                         </div>
