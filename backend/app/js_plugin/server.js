@@ -616,6 +616,93 @@ app.post('/analyze-code', express.json(), (req, res) => {
     }
 });
 
+// Batch endpoint: analyze multiple files in a single HTTP request (eliminates N sequential calls per commit)
+// Body: { files: [{ code: string, filename: string }, ...] }
+// Returns: array of analysis results (same schema as /analyze-code per item)
+app.post('/analyze-batch', express.json({ limit: '50mb' }), (req, res) => {
+    const { files } = req.body;
+    if (!Array.isArray(files) || files.length === 0) {
+        return res.status(400).json({ error: 'Request must include a non-empty "files" array' });
+    }
+
+    const results = files.map(({ code, filename }) => {
+        if (!code || !filename) {
+            return { filename: filename || '', error: 'Missing code or filename' };
+        }
+        try {
+            const babelMetrics = calculateMetrics(code);
+            babelMetrics.functions.sort((a, b) => a.id - b.id);
+
+            const fnMap = new Map();
+            const childrenMap = new Map();
+            const roots = [];
+
+            babelMetrics.functions.forEach(f => {
+                f.children = [];
+                fnMap.set(f.id, f);
+                childrenMap.set(f.id, []);
+            });
+            babelMetrics.functions.forEach(f => {
+                if (f.parentId !== null && fnMap.has(f.parentId)) {
+                    childrenMap.get(f.parentId).push(f);
+                } else {
+                    roots.push(f);
+                }
+            });
+
+            function processNode(fnId) {
+                const fn = fnMap.get(fnId);
+                const children = childrenMap.get(fnId);
+                let childSum = 0;
+                children.forEach(c => { childSum += processNode(c.id); fn.children.push(c); });
+                fn.totalCC = fn.CC + childSum;
+                return fn.totalCC;
+            }
+            roots.forEach(r => processNode(r.id));
+
+            function formatFunction(f, parentLongName = '') {
+                const currentLongName = parentLongName ? `${parentLongName}.${f.name}` : f.name;
+                return {
+                    cognitive_complexity: f.CC,
+                    total_cognitive_complexity: f.totalCC,
+                    nloc: f.NLOC,
+                    token_count: 0,
+                    name: f.name,
+                    long_name: currentLongName,
+                    start_line: f.lineStart,
+                    end_line: f.lineEnd,
+                    max_nesting_depth: f.maxNesting || 0,
+                    children: f.children.map(c => formatFunction(c, currentLongName))
+                };
+            }
+
+            const hierarchicalFunctions = roots.map(r => formatFunction(r, ''));
+            let complexity_sum = 0;
+            let complexity_max = 0;
+            babelMetrics.functions.forEach(f => {
+                complexity_sum += f.CC;
+                if (f.CC > complexity_max) complexity_max = f.CC;
+            });
+
+            return {
+                filename,
+                language: 'javascript',
+                total_loc: babelMetrics.LOC,
+                total_nloc: babelMetrics.NLOC,
+                function_count: babelMetrics.functions.length,
+                total_complexity: complexity_sum,
+                complexity_max,
+                functions: hierarchicalFunctions,
+            };
+        } catch (error) {
+            console.error(`Batch: error analyzing ${filename}:`, error.message);
+            return { filename, error: error.message };
+        }
+    });
+
+    res.json(results);
+});
+
 
 if (require.main === module) {
     const PORT = process.env.PORT || 3001;

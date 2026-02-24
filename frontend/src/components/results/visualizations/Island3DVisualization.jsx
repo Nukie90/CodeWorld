@@ -6,7 +6,7 @@ import { Settings } from 'lucide-react';
 import FunctionTableView from './FunctionTableView';
 import { SceneDiffer } from '../../../utils/SceneDiffer';
 
-function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, isDarkMode }) {
+function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, isDarkMode, isTimelinePlaying }) {
     const mountRef = useRef(null);
     const sceneRef = useRef(null);
     const rendererRef = useRef(null);
@@ -176,11 +176,13 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     // --- Animation Helper Functions ---
 
     const animateBuildingHeight = (mesh, cap, targetHeight, currentHeight, duration = 0.5) => {
+        // Skip animations during timeline playback for performance
+        const animDuration = isTimelinePlaying ? 0 : duration;
         const scale = targetHeight / currentHeight;
 
         gsap.to(mesh.scale, {
             y: scale,
-            duration: duration,
+            duration: animDuration,
             ease: "power2.inOut"
         });
 
@@ -190,7 +192,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         gsap.to(mesh.position, {
             y: targetY,
-            duration: duration,
+            duration: animDuration,
             ease: "power2.inOut"
         });
 
@@ -198,27 +200,28 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         if (cap) {
             gsap.to(cap.position, {
                 y: cap.position.y + (targetHeight - currentHeight),
-                duration: duration,
+                duration: animDuration,
                 ease: "power2.inOut"
             });
         }
     };
 
     const animateBuildingColor = (mesh, cap, targetColor, duration = 0.5) => {
+        const animDuration = isTimelinePlaying ? 0 : duration;
         const r = ((targetColor >> 16) & 255) / 255;
         const g = ((targetColor >> 8) & 255) / 255;
         const b = (targetColor & 255) / 255;
 
         gsap.to(mesh.material.color, {
             r, g, b,
-            duration: duration,
+            duration: animDuration,
             ease: "power2.inOut"
         });
 
         if (mesh.material.emissive) {
             gsap.to(mesh.material.emissive, {
                 r, g, b,
-                duration: duration,
+                duration: animDuration,
                 ease: "power2.inOut"
             });
         }
@@ -226,13 +229,14 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         if (cap && cap.material.emissive) {
             gsap.to(cap.material.emissive, {
                 r, g, b,
-                duration: duration,
+                duration: animDuration,
                 ease: "power2.inOut"
             });
         }
     };
 
     const animateBuildingFadeIn = (mesh, cap, duration = 0.5) => {
+        const animDuration = isTimelinePlaying ? 0 : duration;
         mesh.material.transparent = true;
         mesh.material.opacity = 0;
         mesh.visible = true;
@@ -245,7 +249,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         gsap.to(mesh.material, {
             opacity: towerOpacity,
-            duration: duration,
+            duration: animDuration,
             ease: "power2.inOut",
             onComplete: () => {
                 if (towerOpacity >= 1.0) {
@@ -257,7 +261,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         if (cap) {
             gsap.to(cap.material, {
                 opacity: towerOpacity,
-                duration: duration,
+                duration: animDuration,
                 ease: "power2.inOut",
                 onComplete: () => {
                     if (towerOpacity >= 1.0) {
@@ -269,19 +273,20 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     };
 
     const animateBuildingFadeOut = (mesh, cap, duration = 0.5, onComplete) => {
+        const animDuration = isTimelinePlaying ? 0 : duration;
         mesh.material.transparent = true;
         if (cap) cap.material.transparent = true;
 
         gsap.to(mesh.material, {
             opacity: 0,
-            duration: duration,
+            duration: animDuration,
             ease: "power2.inOut"
         });
 
         if (cap) {
             gsap.to(cap.material, {
                 opacity: 0,
-                duration: duration,
+                duration: animDuration,
                 ease: "power2.inOut",
                 onComplete: () => {
                     mesh.visible = false;
@@ -292,7 +297,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         } else {
             gsap.to(mesh.material, {
                 opacity: 0,
-                duration: duration,
+                duration: animDuration,
                 ease: "power2.inOut",
                 onComplete: () => {
                     mesh.visible = false;
@@ -446,7 +451,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         }
         cameraRef.current = camera;
 
-        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+        const renderer = new THREE.WebGLRenderer({ antialias: !isTimelinePlaying, powerPreference: 'high-performance' });
         renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
         renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         renderer.shadowMap.enabled = true;
@@ -470,8 +475,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         const sunLight = new THREE.DirectionalLight(isDarkMode ? 0xa5b4fc : 0xfff5e6, isDarkMode ? 0.8 : 1.5); // Moon/Sun
         sunLight.position.set(islandCenterX + 100, 300, islandCenterZ + 100);
         sunLight.castShadow = true;
-        sunLight.shadow.mapSize.width = 4096;
-        sunLight.shadow.mapSize.height = 4096;
+        // Reduce shadow map resolution during timeline playback for faster rendering
+        const shadowMapSize = isTimelinePlaying ? 512 : 4096;
+        sunLight.shadow.mapSize.width = shadowMapSize;
+        sunLight.shadow.mapSize.height = shadowMapSize;
         sunLight.shadow.camera.near = 10;
         sunLight.shadow.camera.far = 1000;
 
@@ -850,15 +857,17 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             animationIdRef.current = requestAnimationFrame(animate);
             time += 0.01;
 
-            // Ocean animation
-            for (let i = 0; i < oceanVertices.count; i++) {
-                const z = originalPositions[i];
-                const x = oceanVertices.getX(i);
-                const y = oceanVertices.getY(i);
-                const wave = Math.sin(x * 0.03 + time) * 1.0 + Math.cos(y * 0.03 + time * 0.8) * 1.0;
-                oceanVertices.setZ(i, z + wave);
+            // Ocean animation — skip during timeline playback (10k vertex CPU update per frame)
+            if (!isTimelinePlaying) {
+                for (let i = 0; i < oceanVertices.count; i++) {
+                    const z = originalPositions[i];
+                    const x = oceanVertices.getX(i);
+                    const y = oceanVertices.getY(i);
+                    const wave = Math.sin(x * 0.03 + time) * 1.0 + Math.cos(y * 0.03 + time * 0.8) * 1.0;
+                    oceanVertices.setZ(i, z + wave);
+                }
+                oceanVertices.needsUpdate = true;
             }
-            oceanVertices.needsUpdate = true;
 
             // Dolphins / Satellites Animation
             dolphins.forEach(d => {
@@ -1046,7 +1055,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         sceneInitializedRef.current = true;
         previousFilesRef.current = individualFiles;
 
-    }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile, towerOpacity, showDecorations]);
+    }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile, towerOpacity, showDecorations, isTimelinePlaying]);
 
     const handleMenuAction = (action) => {
         if (!activeFileForMenu) return;

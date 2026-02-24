@@ -9,7 +9,7 @@
 - [3] ai for complexity reduce
 - [3] ai summarize for the file/project
 - [3] ai chatbot for the project
-- [1] increase the speed of timeline play for 3d by optimization
+- [/] increase the speed of timeline play for 3d by optimization
 - [/] visulization of fucntions in each file as a table form (show the sub functions too)
 - backend need to give code quality score as well as detail to use it as color in frontend and description
 - add options to change the circle packing to bezier curve
@@ -22,3 +22,8 @@ repo demo result
             Total Commits: 39
             Total Time: 53363.00ms
             Average Time per Commit: 1142.17ms
+
+[Timeline] Animation Complete
+            Total Commits: 39
+            Total Time: 5153.30ms
+            Average Time per Commit: 97.05ms

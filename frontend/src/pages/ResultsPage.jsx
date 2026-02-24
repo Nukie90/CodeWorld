@@ -266,10 +266,7 @@ function ResultsPage() {
         if (index >= commits.length || !isAnimatingRef.current) {
           if (index >= commits.length && commitCount > 0) {
             const overallTime = performance.now() - startTime;
-            console.log(`[Timeline] Animation Complete
-            Total Commits: ${commitCount}
-            Total Time: ${overallTime.toFixed(2)}ms
-            Average Time per Commit: ${(totalTime / commitCount).toFixed(2)}ms`);
+            console.log(`[Timeline] Animation Complete\n            Total Commits: ${commitCount}\n            Total Time: ${overallTime.toFixed(2)}ms\n            Average Time per Commit: ${(totalTime / commitCount).toFixed(2)}ms`);
           }
           setIsAnimating(false)
           isAnimatingRef.current = false
@@ -1080,6 +1077,7 @@ function ResultsPage() {
                 onFunctionClick={handleFunctionClick}
                 onFileClick={handleFileClickFrom3D}
                 isDarkMode={isDarkMode}
+                isTimelinePlaying={isAnimating}
               />
             )}
             {(!individual_files?.length || individual_files.length === 0) && (

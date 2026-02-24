@@ -229,8 +229,120 @@ async def repo_branches(repo_url: str, token: Optional[str] = None):
         raise HTTPException(status_code=500, detail=f"Failed to list branches: {str(exc)}")
 
 
+import re as _re
+
+_COMMIT_RE = _re.compile(r'^[0-9a-f]{7,40}$', _re.IGNORECASE)
+
+
+def _is_commit_hash(s: str) -> bool:
+    """Return True if the string looks like a git commit hash (7-40 hex chars)."""
+    return bool(_COMMIT_RE.match(s.strip()))
+
+
+def _read_files_at_commit(local_path: str, commit_hash: str, file_list: list[str]) -> dict:
+    """
+    Read the content of each file at the given commit directly from git objects.
+    Returns a dict {relative_path: content_str}. Files that error are silently skipped.
+    This avoids any working-tree checkout — git reads straight from pack files.
+    """
+    contents = {}
+    for rel_path in file_list:
+        try:
+            result = repo_manager._run_git(local_path, ["show", f"{commit_hash}:{rel_path}"])
+            contents[rel_path] = result
+        except Exception:
+            pass
+    return contents
+
+
 @router.post("/repo/checkout")
 async def repo_checkout(payload: RepoCheckoutRequest):
+    # ---- Fast path: when branch is a commit hash, skip git checkout entirely ----
+    # git checkout rewrites all tracked files to disk (~200-400ms).
+    # For timeline playback we only need file contents, which we can read
+    # directly from git objects using `git show hash:file` (no disk writes).
+    if _is_commit_hash(payload.branch):
+        # Get (or ensure) local repo exists
+        try:
+            local_path = repo_manager.get_cached_path(payload.repo_url)
+            if not local_path:
+                local_path = repo_manager.clone_repo(payload.repo_url, token=payload.token)
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to get repo: {str(exc)}")
+
+        commit_hash = payload.branch.strip()
+
+        # Cache hit — return immediately
+        if commit_hash in _ANALYSIS_CACHE:
+            return {
+                "repo_url": payload.repo_url,
+                "branch": payload.branch,
+                "folder_name": local_path,
+                "analysis": _ANALYSIS_CACHE[commit_hash]
+            }
+
+        # Find parent commit and determine changed files
+        previous_analysis = None
+        changed_files = None
+        deleted_files = []
+        file_contents_override = None
+
+        try:
+            parent_hash = repo_manager._run_git(local_path, ["rev-parse", f"{commit_hash}^"])
+            parent_hash = parent_hash.strip()
+            if parent_hash in _ANALYSIS_CACHE:
+                previous_analysis = _ANALYSIS_CACHE[parent_hash]
+                # Use --name-status to distinguish Added/Modified from Deleted files
+                diff_output = repo_manager._run_git(
+                    local_path,
+                    ["diff-tree", "--no-commit-id", "--name-status", "-r", commit_hash]
+                )
+                changed_files = []
+                deleted_files = []
+                for line in diff_output.splitlines():
+                    line = line.strip()
+                    if not line:
+                        continue
+                    parts = line.split('\t', 1)
+                    if len(parts) == 2:
+                        status, fname = parts[0].strip(), parts[1].strip()
+                        if status.startswith('D'):
+                            deleted_files.append(fname)
+                        else:
+                            # A=added, M=modified, R=renamed, C=copied — all need re-analysis
+                            # For renames: "R100\told\tnew" — take the new name (second tab)
+                            fname_parts = fname.split('\t')
+                            changed_files.append(fname_parts[-1])
+
+                # Read ONLY the changed/added files from git objects (no disk checkout)
+                if changed_files:
+                    file_contents_override = _read_files_at_commit(local_path, commit_hash, changed_files)
+        except Exception:
+            pass  # Fall through to full analysis
+
+        try:
+            # Only checkout if no parent cache (cold first commit)
+            if previous_analysis is None or changed_files is None:
+                repo_manager.checkout_branch(payload.repo_url, payload.branch, token=payload.token)
+
+            analysis = analyze_local_folder(
+                local_path,
+                previous_analysis=previous_analysis,
+                changed_files=changed_files,
+                deleted_files=deleted_files if changed_files is not None else None,
+                file_contents_override=file_contents_override,
+            )
+            _ANALYSIS_CACHE[commit_hash] = analysis
+            return {
+                "repo_url": payload.repo_url,
+                "branch": payload.branch,
+                "folder_name": local_path,
+                "analysis": analysis
+            }
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail=f"Failed to analyze commit: {str(exc)}")
+
+    # ---- Normal path: branch name checkout (non-timeline use) ----
     try:
         local_path = repo_manager.checkout_branch(payload.repo_url, payload.branch, token=payload.token)
     except Exception as exc:
@@ -243,9 +355,9 @@ async def repo_checkout(payload: RepoCheckoutRequest):
 
     if current_head and current_head in _ANALYSIS_CACHE:
         return {
-            "repo_url": payload.repo_url, 
-            "branch": payload.branch, 
-            "folder_name": local_path, 
+            "repo_url": payload.repo_url,
+            "branch": payload.branch,
+            "folder_name": local_path,
             "analysis": _ANALYSIS_CACHE[current_head]
         }
 
@@ -254,7 +366,6 @@ async def repo_checkout(payload: RepoCheckoutRequest):
 
     if current_head:
         try:
-            # We don't have this exact commit. What about its parent?
             parent_hash = repo_manager._run_git(local_path, ["rev-parse", f"{current_head}^"]).strip()
             if parent_hash in _ANALYSIS_CACHE:
                 previous_analysis = _ANALYSIS_CACHE[parent_hash]
@@ -270,6 +381,7 @@ async def repo_checkout(payload: RepoCheckoutRequest):
         return {"repo_url": payload.repo_url, "branch": payload.branch, "folder_name": local_path, "analysis": analysis}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to analyze after checkout: {str(exc)}")
+
 
 
 @router.post("/repo/function-code")
@@ -485,6 +597,51 @@ async def get_commit_details(payload: CommitDetailsRequest):
         raise HTTPException(status_code=400, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to get commit details: {str(exc)}")
+
+
+class PrefetchCommitRequest(BaseModel):
+    repo_url: str
+    commit_hash: str
+    token: Optional[str] = None
+
+
+@router.post("/repo/prefetch-commit")
+async def prefetch_commit(payload: PrefetchCommitRequest):
+    """
+    Non-blocking endpoint to warm the analysis cache for a future commit.
+    Called by the frontend during each delay window so the next commit's
+    analysis is ready before it's needed.
+    Returns immediately — analysis runs in the background if not already cached.
+    """
+    # If already cached, return immediately
+    if payload.commit_hash in _ANALYSIS_CACHE:
+        return {"status": "cached", "commit_hash": payload.commit_hash}
+
+    # Queue analysis in background (non-blocking)
+    async def _warm_cache():
+        try:
+            local_path = repo_manager.checkout_branch(payload.repo_url, payload.commit_hash, token=payload.token)
+            current_head = repo_manager._run_git(local_path, ["rev-parse", "HEAD"]).strip()
+            if current_head in _ANALYSIS_CACHE:
+                return  # Another request already cached it
+            # Try incremental analysis using parent commit
+            previous_analysis = None
+            changed_files = None
+            try:
+                parent_hash = repo_manager._run_git(local_path, ["rev-parse", f"{current_head}^"]).strip()
+                if parent_hash in _ANALYSIS_CACHE:
+                    previous_analysis = _ANALYSIS_CACHE[parent_hash]
+                    diff_output = repo_manager._run_git(local_path, ["diff-tree", "--no-commit-id", "--name-only", "-r", current_head])
+                    changed_files = [line.strip() for line in diff_output.splitlines() if line.strip()]
+            except Exception:
+                pass
+            analysis = analyze_local_folder(local_path, previous_analysis=previous_analysis, changed_files=changed_files)
+            _ANALYSIS_CACHE[current_head] = analysis
+        except Exception:
+            pass  # Silently fail — prefetch is best-effort
+
+    asyncio.create_task(_warm_cache())
+    return {"status": "queued", "commit_hash": payload.commit_hash}
 
 
 class FileContentRequest(BaseModel):
