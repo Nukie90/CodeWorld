@@ -26,6 +26,9 @@ class RepoAnalyzeRequest(BaseModel):
 # Global store for progress: task_id -> {"progress": int, "message": str, "done": bool}
 _PROGRESS = {}
 
+# Global store for analysis cache: commit_hash -> FolderAnalysisResult
+_ANALYSIS_CACHE = {}
+
 
 class RepoBranchRequest(BaseModel):
     repo_url: str
@@ -195,7 +198,20 @@ def analyze_repo(payload: RepoAnalyzeRequest):
         raise HTTPException(status_code=500, detail=f"Failed to clone repo: {str(exc)}")
 
     try:
-        analysis = analyze_local_folder(local_path, progress_callback=update_progress)
+        # Before full analysis, see if we can get HEAD and cache it
+        current_head = None
+        try:
+             current_head = repo_manager._run_git(local_path, ["rev-parse", "HEAD"]).strip()
+        except Exception:
+             pass
+
+        if current_head and current_head in _ANALYSIS_CACHE:
+             analysis = _ANALYSIS_CACHE[current_head]
+        else:
+             analysis = analyze_local_folder(local_path, progress_callback=update_progress)
+             if current_head:
+                 _ANALYSIS_CACHE[current_head] = analysis
+                 
         update_progress(100, "Analysis complete", done=True)
         return {"repo_url": repo_url, "folder_name": local_path, "analysis": analysis}
     except Exception as exc:
@@ -221,7 +237,36 @@ async def repo_checkout(payload: RepoCheckoutRequest):
         raise HTTPException(status_code=500, detail=f"Failed to checkout branch: {str(exc)}")
 
     try:
-        analysis = analyze_local_folder(local_path)
+        current_head = repo_manager._run_git(local_path, ["rev-parse", "HEAD"]).strip()
+    except Exception:
+        current_head = None
+
+    if current_head and current_head in _ANALYSIS_CACHE:
+        return {
+            "repo_url": payload.repo_url, 
+            "branch": payload.branch, 
+            "folder_name": local_path, 
+            "analysis": _ANALYSIS_CACHE[current_head]
+        }
+
+    previous_analysis = None
+    changed_files = None
+
+    if current_head:
+        try:
+            # We don't have this exact commit. What about its parent?
+            parent_hash = repo_manager._run_git(local_path, ["rev-parse", f"{current_head}^"]).strip()
+            if parent_hash in _ANALYSIS_CACHE:
+                previous_analysis = _ANALYSIS_CACHE[parent_hash]
+                diff_output = repo_manager._run_git(local_path, ["diff-tree", "--no-commit-id", "--name-only", "-r", current_head])
+                changed_files = [line.strip() for line in diff_output.splitlines() if line.strip()]
+        except Exception:
+            pass
+
+    try:
+        analysis = analyze_local_folder(local_path, previous_analysis=previous_analysis, changed_files=changed_files)
+        if current_head:
+            _ANALYSIS_CACHE[current_head] = analysis
         return {"repo_url": payload.repo_url, "branch": payload.branch, "folder_name": local_path, "analysis": analysis}
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to analyze after checkout: {str(exc)}")

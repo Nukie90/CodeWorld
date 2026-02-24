@@ -53,6 +53,11 @@ function ResultsPage() {
   const [currentCommitIndex, setCurrentCommitIndex] = useState(-1)
   const [animationSpeed, setAnimationSpeed] = useState(800)
   const animationRef = useRef(null)
+  const animationSpeedRef = useRef(animationSpeed)
+
+  useEffect(() => {
+    animationSpeedRef.current = animationSpeed
+  }, [animationSpeed])
 
   console.log('analysisResult in ResultsPage:', analysisResult);
 
@@ -253,8 +258,19 @@ function ResultsPage() {
         setAllCommits(commits)
       }
 
+      let totalTime = 0;
+      let commitCount = 0;
+      const startTime = performance.now();
+
       const runStep = async (index) => {
         if (index >= commits.length || !isAnimatingRef.current) {
+          if (index >= commits.length && commitCount > 0) {
+            const overallTime = performance.now() - startTime;
+            console.log(`[Timeline] Animation Complete
+            Total Commits: ${commitCount}
+            Total Time: ${overallTime.toFixed(2)}ms
+            Average Time per Commit: ${(totalTime / commitCount).toFixed(2)}ms`);
+          }
           setIsAnimating(false)
           isAnimatingRef.current = false
           return
@@ -265,12 +281,16 @@ function ResultsPage() {
         setAnimatingCommit(commit)
         setAnimationProgress(Math.round((index / (commits.length - 1)) * 100))
 
+        const stepStart = performance.now();
+        let backendTime = 0;
         try {
+          const apiStart = performance.now();
           const checkoutResp = await axios.post('http://127.0.0.1:8000/api/repo/checkout', {
             repo_url: analysisResult.repo_url,
             branch: commit.hash,
             token: token
           })
+          backendTime = performance.now() - apiStart;
 
           if (checkoutResp.data) {
             setAnalysisResult(checkoutResp.data)
@@ -279,10 +299,18 @@ function ResultsPage() {
           console.error(`Animation step failed at commit ${commit.hash}`, err)
         }
 
-        animationRef.current = setTimeout(() => runStep(index + 1), animationSpeed)
+        const stepDuration = performance.now() - stepStart;
+        totalTime += stepDuration;
+        commitCount++;
+
+        const waitDelay = animationSpeedRef.current;
+        console.log(`[Timeline] Commit ${commit.hash.substring(0, 8)} | Processing: ${backendTime.toFixed(2)}ms | Delay: ${waitDelay}ms`);
+
+        animationRef.current = setTimeout(() => runStep(index + 1), waitDelay)
       }
 
       await runStep(currentCommitIndex === -1 || currentCommitIndex >= commits.length - 1 ? 0 : currentCommitIndex + 1)
+
 
     } catch (err) {
       console.error('Failed to start animation', err)
@@ -416,6 +444,25 @@ function ResultsPage() {
     }
   };
 
+  const formatCommitDate = (dateString) => {
+    if (!dateString) return "";
+    try {
+      const date = new Date(dateString);
+      const parts = new Intl.DateTimeFormat('en-GB', {
+        weekday: 'long',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric'
+      }).formatToParts(date);
+
+      const p = {};
+      parts.forEach(({ type, value }) => p[type] = value);
+      return `${p.weekday} ${p.day} ${p.month} ${p.year}`;
+    } catch (err) {
+      return dateString;
+    }
+  };
+
   useEffect(() => {
     window.addEventListener('mousemove', resize);
     window.addEventListener('mouseup', stopResizing);
@@ -492,11 +539,13 @@ function ResultsPage() {
             </button>
 
             <div className="flex items-center gap-2 ml-auto">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Speed</span>
+              <span className={`text-[10px] font-bold uppercase tracking-wider transition-colors ${animationSpeed === 0 ? 'text-blue-500' : 'text-gray-400'}`}>
+                Speed {animationSpeed === 0 && '(MAX)'}
+              </span>
               <input
                 type="range"
                 min="200"
-                max="2000"
+                max="2200"
                 step="100"
                 value={2200 - animationSpeed}
                 onChange={(e) => setAnimationSpeed(2200 - parseInt(e.target.value))}
@@ -1005,10 +1054,10 @@ function ResultsPage() {
                 <GitCommit size={18} className="text-white" />
                 <div className="flex flex-col">
                   <span className="text-sm font-bold text-white">
-                    {animatingCommit.message}
+                    {formatCommitDate(animatingCommit.date)}
                   </span>
                   <span className="text-xs font-mono text-blue-100">
-                    {animatingCommit.hash.substring(0, 7)}
+                    {animatingCommit.message}
                   </span>
                 </div>
               </div>

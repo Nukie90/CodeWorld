@@ -7,7 +7,12 @@ from app.model.analyzer_model import FileMetrics, FolderMetrics, FolderAnalysisR
 from app.utils.ignore import build_ignore_checker
 
 
-def analyze_local_folder(path: str, progress_callback: Optional[Callable] = None) -> FolderAnalysisResult:
+def analyze_local_folder(
+    path: str, 
+    progress_callback: Optional[Callable] = None,
+    previous_analysis: Optional[FolderAnalysisResult] = None,
+    changed_files: Optional[List[str]] = None
+) -> FolderAnalysisResult:
     """Analyze a local folder on disk and return folder analysis result."""
     all_files = []
     # build ignore checker from .gitignore if present at repository root
@@ -36,12 +41,35 @@ def analyze_local_folder(path: str, progress_callback: Optional[Callable] = None
     num_files = len(all_files)
     if progress_callback: progress_callback(40, f"Starting analysis of {num_files} files")
 
+    # Build a lookup for previous file metrics
+    previous_metrics_map = {}
+    if previous_analysis and previous_analysis.individual_files:
+        for metric in previous_analysis.individual_files:
+            # Filename might contain \n(language), we only need the relative path
+            clean_name = metric.filename.split('\n')[0]
+            previous_metrics_map[clean_name] = metric
+
+    changed_files_set = set(changed_files) if changed_files is not None else None
+
     for idx, (file_path, relative_path) in enumerate(all_files):
         try:
             # Update progress within 40% to 95% range
             if progress_callback and num_files > 0:
                 current_progress = 40 + int((idx / num_files) * 55)
                 progress_callback(current_progress, f"Analyzing: {relative_path}")
+
+            # If doing incremental analysis, check if we can reuse the cached metric
+            if changed_files_set is not None and relative_path not in changed_files_set:
+                prev_metric = previous_metrics_map.get(relative_path)
+                if prev_metric:
+                    file_metrics_list.append(prev_metric)
+                    total_loc += prev_metric.total_loc
+                    total_nloc += prev_metric.total_nloc
+                    total_functions += prev_metric.function_count
+                    total_complexity += prev_metric.total_complexity
+                    if (prev_metric.complexity_max or 0) > complexity_max:
+                        complexity_max = prev_metric.complexity_max
+                    continue
 
             with open(file_path, "r", encoding="utf-8") as f:
                 content = f.read()
