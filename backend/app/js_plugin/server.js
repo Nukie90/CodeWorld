@@ -51,7 +51,7 @@ function calculateMetrics(code) {
         const { complexity: globalCC, maxNesting: globalMaxNesting } = calculateCognitiveComplexity({
             traverse: (visitor) => traverse(ast, visitor), // Adapter for traverse
             node: ast.program
-        }, 0, '(global)');
+        }, 0, 'code outside functions');
 
         // Calculate Global NLOC: Total NLOC - Sum(Child Functions NLOC)
         // Or more accurately: Count tokens that are NOT inside any child function.
@@ -62,7 +62,7 @@ function calculateMetrics(code) {
         // Let's postpone Global NLOC finalization until after we find all functions.
 
         const globalFunction = {
-            name: '(global)',
+            name: 'code outside functions',
             NLOC: 0, // Will be updated
             CC: globalCC,
             maxNesting: globalMaxNesting,

@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import * as d3 from 'd3';
 import gsap from 'gsap';
 import { Settings } from 'lucide-react';
-import FunctionMoleculeVisualization from './FunctionMoleculeVisualization';
+import FunctionTableView from './FunctionTableView';
 import { SceneDiffer } from '../../../utils/SceneDiffer';
 
 function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, isDarkMode }) {
@@ -1064,10 +1064,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     // If in functions mode, render the separate component
     if (viewMode === 'functions' && focusedFile) {
         return (
-            <FunctionMoleculeVisualization
+            <FunctionTableView
                 file={focusedFile}
                 isDarkMode={isDarkMode}
                 onFunctionClick={onFunctionClick}
+                onFileClick={onFileClick}
                 onBack={() => {
                     setViewMode('island');
                     setFocusedFile(null);

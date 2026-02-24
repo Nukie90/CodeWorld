@@ -5,7 +5,7 @@ from io import BytesIO
 from typing import List, Dict, Any, Optional
 from app.model.analyzer_model import FileMetrics, FunctionMetric
 
-GLOBAL_FUNC_NAME = "(global)"
+GLOBAL_FUNC_NAME = "code outside functions"
 
 def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, function_name: str = None) -> Dict[str, int]:
     complexity = 0
