@@ -26,6 +26,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const [towerOpacity, setTowerOpacity] = useState(1.0); // 0.0 to 1.0
     const [showDecorations, setShowDecorations] = useState(false);
     const [showOptionsPanel, setShowOptionsPanel] = useState(false);
+    const [vizStyle, setVizStyle] = useState('circular'); // 'circular' | 'honeycomb'
 
     const keysRef = useRef({});
     const moveSpeed = 0.5;
@@ -39,6 +40,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const buildingMeshesRef = useRef(new Map()); // filename -> { mesh, cap, data }
     const directoryMeshesRef = useRef(new Map()); // path -> { mesh, ring }
     const sceneInitializedRef = useRef(false);
+    const previousVizStyleRef = useRef(vizStyle);
 
     if (!individualFiles || individualFiles.length === 0) {
         return (
@@ -48,7 +50,48 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         );
     }
 
-    // --- Data Processing Helpers ---
+
+
+    // --- Hexagonal Grid Setup ---
+    const HEX_RADIUS = 3.5;
+    const HEX_HEIGHT = 1.0;
+    const HEX_MARGIN = 0.2;
+    const HEX_WIDTH = Math.sqrt(3) * HEX_RADIUS;
+    const HEX_VERT_DIST = HEX_RADIUS * 1.5;
+
+    const axialToPixel = (q, r) => {
+        const x = HEX_WIDTH * (q + r / 2);
+        const z = HEX_VERT_DIST * r;
+        return { x, z };
+    };
+
+    const pixelToAxial = (x, z) => {
+        const q = (Math.sqrt(3) / 3 * x - 1 / 3 * z) / HEX_RADIUS;
+        const r = (2 / 3 * z) / HEX_RADIUS;
+        return hexRound(q, r);
+    };
+
+    const hexRound = (q, r) => {
+        let x = q;
+        let z = r;
+        let y = -x - z;
+
+        let rx = Math.round(x);
+        let rz = Math.round(z);
+        let ry = Math.round(y);
+
+        const x_diff = Math.abs(rx - x);
+        const z_diff = Math.abs(rz - z);
+        const y_diff = Math.abs(ry - y);
+
+        if (x_diff > z_diff && x_diff > y_diff) {
+            rx = -ry - rz;
+        } else if (z_diff > y_diff) {
+            rz = -rx - ry;
+        }
+
+        return { q: rx, r: rz };
+    };
 
     const calculateFileMetrics = (file) => {
         const totalLoc = file.total_nloc || file.total_loc || 1;
@@ -305,9 +348,12 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     useEffect(() => {
         if (!mountRef.current) return;
 
-        // --- Incremental Update Path ---
+        // Detect style change to force rebuild
+        const styleChanged = previousVizStyleRef.current !== vizStyle;
+        previousVizStyleRef.current = vizStyle;
+
         // If scene is already initialized and we have previous files, do incremental update
-        if (sceneInitializedRef.current && previousFilesRef.current && sceneRef.current) {
+        if (sceneInitializedRef.current && previousFilesRef.current && sceneRef.current && !styleChanged) {
             const diff = SceneDiffer.diffFiles(previousFilesRef.current, individualFiles);
             console.log('[Island3D] Incremental update:', SceneDiffer.getSummary(diff));
 
@@ -522,119 +568,257 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             originalPositions.push(oceanVertices.getZ(i));
         }
 
-        // --- Recursive Render of Hierarchy ---
+        // --- Scene Rendering ---
 
-        const renderNode = (node) => {
-            const x = node.x;
-            const z = node.y; // D3 y maps to 3D z
-            const r = node.r;
+        const renderCircularIsland = (root) => {
+            const renderNode = (node) => {
+                if (node.children) {
+                    // Render platform
+                    const color = getDirectoryColor(node.depth);
+                    const platformHeight = 2.5;
+                    const platformRadius = node.r;
 
-            // Height scaling: Deeper = Higher
-            // Base height + depth * step
-            const platformHeight = 3;
-            const y = (node.depth * platformHeight);
+                    const geometry = new THREE.CylinderGeometry(platformRadius, platformRadius * 1.05, platformHeight, 64);
+                    const material = new THREE.MeshStandardMaterial({
+                        color: color,
+                        roughness: 0.8,
+                        metalness: 0.2
+                    });
 
-            if (node.children) {
-                // Directories -> Platforms
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.set(node.x, node.depth * platformHeight - platformHeight / 2, node.y);
+                    mesh.receiveShadow = true;
+                    mesh.castShadow = true;
 
-                // Truncated cone for island/terrace look
-                // Top radius = r, Bottom radius = r + margin
-                const geometry = new THREE.CylinderGeometry(r, r + 2, platformHeight, 64);
+                    mesh.userData = {
+                        type: 'directory',
+                        name: node.data.name,
+                        path: node.ancestors().map(n => n.data.name).reverse().join('/'),
+                        depth: node.depth,
+                        node: node
+                    };
 
-                const color = getDirectoryColor(node.depth);
+                    scene.add(mesh);
+                    interactableMeshes.push(mesh);
+                    geometriesToDispose.push(geometry);
+                    materialsToDispose.push(material);
 
-                const material = new THREE.MeshStandardMaterial({
-                    color: color,
-                    roughness: isDarkMode ? 0.6 : 0.9,
-                    metalness: isDarkMode ? 0.3 : 0.1,
-                    emissive: color,
-                    emissiveIntensity: 0
-                });
+                    // Render children
+                    node.children.forEach(child => renderNode(child));
+                } else {
+                    // Render Tower (File)
+                    const complexity = node.data.totalComplexity || 1;
+                    const towerHeight = 10 + (Math.sqrt(complexity) * 15);
+                    const towerRadius = 3.0;
 
-                const mesh = new THREE.Mesh(geometry, material);
-                // Center Y of cylinder
-                mesh.position.set(x, y - (platformHeight / 2), z);
-                mesh.receiveShadow = true;
-                mesh.castShadow = true;
+                    const geometry = new THREE.CylinderGeometry(towerRadius, towerRadius, towerHeight, 32);
+                    const isUnsupported = node.data.fileData?.is_unsupported;
+                    const color = isUnsupported
+                        ? (isDarkMode ? 0xcfcfcf : 0x9ca3af)
+                        : getComplexityColor(complexity);
 
-                mesh.userData = {
-                    type: 'directory',
-                    name: node.data.name,
-                    depth: node.depth,
-                    path: node.ancestors().map(n => n.data.name).reverse().join('/')
-                };
+                    const material = new THREE.MeshStandardMaterial({
+                        color: color,
+                        roughness: 0.3,
+                        metalness: 0.6,
+                        emissive: color,
+                        emissiveIntensity: isDarkMode ? 0.6 : 0,
+                        transparent: towerOpacity < 1.0,
+                        opacity: towerOpacity
+                    });
 
-                scene.add(mesh);
-                interactableMeshes.push(mesh);
-                geometriesToDispose.push(geometry);
-                materialsToDispose.push(material);
+                    const mesh = new THREE.Mesh(geometry, material);
+                    const platformHeight = 2.5;
+                    const parentTopY = node.depth * platformHeight;
+                    mesh.position.set(node.x, parentTopY + towerHeight / 2, node.y);
 
-                // Add border ring for definition
-                const ringGeo = new THREE.TorusGeometry(r + 0.2, 0.3, 8, 64);
-                const ringMat = new THREE.MeshStandardMaterial({
-                    color: isDarkMode ? 0x38bdf8 : 0xffffff,
-                    transparent: true,
-                    opacity: isDarkMode ? 0.4 : 0.1,
-                    emissive: isDarkMode ? 0x0ea5e9 : 0x000000,
-                    emissiveIntensity: isDarkMode ? 0.5 : 0
-                });
-                const ring = new THREE.Mesh(ringGeo, ringMat);
-                ring.rotation.x = Math.PI / 2;
-                ring.position.set(x, y, z);
-                scene.add(ring);
-                geometriesToDispose.push(ringGeo);
-                materialsToDispose.push(ringMat);
+                    mesh.castShadow = true;
+                    mesh.receiveShadow = true;
 
-                // Add Palm Trees to the root island (shoreline)
-                if (node.depth === 0 && showDecorations) {
-                    const numTrees = Math.floor(r / 5);
-                    for (let i = 0; i < numTrees; i++) {
-                        const angle = Math.random() * Math.PI * 2;
-                        const treeR = r - 2 - Math.random() * 5;
-                        const treeX = x + Math.cos(angle) * treeR;
-                        const treeZ = z + Math.sin(angle) * treeR;
+                    mesh.userData = {
+                        type: 'file',
+                        name: node.data.name,
+                        ...node.data.fileData,
+                        totalComplexity: complexity.toFixed(2),
+                        totalLoc: node.data.totalLoc,
+                        numFunctions: node.data.numFunctions
+                    };
 
-                        // Simple Palm Tree
-                        const trunkH = 4 + Math.random() * 2;
-                        const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, trunkH, 8);
-                        const trunkMat = new THREE.MeshStandardMaterial({ color: isDarkMode ? 0x57534e : 0x8b5a2b });
-                        const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-                        trunk.position.set(treeX, y + trunkH / 2, treeZ);
-                        scene.add(trunk);
-                        palmTrees.push(trunk);
-                        geometriesToDispose.push(trunkGeo);
-                        materialsToDispose.push(trunkMat);
+                    scene.add(mesh);
+                    interactableMeshes.push(mesh);
+                    geometriesToDispose.push(geometry);
+                    materialsToDispose.push(material);
 
-                        const leafGeo = new THREE.ConeGeometry(1.5, 3, 5);
-                        const leafMat = new THREE.MeshStandardMaterial({
-                            color: isDarkMode ? 0x15803d : 0x22c55e,
-                            emissive: isDarkMode ? 0x22c55e : 0x000000,
-                            emissiveIntensity: isDarkMode ? 0.2 : 0
-                        });
-                        const foliage = new THREE.Mesh(leafGeo, leafMat);
-                        foliage.position.set(treeX, y + trunkH + 1, treeZ);
-                        scene.add(foliage);
-                        geometriesToDispose.push(leafGeo);
-                        materialsToDispose.push(leafMat);
+                    // Cap
+                    const capGeo = new THREE.CylinderGeometry(towerRadius, towerRadius, 0.2, 32);
+                    const capMat = new THREE.MeshStandardMaterial({
+                        color: 0xffffff,
+                        emissive: color,
+                        emissiveIntensity: isDarkMode ? 0.9 : 0.4,
+                        transparent: towerOpacity < 1.0,
+                        opacity: towerOpacity
+                    });
+                    const cap = new THREE.Mesh(capGeo, capMat);
+                    cap.position.set(node.x, parentTopY + towerHeight + 0.1, node.y);
+                    scene.add(cap);
+                    geometriesToDispose.push(capGeo);
+                    materialsToDispose.push(capMat);
+
+                    buildingMeshesRef.current.set(node.data.fileData.filename, {
+                        mesh,
+                        cap,
+                        data: node.data.fileData,
+                        height: towerHeight
+                    });
+
+                    // Decorations (Trees on platform for circular)
+                    if (showDecorations && node.depth === 0) {
+                        // Spread trees randomly on the root platform
+                        const numTrees = Math.floor(Math.random() * 5);
+                        for (let i = 0; i < numTrees; i++) {
+                            const angle = Math.random() * Math.PI * 2;
+                            const r = Math.random() * (node.r - 10);
+                            const tx = node.x + Math.cos(angle) * r;
+                            const tz = node.y + Math.sin(angle) * r;
+
+                            const trunkH = 4 + Math.random() * 2;
+                            const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, trunkH, 8);
+                            const trunkMat = new THREE.MeshStandardMaterial({ color: isDarkMode ? 0x57534e : 0x8b5a2b });
+                            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                            trunk.position.set(tx, trunkH / 2, tz);
+                            scene.add(trunk);
+                            palmTrees.push(trunk);
+
+                            const leafGeo = new THREE.ConeGeometry(1.5, 3, 5);
+                            const leafMat = new THREE.MeshStandardMaterial({ color: isDarkMode ? 0x15803d : 0x22c55e });
+                            const foliage = new THREE.Mesh(leafGeo, leafMat);
+                            foliage.position.set(tx, trunkH + 1, tz);
+                            scene.add(foliage);
+                        }
                     }
                 }
+            };
 
-                // Recurse
-                node.children.forEach(renderNode);
+            renderNode(root);
+        };
 
-            } else {
-                // Files -> Towers
-                const complexity = node.data.totalComplexity || 1;
-                const towerHeight = 10 + (Math.sqrt(complexity) * 15); // Square root scaling for height
+        const renderHexGrid = (root) => {
+            const hexMap = new Map();
+            const nearContentMap = new Map(); // Track hexes that serve as bridges
 
-                // Radius smaller than allocated circle to provide breathing room
-                const towerRadius = 1.8 + (r * 0.9);
+            // 1. Grid Sampling: Find nodes for each hex
+            // Robust Approach: Iterate through all nodes and assign their areas to hexes
+            root.each(node => {
+                const nodeX = node.x;
+                const nodeZ = node.y;
+                const nodeR = node.r;
+
+                // Bounding box in pixel space
+                const minX = nodeX - nodeR - HEX_RADIUS;
+                const maxX = nodeX + nodeR + HEX_RADIUS;
+                const minZ = nodeZ - nodeR - HEX_RADIUS;
+                const maxZ = nodeZ + nodeR + HEX_RADIUS;
+
+                const qMin = Math.floor((Math.sqrt(3) / 3 * minX - 1 / 3 * maxZ) / HEX_RADIUS) - 1;
+                const qMax = Math.ceil((Math.sqrt(3) / 3 * maxX - 1 / 3 * minZ) / HEX_RADIUS) + 1;
+                const rMin = Math.floor((2 / 3 * minZ) / HEX_RADIUS) - 1;
+                const rMax = Math.ceil((2 / 3 * maxZ) / HEX_RADIUS) + 1;
+
+                for (let q = qMin; q <= qMax; q++) {
+                    for (let r = rMin; r <= rMax; r++) {
+                        const pos = axialToPixel(q, r);
+                        const d = Math.sqrt(Math.pow(pos.x - nodeX, 2) + Math.pow(pos.z - nodeZ, 2));
+
+                        // Center hex for this node (essential for small nodes)
+                        const centerAxial = hexRound((Math.sqrt(3) / 3 * nodeX - 1 / 3 * nodeZ) / HEX_RADIUS, (2 / 3 * nodeZ) / HEX_RADIUS);
+                        const isCenterTile = (q === centerAxial.q && r === centerAxial.r);
+
+                        if (d <= nodeR || isCenterTile) {
+                            const key = `${q},${r}`;
+                            const existing = hexMap.get(key);
+                            if (!existing || node.depth > existing.depth) {
+                                hexMap.set(key, node);
+                            }
+                        }
+
+                        // Mark hexes that are "near" content (even if they are just root depth)
+                        // This will be used to bridge the gaps between platforms
+                        if (node.depth > 0 && d <= nodeR + HEX_RADIUS * 3.5) {
+                            const key = `${q},${r}`;
+                            const data = hexMap.get(key) || root;
+                            hexMap.set(key, data);
+                            nearContentMap.set(key, true);
+                        }
+                    }
+                }
+            });
+
+            // 2. Render Hex Tiles
+            const hexGeometry = new THREE.CylinderGeometry(HEX_RADIUS - HEX_MARGIN, HEX_RADIUS - HEX_MARGIN, HEX_HEIGHT, 6);
+            hexGeometry.rotateY(Math.PI / 6); // Pointy top
+            geometriesToDispose.push(hexGeometry);
+
+            hexMap.forEach((deepestNode, key) => {
+                // Bridge logic: Only render if it has content OR is near content
+                if (deepestNode.depth === 0 && !nearContentMap.has(key)) return;
+
+                const [q, r] = key.split(',').map(Number);
+                const pos = axialToPixel(q, r);
+                const platformHeight = 2.5;
+
+                // Render stalks from bottom up to deepestNode.depth
+                // Ensures "floor space" exists beneath all higher elements
+                for (let d = 0; d <= deepestNode.depth; d++) {
+                    const color = getDirectoryColor(d);
+                    const baseY = d * platformHeight;
+
+                    const material = new THREE.MeshStandardMaterial({
+                        color: color,
+                        roughness: isDarkMode ? 0.6 : 0.8,
+                        metalness: isDarkMode ? 0.3 : 0.1,
+                        emissive: color,
+                        emissiveIntensity: 0
+                    });
+
+                    const mesh = new THREE.Mesh(hexGeometry, material);
+                    mesh.position.set(pos.x, baseY - HEX_HEIGHT / 2, pos.z);
+                    mesh.receiveShadow = true;
+                    mesh.castShadow = true;
+
+                    // Correct Hover Info: Map to the directory node at this depth
+                    const nodeAtDepth = deepestNode.ancestors().find(a => a.depth === d) || deepestNode;
+
+                    mesh.userData = {
+                        type: 'directory',
+                        name: nodeAtDepth.data.name,
+                        path: nodeAtDepth.ancestors().map(n => n.data.name).reverse().join('/'),
+                        depth: d,
+                        node: nodeAtDepth
+                    };
+
+                    scene.add(mesh);
+                    interactableMeshes.push(mesh);
+                    materialsToDispose.push(material);
+                }
+            });
+
+            // 3. Render Towers (Files)
+            // Place each file at the tile closest to d3-node center
+            root.leaves().forEach(leaf => {
+                const complexity = leaf.data.totalComplexity || 1;
+                const towerHeight = 10 + (Math.sqrt(complexity) * 15);
+                const towerRadius = 3.0; // Fixed radius for towers in hex grid
+
+                // Find hex tile for this leaf
+                const q_r = pixelToAxial(leaf.x, leaf.y);
+                const pos = axialToPixel(q_r.q, q_r.r);
 
                 const geometry = new THREE.CylinderGeometry(towerRadius, towerRadius, towerHeight, 32);
-                const isUnsupported = node.data.fileData?.is_unsupported;
+                const isUnsupported = leaf.data.fileData?.is_unsupported;
                 const color = isUnsupported
-                    ? (isDarkMode ? 0xcfcfcf : 0x9ca3af) // White in dark mode, Gray for unsupported
+                    ? (isDarkMode ? 0xcfcfcf : 0x9ca3af)
                     : getComplexityColor(complexity);
+
                 const material = new THREE.MeshStandardMaterial({
                     color: color,
                     roughness: 0.3,
@@ -646,25 +830,20 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 });
 
                 const mesh = new THREE.Mesh(geometry, material);
-
-                // Parent surface Y is (depth-1)*platformHeight (which is top of parent platform)
-                // Actually parent top is at `(node.depth - 1) * platformHeight`.
-                // Let's verify: 
-                // parent depth d-1. mesh y pos = (d-1)*h - h/2. Top = (d-1)*h. Correct.
-
-                const parentTopY = (node.depth - 1) * platformHeight;
-                mesh.position.set(x, parentTopY + towerHeight / 2, z);
+                const platformHeight = 2.5;
+                const parentTopY = leaf.depth * platformHeight;
+                mesh.position.set(pos.x, parentTopY + towerHeight / 2, pos.z);
 
                 mesh.castShadow = true;
                 mesh.receiveShadow = true;
 
                 mesh.userData = {
                     type: 'file',
-                    name: node.data.name,
-                    ...node.data.fileData,
+                    name: leaf.data.name,
+                    ...leaf.data.fileData,
                     totalComplexity: complexity.toFixed(2),
-                    totalLoc: node.data.totalLoc,
-                    numFunctions: node.data.numFunctions
+                    totalLoc: leaf.data.totalLoc,
+                    numFunctions: leaf.data.numFunctions
                 };
 
                 scene.add(mesh);
@@ -682,29 +861,61 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     opacity: towerOpacity
                 });
                 const cap = new THREE.Mesh(capGeo, capMat);
-                cap.position.set(x, parentTopY + towerHeight + 0.1, z);
+                cap.position.set(pos.x, parentTopY + towerHeight + 0.1, pos.z);
                 scene.add(cap);
                 geometriesToDispose.push(capGeo);
                 materialsToDispose.push(capMat);
 
-                // Store building reference for incremental updates
-                buildingMeshesRef.current.set(node.data.fileData.filename, {
+                buildingMeshesRef.current.set(leaf.data.fileData.filename, {
                     mesh,
                     cap,
-                    data: node.data.fileData,
+                    data: leaf.data.fileData,
                     height: towerHeight
                 });
+            });
 
-                // Fade in new buildings if this is an incremental update
-                if (sceneInitializedRef.current) {
-                    animateBuildingFadeIn(mesh, cap, 0.5);
+            // 4. Decorations (Trees)
+            if (showDecorations) {
+                // Pick random hexes at depth 0
+                const depth0Hexes = [];
+                hexMap.forEach((node, key) => {
+                    if (node.depth === 0) depth0Hexes.push(key);
+                });
+
+                const numTrees = Math.floor(depth0Hexes.length / 8);
+                for (let i = 0; i < numTrees; i++) {
+                    const key = depth0Hexes[Math.floor(Math.random() * depth0Hexes.length)];
+                    const [q, r] = key.split(',').map(Number);
+                    const pos = axialToPixel(q, r);
+
+                    // Add tree
+                    const trunkH = 4 + Math.random() * 2;
+                    const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, trunkH, 8);
+                    const trunkMat = new THREE.MeshStandardMaterial({ color: isDarkMode ? 0x57534e : 0x8b5a2b });
+                    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                    trunk.position.set(pos.x + (Math.random() - 0.5) * 2, trunkH / 2, pos.z + (Math.random() - 0.5) * 2);
+                    scene.add(trunk);
+                    palmTrees.push(trunk);
+
+                    const leafGeo = new THREE.ConeGeometry(1.5, 3, 5);
+                    const leafMat = new THREE.MeshStandardMaterial({
+                        color: isDarkMode ? 0x15803d : 0x22c55e,
+                    });
+                    const foliage = new THREE.Mesh(leafGeo, leafMat);
+                    foliage.position.set(trunk.position.x, trunk.position.y + trunkH / 2 + 1, trunk.position.z);
+                    scene.add(foliage);
                 }
             }
         };
 
+
         if (viewMode === 'island') {
             if (individualFiles.length > 0) {
-                renderNode(root);
+                if (vizStyle === 'honeycomb') {
+                    renderHexGrid(root);
+                } else {
+                    renderCircularIsland(root);
+                }
             }
 
             // --- Decorations (Only for Island) ---
@@ -1046,7 +1257,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         sceneInitializedRef.current = true;
         previousFilesRef.current = individualFiles;
 
-    }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile, towerOpacity, showDecorations]);
+    }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile, towerOpacity, showDecorations, vizStyle]);
 
     const handleMenuAction = (action) => {
         if (!activeFileForMenu) return;
@@ -1248,6 +1459,33 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                             <div className={`flex justify-between text-[10px] mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                                 <span>Transparent</span>
                                 <span>Opaque</span>
+                            </div>
+                        </div>
+
+                        {/* Visualization Style Toggle */}
+                        <div className="mb-4">
+                            <label className={`text-xs mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                                Platform Style
+                            </label>
+                            <div className="flex p-1 bg-gray-100 dark:bg-slate-700 rounded-lg">
+                                <button
+                                    onClick={() => setVizStyle('circular')}
+                                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${vizStyle === 'circular'
+                                        ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600 dark:text-blue-400'
+                                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                        }`}
+                                >
+                                    Circular
+                                </button>
+                                <button
+                                    onClick={() => setVizStyle('honeycomb')}
+                                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${vizStyle === 'honeycomb'
+                                        ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600 dark:text-blue-400'
+                                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                        }`}
+                                >
+                                    Honeycomb
+                                </button>
                             </div>
                         </div>
 

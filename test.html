@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+<body style="background: #111; color: white; font-family: sans-serif; display: flex; flex-direction: column; align-items: center;">
+    <h3>Packed Files with Padded Bézier Boundary</h3>
+    <canvas id="canvas" width="600" height="500" style="background: #1a1a1a; border-radius: 15px;"></canvas>
+    <div style="margin-top: 10px;">
+        <button onclick="initPoints()">Regenerate & Pack</button>
+    </div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const PADDING = 20; // Gap between circles and the outer line
+const INTERNAL_GAP = 5; // Gap between circles
+let points = [];
+
+function initPoints() {
+    points = [];
+    for (let i = 0; i < 12; i++) {
+        points.push({
+            x: 300 + (Math.random() - 0.5) * 100,
+            y: 250 + (Math.random() - 0.5) * 100,
+            r: 15 + Math.random() * 25 // NLOC
+        });
+    }
+    resolveOverlaps();
+    draw();
+}
+
+// 1. Circle Packing Logic (Prevents Overlap)
+function resolveOverlaps() {
+    for (let iter = 0; iter < 100; iter++) { // Iterate to settle positions
+        for (let i = 0; i < points.length; i++) {
+            for (let j = i + 1; j < points.length; j++) {
+                let p1 = points[i], p2 = points[j];
+                let dx = p2.x - p1.x, dy = p2.y - p1.y;
+                let dist = Math.sqrt(dx*dx + dy*dy);
+                let minDist = p1.r + p2.r + INTERNAL_GAP;
+
+                if (dist < minDist) {
+                    let overlap = minDist - dist;
+                    let nx = dx / dist, ny = dy / dist;
+                    // Push them away from each other
+                    p1.x -= nx * overlap / 2;
+                    p1.y -= ny * overlap / 2;
+                    p2.x += nx * overlap / 2;
+                    p2.y += ny * overlap / 2;
+                }
+            }
+        }
+    }
+}
+
+// 2. Convex Hull
+function getHull(pts) {
+    pts.sort((a, b) => a.x - b.x || a.y - b.y);
+    const cross = (a, b, c) => (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x);
+    const build = p => {
+        const res = [];
+        for (let pt of p) {
+            while (res.length >= 2 && cross(res[res.length - 2], res[res.length - 1], pt) <= 0) res.pop();
+            res.push(pt);
+        }
+        return res;
+    };
+    return build(pts).concat(build([...pts].reverse()).slice(1, -1));
+}
+
+function draw() {
+    ctx.clearRect(0, 0, 600, 500);
+    const hull = getHull([...points]);
+
+    // 3. Draw Padded Bézier Base
+    ctx.beginPath();
+    ctx.fillStyle = "rgba(0, 200, 255, 0.15)";
+    ctx.strokeStyle = "#00c8ff";
+    ctx.lineWidth = 2;
+
+    // To create the "Outer Gap", we offset the hull points outwards
+    const center = {x: 300, y: 250}; // Simplistic center for expansion
+    let offsetHull = hull.map(p => {
+        let dx = p.x - center.x, dy = p.y - center.y;
+        let mag = Math.sqrt(dx*dx + dy*dy);
+        return {
+            x: p.x + (dx/mag) * (p.r + PADDING),
+            y: p.y + (dy/mag) * (p.r + PADDING)
+        };
+    });
+
+    // Smooth Bézier Path
+    let m0 = { x: (offsetHull[0].x + offsetHull[offsetHull.length-1].x)/2, y: (offsetHull[0].y + offsetHull[offsetHull.length-1].y)/2 };
+    ctx.moveTo(m0.x, m0.y);
+    for (let i = 0; i < offsetHull.length; i++) {
+        let p1 = offsetHull[i];
+        let p2 = offsetHull[(i + 1) % offsetHull.length];
+        ctx.quadraticCurveTo(p1.x, p1.y, (p1.x + p2.x)/2, (p1.y + p2.y)/2);
+    }
+    ctx.closePath();
+    ctx.fill();
+    ctx.stroke();
+
+    // 4. Draw Cylinders
+    points.forEach(p => {
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fillStyle = "#444";
+        ctx.fill();
+        ctx.strokeStyle = "#fff";
+        ctx.stroke();
+    });
+}
+
+initPoints();
+</script>
+</body>
+</html>
