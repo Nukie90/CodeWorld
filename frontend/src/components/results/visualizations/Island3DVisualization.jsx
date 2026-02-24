@@ -1581,7 +1581,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 </button>
 
                 {showOptionsPanel && (
-                    <div className={`mt-2 backdrop-blur-md rounded-xl shadow-lg p-4 border min-w-[250px] animate-in fade-in slide-in-from-top-2 ${isDarkMode
+                    <div className={`mt-2 backdrop-blur-md rounded-xl shadow-lg p-4 border min-w-[300px] animate-in fade-in slide-in-from-top-2 ${isDarkMode
                         ? 'bg-slate-800/90 border-slate-700/50'
                         : 'bg-white/90 border-white/50'}`}>
                         <h4 className={`font-bold text-sm mb-3 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Visualization Options</h4>
@@ -1608,33 +1608,39 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
                         {/* Visualization Style Toggle */}
                         <div className="mb-4">
-                            <label className={`text-xs mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                            <label className={`text-xs mb-1 block ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                                 Platform Style
                             </label>
-                            <div className="flex p-1 bg-gray-100 dark:bg-slate-700 rounded-lg gap-1">
+                            <div className={`flex p-1 rounded-lg gap-1 ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>
                                 <button
                                     onClick={() => setVizStyle('circular')}
-                                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${vizStyle === 'circular'
-                                        ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-500/20'
-                                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                    className={`flex-1 py-1.5 text-xs rounded-md transition-all whitespace-nowrap ${vizStyle === 'circular'
+                                        ? (isDarkMode
+                                            ? 'bg-slate-600 shadow-sm text-blue-400 border border-blue-500/20'
+                                            : 'bg-white shadow-sm text-blue-600 border border-blue-100/50')
+                                        : (isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
                                         }`}
                                 >
                                     Circular
                                 </button>
                                 <button
                                     onClick={() => setVizStyle('honeycomb')}
-                                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${vizStyle === 'honeycomb'
-                                        ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-500/20'
-                                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                    className={`flex-1 py-1.5 text-xs rounded-md transition-all whitespace-nowrap ${vizStyle === 'honeycomb'
+                                        ? (isDarkMode
+                                            ? 'bg-slate-600 shadow-sm text-blue-400 border border-blue-500/20'
+                                            : 'bg-white shadow-sm text-blue-600 border border-blue-100/50')
+                                        : (isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
                                         }`}
                                 >
                                     Honeycomb
                                 </button>
                                 <button
                                     onClick={() => setVizStyle('freeform')}
-                                    className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-all ${vizStyle === 'freeform'
-                                        ? 'bg-white dark:bg-slate-600 shadow-sm text-blue-600 dark:text-blue-400 border border-blue-100/50 dark:border-blue-500/20'
-                                        : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+                                    className={`flex-1 py-1.5 text-xs rounded-md transition-all whitespace-nowrap ${vizStyle === 'freeform'
+                                        ? (isDarkMode
+                                            ? 'bg-slate-600 shadow-sm text-blue-400 border border-blue-500/20'
+                                            : 'bg-white shadow-sm text-blue-600 border border-blue-100/50')
+                                        : (isDarkMode ? 'text-gray-400 hover:text-gray-200' : 'text-gray-500 hover:text-gray-700')
                                         }`}
                                 >
                                     Free Form
