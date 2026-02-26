@@ -172,7 +172,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             const prevMidX = i === 0 ? (hull[hull.length - 1].x + hull[0].x) / 2 : (hull[i - 1].x + hull[i].x) / 2;
             const prevMidY = i === 0 ? (hull[hull.length - 1].y + hull[0].y) / 2 : (hull[i - 1].y + hull[i].y) / 2;
 
-            for (let t = 0; t <= 1; t += 0.2) {
+            for (let t = 0; t <= 1; t += 0.05) {
                 const x = (1 - t) * (1 - t) * prevMidX + 2 * (1 - t) * t * p1.x + t * t * midX;
                 const y = (1 - t) * (1 - t) * prevMidY + 2 * (1 - t) * t * p1.y + t * t * midY;
                 bezierPoints.push({ x, y });
@@ -803,10 +803,6 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             const renderDirectory = (node) => {
                 if (!node.children || node.children.length === 0) return;
 
-                const padding = node.depth === 0 ? 35 : 8;
-                const organicData = getOrganicShape(node.children, padding);
-                if (!organicData) return;
-
                 const color = getDirectoryColor(node.depth);
                 const totalDepthHeight = (node.depth + 1) * platformHeight;
 
@@ -818,37 +814,49 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     bevelSegments: 5
                 };
 
-                const geometry = new THREE.ExtrudeGeometry(organicData.shape, extrudeSettings);
-                geometry.rotateX(Math.PI / 2); // Flip flat onto floor
+                const renderShape = (nodes, pad) => {
+                    const organicData = getOrganicShape(nodes, pad);
+                    if (!organicData) return;
 
-                const material = new THREE.MeshStandardMaterial({
-                    color: color,
-                    roughness: 0.8,
-                    metalness: 0.2,
-                    emissive: color,
-                    emissiveIntensity: 0
-                });
+                    const geometry = new THREE.ExtrudeGeometry(organicData.shape, extrudeSettings);
+                    geometry.rotateX(Math.PI / 2);
 
-                const mesh = new THREE.Mesh(geometry, material);
-                // Position: extrude goes along Z, we rotated. Base at y=0.
-                mesh.position.y = totalDepthHeight;
+                    const material = new THREE.MeshStandardMaterial({
+                        color: color,
+                        roughness: 0.8,
+                        metalness: 0.2,
+                        emissive: color,
+                        emissiveIntensity: 0
+                    });
 
-                mesh.receiveShadow = true;
-                mesh.castShadow = true;
+                    const mesh = new THREE.Mesh(geometry, material);
+                    mesh.position.y = totalDepthHeight;
+                    mesh.receiveShadow = true;
+                    mesh.castShadow = true;
 
-                // Tag with directory info for tooltips
-                mesh.userData = {
-                    type: 'directory',
-                    name: node.data.name,
-                    path: node.ancestors().map(n => n.data.name).reverse().join('/'),
-                    depth: node.depth,
-                    node: node
+                    mesh.userData = {
+                        type: 'directory',
+                        name: node.data.name,
+                        path: node.ancestors().map(n => n.data.name).reverse().join('/'),
+                        depth: node.depth,
+                        node: node
+                    };
+
+                    scene.add(mesh);
+                    interactableMeshes.push(mesh);
+                    geometriesToDispose.push(geometry);
+                    materialsToDispose.push(material);
                 };
 
-                scene.add(mesh);
-                interactableMeshes.push(mesh);
-                geometriesToDispose.push(geometry);
-                materialsToDispose.push(material);
+                // For root (depth 0), render each child cluster individually to preserve organic valleys
+                if (node.depth === 0) {
+                    node.children.forEach(child => {
+                        if (child.children) renderShape([child], 15);
+                        else renderShape([child], 15); // Single file children also get sand
+                    });
+                } else {
+                    renderShape(node.children, 8);
+                }
 
                 // Recurse to children
                 node.children.forEach(child => {
@@ -870,19 +878,19 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             // 1. Flatten sampling: Create a map of hexKey -> deepestNode
             const hexToNodeMap = new Map();
             const padding = 8; // Tighter padding for directory platforms
-            const rootPadding = 35;
+            const rootPadding = 15;
 
             const processNode = (node) => {
                 if (!node.children || node.children.length === 0) return;
 
-                const currentPadding = node.depth === 0 ? rootPadding : padding;
-                const organicData = getOrganicShape(node.children, currentPadding);
+                const populateHexes = (nodes, pad) => {
+                    const organicData = getOrganicShape(nodes, pad);
+                    if (!organicData) return;
 
-                if (organicData) {
-                    const minX = Math.min(...organicData.bezierPoints.map(p => p.x)) - HEX_RADIUS;
-                    const maxX = Math.max(...organicData.bezierPoints.map(p => p.x)) + HEX_RADIUS;
-                    const minZ = Math.min(...organicData.bezierPoints.map(p => p.y)) - HEX_RADIUS;
-                    const maxZ = Math.max(...organicData.bezierPoints.map(p => p.y)) + HEX_RADIUS;
+                    const minX = Math.min(...organicData.bezierPoints.map(p => p.x)) - HEX_RADIUS * 2;
+                    const maxX = Math.max(...organicData.bezierPoints.map(p => p.x)) + HEX_RADIUS * 2;
+                    const minZ = Math.min(...organicData.bezierPoints.map(p => p.y)) - HEX_RADIUS * 2;
+                    const maxZ = Math.max(...organicData.bezierPoints.map(p => p.y)) + HEX_RADIUS * 2;
 
                     const qMin = Math.floor((Math.sqrt(3) / 3 * minX - 1 / 3 * maxZ) / HEX_RADIUS) - 1;
                     const qMax = Math.ceil((Math.sqrt(3) / 3 * maxX - 1 / 3 * minZ) / HEX_RADIUS) + 1;
@@ -895,12 +903,22 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                             if (isPointInShape(pos.x, pos.z, organicData.bezierPoints)) {
                                 const key = `${q},${r}`;
                                 const existing = hexToNodeMap.get(key);
+                                // Always prioritize deeper nodes, but for depth 0, we are filling the base
                                 if (!existing || node.depth > existing.depth) {
                                     hexToNodeMap.set(key, node);
                                 }
                             }
                         }
                     }
+                };
+
+                // For root (depth 0), process each child individually to preserve the organic "waist"
+                if (node.depth === 0) {
+                    node.children.forEach(child => {
+                        populateHexes([child], rootPadding);
+                    });
+                } else {
+                    populateHexes(node.children, padding);
                 }
 
                 node.children.forEach(child => {
