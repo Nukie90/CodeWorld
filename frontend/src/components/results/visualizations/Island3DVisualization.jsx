@@ -290,11 +290,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         if (isDarkMode) {
             // Dark Slate / Grey tones
             const colors = [
-                0x1e293b, // Depth 0 (Root) - Dark Slate 800
-                0x334155, // Depth 1 - Slate 700
-                0x475569, // Depth 2 - Slate 600
-                0x64748b, // Depth 3 - Slate 500
-                0x94a3b8, // Depth 4 - Slate 400
+                0x334155, // Depth 0 (Root) - Slate 700
+                0x475569, // Depth 1 - Slate 600
+                0x64748b, // Depth 2 - Slate 500
+                0x94a3b8, // Depth 3 - Slate 400
+                0xcbd5e1, // Depth 4 - Slate 300
             ];
             return colors[Math.min(depth, colors.length - 1)];
         }
