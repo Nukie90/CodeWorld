@@ -68,15 +68,78 @@ function calculateMetrics(code) {
         // We need to subtract NLOC of all discovered functions later, or compute it now.
         // Let's postpone Global NLOC finalization until after we find all functions.
 
+        // Calculate file-level Cyclomatic Complexity to avoid double-counting
+        let fileCYC = 1;
+        traverse(ast, {
+            enter(path) {
+                switch (path.type) {
+                    case 'IfStatement':
+                    case 'ConditionalExpression':
+                    case 'ForStatement':
+                    case 'ForInStatement':
+                    case 'ForOfStatement':
+                    case 'WhileStatement':
+                    case 'DoWhileStatement':
+                    case 'CatchClause':
+                        fileCYC++;
+                        break;
+                    case 'LogicalExpression':
+                        if (path.node.operator === '&&' || path.node.operator === '||') fileCYC++;
+                        break;
+                    case 'SwitchCase':
+                        if (path.node.test) fileCYC++;
+                        break;
+                }
+            }
+        });
+
+        // Calculate global scope (outside functions) Cyclomatic Complexity
+        let globalCYC = 1;
+        traverse(ast, {
+            enter(path) {
+                if (path.isFunction()) {
+                    path.skip();
+                    return;
+                }
+                switch (path.type) {
+                    case 'IfStatement':
+                    case 'ConditionalExpression':
+                    case 'ForStatement':
+                    case 'ForInStatement':
+                    case 'ForOfStatement':
+                    case 'WhileStatement':
+                    case 'DoWhileStatement':
+                    case 'CatchClause':
+                        globalCYC++;
+                        break;
+                    case 'LogicalExpression':
+                        if (path.node.operator === '&&' || path.node.operator === '||') globalCYC++;
+                        break;
+                    case 'SwitchCase':
+                        if (path.node.test) globalCYC++;
+                        break;
+                }
+            }
+        });
+
+        const loc = code.split('\n').length;
+        let globalMI = 100.0;
+        if (loc > 0) {
+            const logV = halsteadVolume > 0 ? Math.log(halsteadVolume) : 0;
+            const logLOC = Math.log(loc);
+            const originalMI = 171 - 5.2 * logV - 0.23 * fileCYC - 16.2 * logLOC;
+            globalMI = Math.max(0, Math.min(100, originalMI * 100 / 171));
+        }
+
         const globalFunction = {
             name: '(global)',
             NLOC: 0, // Will be updated
             CC: globalCC,
-            CYC: typeof calculateCC === 'function' ? calculateCC(code) : 1,
-            MI: 100.0,
+            CYC: globalCYC,
+            MI: parseFloat(globalMI.toFixed(2)),
             maxNesting: globalMaxNesting,
             lineStart: 1,
-            lineEnd: code.split('\n').length,
+            lineEnd: loc,
             id: -1, // Special ID for global
             parentId: null
         };
@@ -143,7 +206,35 @@ function calculateMetrics(code) {
                 }
 
                 const { complexity, maxNesting } = calculateCognitiveComplexity(p, baseNesting, functionName);
-                const cyclomaticComplexity = typeof calculateCC === 'function' ? calculateCC(functionCode) : 1;
+
+                // Calculate local cyclomatic complexity (skip inner functions)
+                let cyclomaticComplexity = 1;
+                p.traverse({
+                    enter(innerPath) {
+                        if (innerPath.isFunction() && innerPath !== p) {
+                            innerPath.skip();
+                            return;
+                        }
+                        switch (innerPath.type) {
+                            case 'IfStatement':
+                            case 'ConditionalExpression':
+                            case 'ForStatement':
+                            case 'ForInStatement':
+                            case 'ForOfStatement':
+                            case 'WhileStatement':
+                            case 'DoWhileStatement':
+                            case 'CatchClause':
+                                cyclomaticComplexity++;
+                                break;
+                            case 'LogicalExpression':
+                                if (innerPath.node.operator === '&&' || innerPath.node.operator === '||') cyclomaticComplexity++;
+                                break;
+                            case 'SwitchCase':
+                                if (innerPath.node.test) cyclomaticComplexity++;
+                                break;
+                        }
+                    }
+                });
 
                 const fnLoc = (lineEnd !== null && lineStart !== null) ? (lineEnd - lineStart + 1) : 1;
                 let mi = 100.0;
@@ -184,6 +275,7 @@ function calculateMetrics(code) {
 
         globalFunction.NLOC = Math.max(0, metrics.NLOC - topLevelFunctionsNLOC);
 
+        metrics.fileCYC = fileCYC;
 
         return metrics;
     } catch (error) {
@@ -192,68 +284,68 @@ function calculateMetrics(code) {
     }
 }
 
-function calculateCC(functionCode) {
-    let complexity = 1;
-    let ast;
+// function calculateCC(functionCode) {
+//     let complexity = 1;
+//     let ast;
 
-    try {
-        let src = String(functionCode).trim();
-        try {
-            // First, attempt to parse the string normally as a module
-            ast = parser.parse(src, {
-                sourceType: 'module',
-                plugins: ['jsx', 'typescript', 'classProperties', 'objectRestSpread'],
-                allowReturnOutsideFunction: true
-            });
-        } catch (parseError) {
-            // If it fails, maybe it's just an isolated function expression that needs wrapping
-            if (/^(async\s+)?function\b/.test(src)) {
-                src = `(${src})`;
-            }
-            // Class/Object method shorthand like "foo() { ... }" → wrap into object
-            else if (/^\w+\s*\([^)]*\)\s*\{/.test(src)) {
-                src = `({ ${src} })`;
-            }
+//     try {
+//         let src = String(functionCode).trim();
+//         try {
+//             // First, attempt to parse the string normally as a module
+//             ast = parser.parse(src, {
+//                 sourceType: 'module',
+//                 plugins: ['jsx', 'typescript', 'classProperties', 'objectRestSpread'],
+//                 allowReturnOutsideFunction: true
+//             });
+//         } catch (parseError) {
+//             // If it fails, maybe it's just an isolated function expression that needs wrapping
+//             if (/^(async\s+)?function\b/.test(src)) {
+//                 src = `(${src})`;
+//             }
+//             // Class/Object method shorthand like "foo() { ... }" → wrap into object
+//             else if (/^\w+\s*\([^)]*\)\s*\{/.test(src)) {
+//                 src = `({ ${src} })`;
+//             }
 
-            // Arrow functions are already expressions; leave them as-is
-            // Now parse in expression position (no extra block!)
-            ast = parser.parse(`${src};`, {
-                sourceType: 'module',
-                plugins: ['jsx', 'typescript', 'classProperties', 'objectRestSpread'],
-                allowReturnOutsideFunction: true
-            });
-        }
+//             // Arrow functions are already expressions; leave them as-is
+//             // Now parse in expression position (no extra block!)
+//             ast = parser.parse(`${src};`, {
+//                 sourceType: 'module',
+//                 plugins: ['jsx', 'typescript', 'classProperties', 'objectRestSpread'],
+//                 allowReturnOutsideFunction: true
+//             });
+//         }
 
-        traverse(ast, {
-            enter(path) {
-                switch (path.type) {
-                    case 'IfStatement':
-                    case 'ConditionalExpression':
-                    case 'ForStatement':
-                    case 'ForInStatement':
-                    case 'ForOfStatement':
-                    case 'WhileStatement':
-                    case 'DoWhileStatement':
-                    case 'CatchClause':
-                        complexity++;
-                        break;
-                    case 'LogicalExpression':
-                        if (path.node.operator === '&&' || path.node.operator === '||') complexity++;
-                        break;
-                    case 'SwitchCase':
-                        if (path.node.test) complexity++;
-                        break;
-                }
-            }
-        });
+//         traverse(ast, {
+//             enter(path) {
+//                 switch (path.type) {
+//                     case 'IfStatement':
+//                     case 'ConditionalExpression':
+//                     case 'ForStatement':
+//                     case 'ForInStatement':
+//                     case 'ForOfStatement':
+//                     case 'WhileStatement':
+//                     case 'DoWhileStatement':
+//                     case 'CatchClause':
+//                         complexity++;
+//                         break;
+//                     case 'LogicalExpression':
+//                         if (path.node.operator === '&&' || path.node.operator === '||') complexity++;
+//                         break;
+//                     case 'SwitchCase':
+//                         if (path.node.test) complexity++;
+//                         break;
+//                 }
+//             }
+//         });
 
-        return complexity;
-    } catch (error) {
-        console.error('Error calculating cyclomatic complexity:', error);
-        console.error('Function code causing error:', functionCode);
-        return 1;
-    }
-}
+//         return complexity;
+//     } catch (error) {
+//         console.error('Error calculating cyclomatic complexity:', error);
+//         console.error('Function code causing error:', functionCode);
+//         return 1;
+//     }
+// }
 
 function calculateCognitiveComplexity(funcPath, baseNesting = 0, functionName = null) {
     let complexity = 0;
@@ -370,20 +462,6 @@ function calculateCognitiveComplexity(funcPath, baseNesting = 0, functionName = 
     return { complexity, maxNesting };
 }
 
-function analyzeFile(filePath) {
-    try {
-        const code = fs.readFileSync(filePath, 'utf8');
-        return {
-            fileName: path.basename(filePath),
-            metrics: calculateMetrics(code)
-        };
-    } catch (error) {
-        return {
-            fileName: path.basename(filePath),
-            error: error.message
-        };
-    }
-}
 
 function cleanupDirectory(directory) {
     if (fs.existsSync(directory)) {
@@ -638,7 +716,8 @@ app.post('/analyze-code', express.json(), (req, res) => {
         if (babelMetrics.LOC > 0) {
             const logV = babelMetrics.halsteadVolume > 0 ? Math.log(babelMetrics.halsteadVolume) : 0;
             const logLOC = Math.log(babelMetrics.LOC);
-            const originalMI = 171 - 5.2 * logV - 0.23 * complexity_sum - 16.2 * logLOC;
+            const fileCyc = babelMetrics.fileCYC !== undefined ? babelMetrics.fileCYC : complexity_sum;
+            const originalMI = 171 - 5.2 * logV - 0.23 * fileCyc - 16.2 * logLOC;
             maintainability_index = Math.max(0, Math.min(100, originalMI * 100 / 171));
         }
 
@@ -648,7 +727,7 @@ app.post('/analyze-code', express.json(), (req, res) => {
             total_loc: babelMetrics.LOC,
             total_nloc: babelMetrics.NLOC,
             function_count: function_count,
-            total_complexity: complexity_sum,
+            total_complexity: babelMetrics.fileCYC !== undefined ? babelMetrics.fileCYC : complexity_sum,
             complexity_max: complexity_max,
             maintainability_index: parseFloat(maintainability_index.toFixed(2)),
             functions: hierarchicalFunctions, // Returns roots with nested children
