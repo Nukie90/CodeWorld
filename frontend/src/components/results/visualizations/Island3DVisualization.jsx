@@ -666,21 +666,26 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         const renderCircularIsland = (root) => {
             const renderNode = (node) => {
-                if (node.children) {
-                    // Render platform
-                    const color = getDirectoryColor(node.depth);
-                    const platformHeight = 2.5;
-                    const platformRadius = node.r;
+                const x = node.x;
+                const z = node.y;
+                const r = node.r;
+                const platformHeight = 3;
+                const y = (node.depth * platformHeight);
 
-                    const geometry = new THREE.CylinderGeometry(platformRadius, platformRadius * 1.05, platformHeight, 64);
+                if (node.children) {
+                    // Directories -> Platforms
+                    const color = getDirectoryColor(node.depth);
+                    const geometry = new THREE.CylinderGeometry(r, r + 2, platformHeight, 64);
                     const material = new THREE.MeshStandardMaterial({
                         color: color,
-                        roughness: 0.8,
-                        metalness: 0.2
+                        roughness: isDarkMode ? 0.6 : 0.9,
+                        metalness: isDarkMode ? 0.3 : 0.1,
+                        emissive: color,
+                        emissiveIntensity: 0
                     });
 
                     const mesh = new THREE.Mesh(geometry, material);
-                    mesh.position.set(node.x, node.depth * platformHeight - platformHeight / 2, node.y);
+                    mesh.position.set(x, y - (platformHeight / 2), z);
                     mesh.receiveShadow = true;
                     mesh.castShadow = true;
 
@@ -697,13 +702,62 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     geometriesToDispose.push(geometry);
                     materialsToDispose.push(material);
 
+                    // Add border ring for definition
+                    const ringGeo = new THREE.TorusGeometry(r + 0.2, 0.3, 8, 64);
+                    const ringMat = new THREE.MeshStandardMaterial({
+                        color: isDarkMode ? 0x38bdf8 : 0xffffff,
+                        transparent: true,
+                        opacity: isDarkMode ? 0.4 : 0.1,
+                        emissive: isDarkMode ? 0x0ea5e9 : 0x000000,
+                        emissiveIntensity: isDarkMode ? 0.5 : 0
+                    });
+                    const ring = new THREE.Mesh(ringGeo, ringMat);
+                    ring.rotation.x = Math.PI / 2;
+                    ring.position.set(x, y, z);
+                    scene.add(ring);
+                    geometriesToDispose.push(ringGeo);
+                    materialsToDispose.push(ringMat);
+
+                    // Add Palm Trees to the root island (shoreline)
+                    if (node.depth === 0 && showDecorations) {
+                        const numTrees = Math.floor(r / 5);
+                        for (let i = 0; i < numTrees; i++) {
+                            const angle = Math.random() * Math.PI * 2;
+                            const treeR = r - 2 - Math.random() * 5;
+                            const treeX = x + Math.cos(angle) * treeR;
+                            const treeZ = z + Math.sin(angle) * treeR;
+
+                            const trunkH = 4 + Math.random() * 2;
+                            const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, trunkH, 8);
+                            const trunkMat = new THREE.MeshStandardMaterial({ color: isDarkMode ? 0x57534e : 0x8b5a2b });
+                            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
+                            trunk.position.set(treeX, y + trunkH / 2, treeZ);
+                            scene.add(trunk);
+                            palmTrees.push(trunk);
+                            geometriesToDispose.push(trunkGeo);
+                            materialsToDispose.push(trunkMat);
+
+                            const leafGeo = new THREE.ConeGeometry(1.5, 3, 5);
+                            const leafMat = new THREE.MeshStandardMaterial({
+                                color: isDarkMode ? 0x15803d : 0x22c55e,
+                                emissive: isDarkMode ? 0x22c55e : 0x000000,
+                                emissiveIntensity: isDarkMode ? 0.2 : 0
+                            });
+                            const foliage = new THREE.Mesh(leafGeo, leafMat);
+                            foliage.position.set(treeX, y + trunkH + 1, treeZ);
+                            scene.add(foliage);
+                            geometriesToDispose.push(leafGeo);
+                            materialsToDispose.push(leafMat);
+                        }
+                    }
+
                     // Render children
                     node.children.forEach(child => renderNode(child));
                 } else {
                     // Render Tower (File)
                     const complexity = node.data.totalComplexity || 1;
                     const towerHeight = 10 + (Math.sqrt(complexity) * 15);
-                    const towerRadius = 3.0;
+                    const towerRadius = 1.8 + (r * 0.9);
 
                     const geometry = new THREE.CylinderGeometry(towerRadius, towerRadius, towerHeight, 32);
                     const isUnsupported = node.data.fileData?.is_unsupported;
@@ -722,9 +776,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     });
 
                     const mesh = new THREE.Mesh(geometry, material);
-                    const platformHeight = 2.5;
                     const parentTopY = node.depth * platformHeight;
-                    mesh.position.set(node.x, parentTopY + towerHeight / 2, node.y);
+                    mesh.position.set(x, parentTopY + towerHeight / 2, z);
 
                     mesh.castShadow = true;
                     mesh.receiveShadow = true;
@@ -753,7 +806,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         opacity: towerOpacity
                     });
                     const cap = new THREE.Mesh(capGeo, capMat);
-                    cap.position.set(node.x, parentTopY + towerHeight + 0.1, node.y);
+                    cap.position.set(x, parentTopY + towerHeight + 0.1, z);
                     scene.add(cap);
                     geometriesToDispose.push(capGeo);
                     materialsToDispose.push(capMat);
@@ -764,32 +817,6 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         data: node.data.fileData,
                         height: towerHeight
                     });
-
-                    // Decorations (Trees on platform for circular)
-                    if (showDecorations && node.depth === 0) {
-                        // Spread trees randomly on the root platform
-                        const numTrees = Math.floor(Math.random() * 5);
-                        for (let i = 0; i < numTrees; i++) {
-                            const angle = (Math.random() * Math.PI * 2);
-                            const r = Math.random() * (node.r - 10);
-                            const tx = node.x + Math.cos(angle) * r;
-                            const tz = node.y + Math.sin(angle) * r;
-
-                            const trunkH = 4 + Math.random() * 2;
-                            const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, trunkH, 8);
-                            const trunkMat = new THREE.MeshStandardMaterial({ color: isDarkMode ? 0x57534e : 0x8b5a2b });
-                            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-                            trunk.position.set(tx, trunkH / 2, tz);
-                            scene.add(trunk);
-                            palmTrees.push(trunk);
-
-                            const leafGeo = new THREE.ConeGeometry(1.5, 3, 5);
-                            const leafMat = new THREE.MeshStandardMaterial({ color: isDarkMode ? 0x15803d : 0x22c55e });
-                            const foliage = new THREE.Mesh(leafGeo, leafMat);
-                            foliage.position.set(tx, trunkH + 1, tz);
-                            scene.add(foliage);
-                        }
-                    }
                 }
             };
 
@@ -797,7 +824,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         };
 
         const renderFreeForm = (root) => {
-            const platformHeight = 2.5;
+            const platformHeight = 3;
 
             // 1. Render Platforms (Directories) recursively to handle stacking
             const renderDirectory = (node) => {
@@ -870,7 +897,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         };
 
         const renderHoneycomb = (root) => {
-            const platformHeight = 2.5;
+            const platformHeight = 3;
             const hexGeometry = new THREE.CylinderGeometry(HEX_RADIUS - HEX_MARGIN, HEX_RADIUS - HEX_MARGIN, HEX_HEIGHT, 6);
             hexGeometry.rotateY(Math.PI / 6);
             geometriesToDispose.push(hexGeometry);
@@ -978,7 +1005,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             root.leaves().forEach(leaf => {
                 const complexity = leaf.data.totalComplexity || 1;
                 const towerHeight = 10 + (Math.sqrt(complexity) * 15);
-                const towerRadius = 3.0;
+                const towerRadius = 1.8 + (leaf.r * 0.9);
 
                 const geometry = new THREE.CylinderGeometry(towerRadius, towerRadius, towerHeight, 32);
                 const isUnsupported = leaf.data.fileData?.is_unsupported;
