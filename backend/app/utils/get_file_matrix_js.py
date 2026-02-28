@@ -62,6 +62,7 @@ def _parse_response(data: dict) -> Optional[FileMetrics]:
             function_count=data["function_count"],
             total_complexity=data["total_complexity"],
             complexity_max=data["complexity_max"],
+            maintainability_index=data.get("maintainability_index"),
             functions=functions,
         )
     except (KeyError, TypeError) as e:

@@ -195,6 +195,14 @@ def analyze_local_folder(
             all_files.append((file_path, relative_path))
 
     file_metrics_list: List[FileMetrics] = []
+    total_loc = 0
+    total_nloc = 0
+    total_functions = 0
+    total_complexity = 0
+    complexity_max = 0
+    total_mi = 0.0
+    valid_mi_files = 0
+
     num_files = len(all_files)
 
     if progress_callback:
@@ -239,6 +247,8 @@ def analyze_local_folder(
         progress_callback(95, "Aggregating metrics")
 
     total_loc = total_nloc = total_functions = total_complexity = complexity_max = 0
+    total_mi = 0.0
+    valid_mi_files = 0
     for fm in file_metrics_list:
         total_loc += fm.total_loc
         total_nloc += fm.total_nloc
@@ -246,12 +256,19 @@ def analyze_local_folder(
         total_complexity += fm.total_complexity
         if (fm.complexity_max or 0) > complexity_max:
             complexity_max = fm.complexity_max
+        if getattr(fm, 'maintainability_index', None) is not None:
+            total_mi += fm.maintainability_index
+            valid_mi_files += 1
 
     folder_metrics = FolderMetrics(
         folder_name=os.path.basename(path),
         total_files=len(file_metrics_list),
-        total_loc=total_loc, total_nloc=total_nloc,
-        total_functions=total_functions, total_complexity=total_complexity,
-        complexity_max=complexity_max, files=file_metrics_list,
+        total_loc=total_loc,
+        total_nloc=total_nloc,
+        total_functions=total_functions,
+        total_complexity=total_complexity,
+        complexity_max=complexity_max,
+        maintainability_index=round(total_mi / valid_mi_files, 2) if valid_mi_files > 0 else None,
+        files=file_metrics_list,
     )
     return FolderAnalysisResult(folder_metrics=folder_metrics, individual_files=file_metrics_list)

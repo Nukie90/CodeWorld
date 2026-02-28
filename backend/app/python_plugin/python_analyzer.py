@@ -183,25 +183,43 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
              total_loc=len(code.splitlines()),
              total_nloc=0,
              function_count=0,
-             complexity_avg=0,
+             total_complexity=0,
              complexity_max=0,
+             maintainability_index=0.0,
              functions=[]
         )
 
     # Count NLOC (Non-Comment Lines of Code)
     # Using tokenize to skip comments and empty lines
+    import math
+    N_total = 0
+    unique_tokens = set()
+
     nloc = 0
     try:
         tokens = list(tokenize.tokenize(BytesIO(code.encode('utf-8')).readline))
         lines_with_code = set()
         for tok in tokens:
             if tok.type not in (tokenize.COMMENT, tokenize.NL, tokenize.NEWLINE, tokenize.ENDMARKER, tokenize.INDENT, tokenize.DEDENT, tokenize.ENCODING):
-                # Strings (docstrings) are technically code in Python if they are expressions.
-                # Use start line
                 lines_with_code.add(tok.start[0])
+                if tok.string.strip():
+                    N_total += 1
+                    unique_tokens.add(tok.string)
         nloc = len(lines_with_code)
     except tokenize.TokenError:
         nloc = len([l for l in code.splitlines() if l.strip() and not l.strip().startswith('#')])
+
+    n_unique = len(unique_tokens)
+    halstead_volume = N_total * math.log2(n_unique) if n_unique > 0 else 0
+
+    try:
+        import lizard
+        lizard_info = lizard.analyze_file.analyze_source_code(filename, code)
+        lizard_funcs = lizard_info.function_list
+        lizard_global_cc = lizard_info.average_cyclomatic_complexity
+    except Exception:
+        lizard_funcs = []
+        lizard_global_cc = 1
 
     functions = []
 
@@ -224,9 +242,11 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
     global_metric = FunctionMetric(
         name=GLOBAL_FUNC_NAME,
         long_name=GLOBAL_FUNC_NAME,
-        cyclomatic_complexity=global_res["complexity"],
+        cognitive_complexity=global_res["complexity"],
+        cyclomatic_complexity=int(lizard_global_cc) if lizard_global_cc else 1,
         nloc=0, # To be updated
         token_count=0,
+        maintainability_index=100.0,
         start_line=1,
         end_line=len(code.splitlines()),
         max_nesting_depth=global_res["max_nesting"],
@@ -235,6 +255,7 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
     )
     functions.append(global_metric)
     
+    fn_halstead_map = {}
     class FunctionVisitor(ast.NodeVisitor):
         def __init__(self):
             # Parent ID stack. Start with None (no parent) for top-level functions.
@@ -300,13 +321,21 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
             # Calculate metrics
             res = calculate_cognitive_complexity(node, base_nesting=base_nesting, function_name=name)
             
+            # Python tokens calculation for function Halstead
+            fn_tokens = [tok for tok in tokens if start_line <= tok.start[0] <= end_line and tok.type not in (tokenize.COMMENT, tokenize.NL, tokenize.NEWLINE, tokenize.ENDMARKER, tokenize.INDENT, tokenize.DEDENT, tokenize.ENCODING)]
+            n_fn = len([t for t in fn_tokens if t.string.strip()])
+            unique_fn_tokens = {t.string for t in fn_tokens if t.string.strip()}
+            n_unique_fn = len(unique_fn_tokens)
+            fn_halstead_map[start_line] = n_fn * math.log2(n_unique_fn) if n_unique_fn > 0 else 0
+            
             # NLOC calculation
             func_nloc = len([l for l in lines_with_code if start_line <= l <= end_line])
 
             functions.append(FunctionMetric(
                 name=name,
                 long_name=name,
-                cyclomatic_complexity=res["complexity"],
+                cognitive_complexity=res["complexity"],
+                cyclomatic_complexity=0, # Will be set via lizard
                 nloc=func_nloc,
                 token_count=0,
                 start_line=start_line,
@@ -337,9 +366,40 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
     top_level_nloc = sum(f.nloc for f in functions if f.parentId is None and f.id != -1)
     global_metric.nloc = max(0, nloc - top_level_nloc)
     
+    # Map lizard functions to AST functions for cyclomatic_complexity
+    for f in functions:
+        if f.id == -1: 
+            # Global metric handled already
+            continue
+            
+        best_match = None
+        min_dist = float('inf')
+        for lf in lizard_funcs:
+            if lf.name == f.name:
+                dist = abs(lf.start_line - (f.start_line or 0))
+                if dist < min_dist:
+                    min_dist = dist
+                    best_match = lf
+                    
+        if best_match:
+            f.cyclomatic_complexity = best_match.cyclomatic_complexity
+        else:
+            f.cyclomatic_complexity = 1  # Fallback if no matching lizard function found
+            
+        # Calculate MI for function
+        fn_loc = (f.end_line - (f.start_line or 1) + 1) if f.end_line else 1
+        mi = 100.0
+        if fn_loc > 0:
+            fn_halstead = fn_halstead_map.get(f.id, 0)
+            log_v = math.log(fn_halstead) if fn_halstead > 0 else 0
+            log_loc = math.log(fn_loc)
+            orig_mi = 171 - 5.2 * log_v - 0.23 * f.cyclomatic_complexity - 16.2 * log_loc
+            mi = max(0.0, min(100.0, orig_mi * 100.0 / 171.0))
+        f.maintainability_index = round(mi, 2)
+
     # Stats
-    complexity_sum = sum(f.cyclomatic_complexity for f in functions)
-    complexity_max = max(f.cyclomatic_complexity for f in functions) if functions else 0
+    complexity_sum = sum(f.cyclomatic_complexity for f in functions if f.cyclomatic_complexity is not None)
+    complexity_max = max((f.cyclomatic_complexity for f in functions if f.cyclomatic_complexity is not None), default=0)
     complexity_avg = round(complexity_sum / len(functions), 2) if functions else 0.0
     
     # Build hierarchy
@@ -365,21 +425,32 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         for c in f.children:
             child_sum += compute_total_cc(c)
         
-        # Determine base complexity: use cyclomatic_complexity field which holds our calculated CogC
-        base_cc = f.cyclomatic_complexity or 0
+        # Determine base complexity: use cognitive_complexity field which holds our calculated CogC
+        base_cc = f.cognitive_complexity or 0
         f.total_cognitive_complexity = base_cc + child_sum
         return f.total_cognitive_complexity
 
     for r in roots:
         compute_total_cc(r)
     
+    # Calculate Maintainability Index
+    loc = len(code.splitlines())
+    maintainability_index = 100.0
+    if loc > 0:
+        log_v = math.log(halstead_volume) if halstead_volume > 0 else 0
+        log_loc = math.log(loc)
+        original_mi = 171 - 5.2 * log_v - 0.23 * complexity_sum - 16.2 * log_loc
+        mi_normalized = max(0.0, min(100.0, original_mi * 100.0 / 171.0))
+        maintainability_index = round(mi_normalized, 2)
+
     return FileMetrics(
         filename=filename,
         language="python",
-        total_loc=len(code.splitlines()),
+        total_loc=loc,
         total_nloc=nloc,
         function_count=len(functions),
         total_complexity=complexity_sum,
         complexity_max=complexity_max,
+        maintainability_index=maintainability_index,
         functions=roots
     )

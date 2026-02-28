@@ -53,8 +53,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const calculateFileMetrics = (file) => {
         const totalLoc = file.total_nloc || file.total_loc || 1;
         const totalComplexity = file.total_complexity || 0;
+        const maintainabilityIndex = file.maintainability_index ?? 100;
 
-        return { totalLoc, totalComplexity, numFunctions: (file.functions || []).length };
+        return { totalLoc, totalComplexity, maintainabilityIndex, numFunctions: (file.functions || []).length };
     };
 
     const buildHierarchy = (files) => {
@@ -71,13 +72,14 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
                 if (!existingNode) {
                     if (isFile) {
-                        const { totalLoc, totalComplexity, numFunctions } = calculateFileMetrics(file);
+                        const { totalLoc, totalComplexity, maintainabilityIndex, numFunctions } = calculateFileMetrics(file);
                         existingNode = {
                             name: part,
                             type: 'file',
                             fileData: file,
                             value: totalLoc, // D3 pack uses 'value' for size
                             totalComplexity: totalComplexity,
+                            maintainabilityIndex: maintainabilityIndex,
                             totalLoc: totalLoc,
                             numFunctions: numFunctions
                         };
@@ -109,42 +111,42 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const minComplexity = allComplexities.length > 0 ? Math.min(...allComplexities) : 1;
     const maxComplexity = allComplexities.length > 0 ? Math.max(...allComplexities) : 10;
 
-    const getComplexityColor = (complexity) => {
-        if (complexity === undefined || complexity === null || complexity === 0) {
+    const getMaintainabilityColor = (index) => {
+        if (index === undefined || index === null) {
             return 0x6b7280; // Gray
         }
-        if (maxComplexity === minComplexity) {
-            return 0x10b981; // Emerald
-        }
-        const normalized = (complexity - minComplexity) / (maxComplexity - minComplexity);
+
+        const clamped = Math.max(0, Math.min(100, index));
 
         if (isDarkMode) {
-            // Neon Gradient: Cyan -> Pink -> Purple -> Red
-            if (normalized < 0.33) {
-                const t = normalized * 3;
-                return new THREE.Color(0x06b6d4).lerp(new THREE.Color(0xec4899), t).getHex();
-            } else if (normalized < 0.66) {
-                const t = (normalized - 0.33) * 3;
-                return new THREE.Color(0xec4899).lerp(new THREE.Color(0xa855f7), t).getHex();
-            } else {
-                const t = (normalized - 0.66) * 3;
+            if (clamped < 10) {
+                // 0-9: purple → red
+                const t = clamped / 9;
                 return new THREE.Color(0xa855f7).lerp(new THREE.Color(0xff0055), t).getHex();
+            } else if (clamped < 20) {
+                // 10-19: purple → amber
+                const t = (clamped - 10) / 9;
+                return new THREE.Color(0xa855f7).lerp(new THREE.Color(0xec4899), t).getHex();
+            } else {
+                // 20-100: pink → cyan
+                const t = (clamped - 20) / 80;
+                return new THREE.Color(0x56d3e9).lerp(new THREE.Color(0x06b6d4), t).getHex();
             }
         }
 
-        // Green -> Yellow -> Red
-        if (normalized < 0.5) {
-            const t = normalized * 2;
-            const r = Math.round(16 + t * (245 - 16));
-            const g = Math.round(185 - t * (185 - 158));
-            const b = Math.round(129 - t * (129 - 11));
-            return (r << 16) | (g << 8) | b;
+        // Light mode: muted dark → saturated bright within each band
+        if (clamped < 10) {
+            // 0-9: dark red → bright red
+            const t = clamped / 9;
+            return new THREE.Color(0x991b1b).lerp(new THREE.Color(0xef4444), t).getHex();
+        } else if (clamped < 20) {
+            // 10-19: dark amber → bright yellow
+            const t = (clamped - 10) / 9;
+            return new THREE.Color(0x92400e).lerp(new THREE.Color(0xf59e0b), t).getHex();
         } else {
-            const t = (normalized - 0.5) * 2;
-            const r = Math.round(245 + t * (244 - 245));
-            const g = Math.round(158 - t * (158 - 63));
-            const b = Math.round(11 + t * (94 - 11));
-            return (r << 16) | (g << 8) | b;
+            // 20-100: dark green → bright green
+            const t = (clamped - 20) / 80;
+            return new THREE.Color(0x166534).lerp(new THREE.Color(0x22c55e), t).getHex();
         }
     };
 
@@ -339,19 +341,19 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     const oldMetrics = calculateFileMetrics(oldFile);
                     const newMetrics = calculateFileMetrics(newFile);
 
-                    // Animate height change if LOC changed
-                    if (oldMetrics.totalLoc !== newMetrics.totalLoc) {
+                    // Animate height change if complexity changed
+                    if (oldMetrics.totalComplexity !== newMetrics.totalComplexity) {
                         const oldHeight = 10 + (Math.sqrt(oldMetrics.totalComplexity || 1) * 15);
                         const newHeight = 10 + (Math.sqrt(newMetrics.totalComplexity || 1) * 15);
                         animateBuildingHeight(buildingData.mesh, buildingData.cap, newHeight, oldHeight, 0.5);
                     }
 
-                    // Animate color change if complexity changed
-                    if (oldMetrics.totalComplexity !== newMetrics.totalComplexity) {
+                    // Animate color change if maintainability index changed
+                    if (oldMetrics.maintainabilityIndex !== newMetrics.maintainabilityIndex) {
                         const isUnsupported = newFile.is_unsupported;
                         const newColor = isUnsupported
                             ? (isDarkMode ? 0xcfcfcf : 0x9ca3af)
-                            : getComplexityColor(newMetrics.totalComplexity);
+                            : getMaintainabilityColor(newMetrics.maintainabilityIndex);
                         animateBuildingColor(buildingData.mesh, buildingData.cap, newColor, 0.5);
                     }
 
@@ -362,6 +364,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         name: newFile.filename.split('/').pop(),
                         ...newFile,
                         totalComplexity: newMetrics.totalComplexity.toFixed(2),
+                        maintainabilityIndex: newMetrics.maintainabilityIndex,
                         totalLoc: newMetrics.totalLoc,
                         numFunctions: newMetrics.numFunctions
                     };
@@ -638,10 +641,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 const towerRadius = 1.8 + (r * 0.9);
 
                 const geometry = new THREE.CylinderGeometry(towerRadius, towerRadius, towerHeight, 32);
+                const maintainabilityIndex = node.data.maintainabilityIndex ?? 100;
                 const isUnsupported = node.data.fileData?.is_unsupported;
                 const color = isUnsupported
                     ? (isDarkMode ? 0xcfcfcf : 0x9ca3af) // White in dark mode, Gray for unsupported
-                    : getComplexityColor(complexity);
+                    : getMaintainabilityColor(maintainabilityIndex);
                 const material = new THREE.MeshStandardMaterial({
                     color: color,
                     roughness: 0.3,
@@ -670,6 +674,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     name: node.data.name,
                     ...node.data.fileData,
                     totalComplexity: complexity.toFixed(2),
+                    maintainabilityIndex: node.data.maintainabilityIndex,
                     totalLoc: node.data.totalLoc,
                     numFunctions: node.data.numFunctions
                 };
@@ -754,7 +759,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             // Central Core (File)
             const coreRadius = 20;
             const coreGeo = new THREE.SphereGeometry(coreRadius, 64, 64);
-            const coreColor = getComplexityColor(focusedFile.totalComplexity);
+            const coreColor = getMaintainabilityColor(focusedFile.maintainabilityIndex);
             const coreMat = new THREE.MeshStandardMaterial({
                 color: coreColor,
                 roughness: 0.2,
@@ -1171,7 +1176,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     <div className="bg-white/95 backdrop-blur-md rounded-xl shadow-2xl p-4 border border-gray-200/50">
                         <div className="flex items-center gap-2 mb-2">
                             {hoveredObject.type === 'file' || hoveredObject.type === 'function' ? (
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `#${getComplexityColor(parseFloat(hoveredObject.complexity || hoveredObject.totalComplexity)).toString(16).padStart(6, '0')}` }} />
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: `#${getMaintainabilityColor(hoveredObject.type === 'function' ? (hoveredObject.complexity * 5) : hoveredObject.maintainabilityIndex).toString(16).padStart(6, '0')}` }} />
                             ) : (
                                 <div className="w-3 h-3 rounded-sm bg-amber-200" />
                             )}
@@ -1186,6 +1191,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                                     </div>
                                 ) : (
                                     <>
+                                        <div className="flex justify-between gap-4">
+                                            <span>Maintainability Index:</span>
+                                            <span className="font-medium text-gray-900">{hoveredObject.maintainabilityIndex?.toFixed(2)}</span>
+                                        </div>
                                         <div className="flex justify-between gap-4">
                                             <span>Total Complexity:</span>
                                             <span className="font-medium text-gray-900">{hoveredObject.totalComplexity}</span>
@@ -1321,8 +1330,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         <span>Tower = File</span>
                     </div>
                     <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1 bg-gradient-to-r from-emerald-500 via-amber-500 to-rose-500 rounded-full w-16" />
-                        <span>Complexity</span>
+                        <div className="flex-1 h-1 bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500 rounded-full w-16" />
+                        <span>Maintainability</span>
                     </div>
                 </div>
             </div>

@@ -7,7 +7,7 @@ const code = fs.readFileSync(path.join(__dirname, 'temp_code.jsx'), 'utf8');
 
 const postData = JSON.stringify({
     code: code,
-    filename: 'sfs'
+    filename: 'test.jsx'
 });
 
 const options = {

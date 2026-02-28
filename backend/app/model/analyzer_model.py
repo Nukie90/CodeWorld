@@ -11,6 +11,7 @@ class FunctionMetric(BaseModel):
     cognitive_complexity: Optional[int] = None
     cyclomatic_complexity: Optional[int] = None
     total_cognitive_complexity: Optional[int] = None
+    maintainability_index: Optional[float] = None
     max_nesting_depth: int
     token_count: int
     id: Optional[int] = None
@@ -25,6 +26,7 @@ class FileMetrics(BaseModel):
     function_count: int
     total_complexity: int
     complexity_max: int
+    maintainability_index: Optional[float] = None
     is_unsupported: bool = False
     functions: List[FunctionMetric]
 
@@ -36,6 +38,7 @@ class FolderMetrics(BaseModel):
     total_functions: int
     total_complexity: int
     complexity_max: int
+    maintainability_index: Optional[float] = None
     files: List[FileMetrics]
 
 class FolderAnalysisResult(BaseModel):
