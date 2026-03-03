@@ -137,6 +137,7 @@ function calculateMetrics(code) {
             CC: globalCC,
             CYC: globalCYC,
             MI: parseFloat(globalMI.toFixed(2)),
+            halsteadVolume: 0.0,
             maxNesting: globalMaxNesting,
             lineStart: 1,
             lineEnd: loc,
@@ -256,6 +257,7 @@ function calculateMetrics(code) {
                     CC: complexity,
                     CYC: cyclomaticComplexity,
                     MI: parseFloat(mi.toFixed(2)),
+                    halsteadVolume: fnHalsteadVolume,
                     maxNesting,
                     lineStart,
                     lineEnd,
@@ -686,7 +688,7 @@ app.post('/analyze-code', express.json(), (req, res) => {
                 cyclomatic_complexity: f.CYC,
                 maintainability_index: f.MI ?? 100.0,
                 nloc: f.NLOC,
-                token_count: 0,
+                halstead_volume: f.halsteadVolume || 0.0,
                 name: f.name,
                 long_name: currentLongName,
                 start_line: f.lineStart,
@@ -729,6 +731,7 @@ app.post('/analyze-code', express.json(), (req, res) => {
             function_count: function_count,
             total_complexity: babelMetrics.fileCYC !== undefined ? babelMetrics.fileCYC : complexity_sum,
             complexity_max: complexity_max,
+            halstead_volume: babelMetrics.halsteadVolume || 0.0,
             maintainability_index: parseFloat(maintainability_index.toFixed(2)),
             functions: hierarchicalFunctions, // Returns roots with nested children
         };
@@ -790,7 +793,7 @@ app.post('/analyze-batch', express.json({ limit: '50mb' }), (req, res) => {
                     cognitive_complexity: f.CC,
                     total_cognitive_complexity: f.totalCC,
                     nloc: f.NLOC,
-                    token_count: 0,
+                    halstead_volume: f.halsteadVolume || 0.0,
                     name: f.name,
                     long_name: currentLongName,
                     start_line: f.lineStart,
@@ -816,6 +819,7 @@ app.post('/analyze-batch', express.json({ limit: '50mb' }), (req, res) => {
                 function_count: babelMetrics.functions.length,
                 total_complexity: complexity_sum,
                 complexity_max,
+                halstead_volume: babelMetrics.halsteadVolume || 0.0,
                 functions: hierarchicalFunctions,
             };
         } catch (error) {
