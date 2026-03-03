@@ -125,13 +125,13 @@ function GitGraph({ repoUrl, branch, token, activeCommitHash, onCommitClick, ext
           {commits.map((commit) => (
             <div
               key={commit.hash}
-              className={`flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer group ${activeCommitHash === commit.hash
+              className={`flex items-start gap-3 p-3 rounded-xl border transition-all cursor-pointer group backdrop-blur-md ${activeCommitHash === commit.hash
                 ? isDarkMode
-                  ? 'bg-blue-900/20 border-blue-500 shadow-sm ring-1 ring-blue-500'
-                  : 'bg-blue-50 border-blue-500 shadow-sm ring-1 ring-blue-500'
+                  ? 'bg-blue-600/30 border-blue-400 shadow-[0_0_15px_rgba(59,130,246,0.2)] ring-1 ring-blue-400'
+                  : 'bg-blue-500/10 border-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.1)] ring-1 ring-blue-500'
                 : isDarkMode
-                  ? 'border-gray-700 hover:bg-gray-800 hover:border-blue-500'
-                  : 'border-gray-200 hover:bg-gray-50 hover:border-blue-300'
+                  ? 'bg-white/5 border-white/5 hover:bg-white/10 hover:border-white/20'
+                  : 'bg-black/5 border-black/5 hover:bg-black/10 hover:border-black/10'
                 }`}
               onClick={() => onCommitClick && onCommitClick(commit)}
               onDoubleClick={() => onCommitDoubleClick && onCommitDoubleClick(commit)}
@@ -167,7 +167,7 @@ function GitGraph({ repoUrl, branch, token, activeCommitHash, onCommitClick, ext
       {/* Load More Button */}
       {
         hasMore && commits.length > 0 && (
-          <div className={`p-3 border-t ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
+          <div className={`p-3 border-t backdrop-blur-md ${isDarkMode ? 'border-white/5' : 'border-black/5'}`}>
             <button
               onClick={handleLoadMore}
               disabled={loadingMore}

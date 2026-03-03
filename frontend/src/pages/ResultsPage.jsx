@@ -546,7 +546,7 @@ function ResultsPage() {
 
       {/* Left Panel - Git Graph (Slide in/out) - Modern Design */}
       <div
-        className={`absolute left-0 top-0 h-full ${isDarkMode ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-xl shadow-2xl ${isDragging ? 'transition-none duration-0' : 'transition-transform duration-300'} z-30 border-r ${isDarkMode ? 'border-white/10' : 'border-gray-200/50'}`}
+        className={`absolute left-0 top-0 h-full ${isDarkMode ? 'bg-gray-900/20' : 'bg-white/60'} backdrop-blur-xl shadow-2xl ${isDragging ? 'transition-none duration-0' : 'transition-transform duration-300'} z-30 border-r ${isDarkMode ? 'border-white/10' : 'border-black/5'}`}
         style={{
           width: `${leftPanelWidth}px`,
           transform: isLeftPanelOpen ? 'translateX(0)' : `translateX(-${leftPanelWidth}px)`
@@ -709,7 +709,7 @@ function ResultsPage() {
           )}
 
           {analysisResult?.repo_url && currentBranch ? (
-            <div className={`flex-1 min-h-0 overflow-hidden rounded-xl ${isDarkMode ? 'bg-gray-900' : 'bg-white'} border ${borderColor} shadow-inner`}>
+            <div className={`flex-1 min-h-0 overflow-hidden rounded-xl ${isDarkMode ? 'bg-black/0' : 'bg-white/0'} backdrop-blur-md border ${isDarkMode ? 'border-white/0' : 'border-black/0'} shadow-inner`}>
               <GitGraph
                 repoUrl={analysisResult.repo_url}
                 branch={currentBranch}
