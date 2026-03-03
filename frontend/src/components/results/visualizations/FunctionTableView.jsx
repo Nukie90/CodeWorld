@@ -41,8 +41,8 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
 
                 // Handle special cases or defaults
                 if (sortConfig.key === 'complexity') {
-                    aValue = a.cyclomatic_complexity || 0;
-                    bValue = b.cyclomatic_complexity || 0;
+                    aValue = a.cognitive_complexity || 0;
+                    bValue = b.cognitive_complexity || 0;
                 }
                 if (sortConfig.key === 'nloc') {
                     aValue = a.nloc || 0;
@@ -195,8 +195,8 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                                     </div>
                                     <span className="truncate" title={fn.long_name || fn.name}>{fn.name}</span>
                                 </div>
-                                <div className={`col-span-2 text-right font-mono text-sm ${getComplexityColor(fn.cyclomatic_complexity)}`}>
-                                    {fn.cyclomatic_complexity}
+                                <div className={`col-span-2 text-right font-mono text-sm ${getComplexityColor(fn.cognitive_complexity)}`}>
+                                    {fn.cognitive_complexity}
                                 </div>
                                 <div className={`col-span-2 text-right font-mono text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                                     {fn.nloc}
