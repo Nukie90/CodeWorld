@@ -219,8 +219,10 @@ function ResultsPage() {
     }
   }
 
-  const handlePlayAnimation = async () => {
-    if (isAnimating) {
+  const handlePlayAnimation = async (customStartIndex = null) => {
+    const isOverride = typeof customStartIndex === 'number';
+
+    if (isAnimating && !isOverride) {
       setIsAnimating(false)
       isAnimatingRef.current = false
       if (animationRef.current) {
@@ -230,6 +232,11 @@ function ResultsPage() {
     }
 
     if (!analysisResult?.repo_url || !currentBranch) return
+
+    // Clear previous timeout if restarting with an override while playing
+    if (isAnimating && isOverride && animationRef.current) {
+      clearTimeout(animationRef.current);
+    }
 
     setIsAnimating(true)
     isAnimatingRef.current = true
@@ -306,7 +313,8 @@ function ResultsPage() {
         animationRef.current = setTimeout(() => runStep(index + 1), waitDelay)
       }
 
-      await runStep(currentCommitIndex === -1 || currentCommitIndex >= commits.length - 1 ? 0 : currentCommitIndex + 1)
+      const startIdx = isOverride ? customStartIndex : (currentCommitIndex === -1 || currentCommitIndex >= commits.length - 1 ? 0 : currentCommitIndex + 1);
+      await runStep(startIdx);
 
 
     } catch (err) {
@@ -315,6 +323,52 @@ function ResultsPage() {
       isAnimatingRef.current = false
     }
   }
+
+  const handlePlayFromDate = async (daysAgo) => {
+    if (!analysisResult?.repo_url || !currentBranch) return;
+
+    let commits = allCommits;
+    if (commits.length === 0) {
+      setBranchLoading(true);
+      try {
+        const resp = await axios.post('http://127.0.0.1:8000/api/repo/commits', {
+          repo_url: analysisResult.repo_url,
+          branch: currentBranch,
+          limit: 1000,
+          token: token
+        });
+        const fetchedCommits = resp.data.commits || [];
+        if (fetchedCommits.length === 0) {
+          setBranchLoading(false);
+          return;
+        }
+        commits = [...fetchedCommits].reverse();
+        setAllCommits(commits);
+      } catch (err) {
+        console.error('Failed to fetch commits for date filter', err);
+        setBranchLoading(false);
+        return;
+      }
+      setBranchLoading(false);
+    }
+
+    const targetDate = new Date();
+    targetDate.setDate(targetDate.getDate() - daysAgo);
+
+    // Filter commits logically (commits are chronological)
+    let targetIndex = commits.findIndex(c => new Date(c.date) >= targetDate);
+
+    // If no exact match after date, default to edges
+    if (targetIndex === -1) {
+      if (new Date(commits[0].date) >= targetDate) {
+        targetIndex = 0;
+      } else {
+        targetIndex = commits.length - 1;
+      }
+    }
+
+    handlePlayAnimation(targetIndex);
+  };
 
   const handleStepPrev = async () => {
     if (isAnimating || currentCommitIndex <= 0) return
@@ -549,6 +603,41 @@ function ResultsPage() {
                 className="w-20 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-blue-600"
               />
             </div>
+          </div>
+
+          {/* Timeline Quick Filters */}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} w-full`}>
+              Start Timeline From:
+            </span>
+            <button
+              onClick={() => handlePlayFromDate(0)}
+              disabled={branchLoading || branches.length === 0}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isDarkMode ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white' : 'bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:text-blue-600'} border shadow-sm disabled:opacity-50 flex-1`}
+            >
+              Today
+            </button>
+            <button
+              onClick={() => handlePlayFromDate(1)}
+              disabled={branchLoading || branches.length === 0}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isDarkMode ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white' : 'bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:text-blue-600'} border shadow-sm disabled:opacity-50 flex-1`}
+            >
+              Yesterday
+            </button>
+            <button
+              onClick={() => handlePlayFromDate(7)}
+              disabled={branchLoading || branches.length === 0}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isDarkMode ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white' : 'bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:text-blue-600'} border shadow-sm disabled:opacity-50 flex-1`}
+            >
+              1 Wk
+            </button>
+            <button
+              onClick={() => handlePlayFromDate(14)}
+              disabled={branchLoading || branches.length === 0}
+              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isDarkMode ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white' : 'bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:text-blue-600'} border shadow-sm disabled:opacity-50 flex-1`}
+            >
+              2 Wks
+            </button>
           </div>
 
           <select
