@@ -60,7 +60,12 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const searchBeaconRef = useRef(null);
     const highlightTimelineRef = useRef(null);
     const focusedMeshRef = useRef(null);
+    const focusedCapRef = useRef(null);
+    const focusedMeshOrigYRef = useRef(0);
+    const focusedCapOrigYRef = useRef(0);
+    const searchFocusedRef = useRef(isSearchFocused);
     animatingCommitRef.current = animatingCommit;
+    searchFocusedRef.current = isSearchFocused;
 
     isTimelinePlayingRef.current = isTimelinePlaying;
     showContributorsRef.current = showContributors;
@@ -701,19 +706,31 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             highlightTimelineRef.current.kill();
             highlightTimelineRef.current = null;
         }
-        if (focusedMeshRef.current && focusedMeshRef.current.material.emissive) {
-            // Restore default emissive
-            const defaultIntensity = isDarkMode ? (focusedMeshRef.current.userData.type === 'file' ? 0.6 : 0) : 0;
-            const targetColor = focusedMeshRef.current.material.color;
+        if (focusedMeshRef.current) {
+            const mesh = focusedMeshRef.current;
+            const cap = focusedCapRef.current;
 
-            gsap.to(focusedMeshRef.current.material.emissive, {
-                r: targetColor.r,
-                g: targetColor.g,
-                b: targetColor.b,
-                duration: 0.5
-            });
-            focusedMeshRef.current.material.emissiveIntensity = defaultIntensity;
+            // Restore default emissive
+            if (mesh.material.emissive) {
+                const defaultIntensity = isDarkMode ? (mesh.userData.type === 'file' ? 0.6 : 0) : 0;
+                const targetColor = mesh.material.color;
+                gsap.to(mesh.material.emissive, {
+                    r: targetColor.r, g: targetColor.g, b: targetColor.b,
+                    duration: 0.5
+                });
+                mesh.material.emissiveIntensity = defaultIntensity;
+            }
+
+            // Restore original positions & rotations
+            gsap.to(mesh.position, { y: focusedMeshOrigYRef.current, duration: 0.5, ease: "power2.out" });
+            gsap.to(mesh.rotation, { x: 0, z: 0, duration: 0.5, ease: "power2.out" });
+            if (cap) {
+                gsap.to(cap.position, { y: focusedCapOrigYRef.current, duration: 0.5, ease: "power2.out" });
+                gsap.to(cap.rotation, { x: 0, z: 0, duration: 0.5, ease: "power2.out" });
+            }
+
             focusedMeshRef.current = null;
+            focusedCapRef.current = null;
         }
         if (searchBeaconRef.current) {
             searchBeaconRef.current.visible = false;
@@ -730,13 +747,30 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         const { mesh, cap } = buildingData;
         focusedMeshRef.current = mesh;
+        focusedCapRef.current = cap;
+        focusedMeshOrigYRef.current = mesh.position.y;
+        focusedCapOrigYRef.current = cap.position.y;
+
         const targetPos = new THREE.Vector3();
         cap.getWorldPosition(targetPos);
 
-        // 1. Visual Highlight Pulse (Infinite)
-        const originalEmissive = mesh.material.emissive.clone();
-        highlightTimelineRef.current = gsap.timeline({ repeat: -1, yoyo: true })
-            .to(mesh.material.emissive, { r: 1, g: 1, b: 1, duration: 0.8, ease: "sine.inOut" });
+        // 1. Visual Highlight Pulse & Bounce/Shake (Infinite)
+        highlightTimelineRef.current = gsap.timeline({ repeat: -1 });
+
+        // Emissive Pulse
+        highlightTimelineRef.current.to(mesh.material.emissive, {
+            r: 1, g: 1, b: 1, duration: 0.8, yoyo: true, repeat: -1, ease: "sine.inOut"
+        }, 0);
+
+        // Bouncing Animation
+        const bounceDist = 10;
+        highlightTimelineRef.current.to([mesh.position, cap.position], {
+            y: (i) => (i === 0 ? focusedMeshOrigYRef.current : focusedCapOrigYRef.current) + bounceDist,
+            duration: 0.6,
+            yoyo: true,
+            repeat: -1,
+            ease: "power1.inOut"
+        }, 0);
 
         mesh.material.emissiveIntensity = isDarkMode ? 1.0 : 0.8;
 
@@ -1372,12 +1406,16 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
             const keys = keysRef.current;
             const moveVec = new THREE.Vector3();
-            if (keys['w']) moveVec.z -= moveSpeed * 2;
-            if (keys['s']) moveVec.z += moveSpeed * 2;
-            if (keys['a']) moveVec.x -= moveSpeed * 2;
-            if (keys['d']) moveVec.x += moveSpeed * 2;
-            if (keys['q']) moveVec.y += moveSpeed * 2;
-            if (keys['e']) moveVec.y -= moveSpeed * 2;
+
+            // Only move if search is not focused
+            if (!searchFocusedRef.current) {
+                if (keys['w']) moveVec.z -= moveSpeed * 2;
+                if (keys['s']) moveVec.z += moveSpeed * 2;
+                if (keys['a']) moveVec.x -= moveSpeed * 2;
+                if (keys['d']) moveVec.x += moveSpeed * 2;
+                if (keys['q']) moveVec.y += moveSpeed * 2;
+                if (keys['e']) moveVec.y -= moveSpeed * 2;
+            }
 
             if (moveVec.length() > 0) {
                 moveVec.applyQuaternion(camera.quaternion);
