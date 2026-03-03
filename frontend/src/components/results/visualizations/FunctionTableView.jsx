@@ -44,9 +44,11 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                     aValue = a.cognitive_complexity || 0;
                     bValue = b.cognitive_complexity || 0;
                 }
-                if (sortConfig.key === 'nloc') {
-                    aValue = a.nloc || 0;
-                    bValue = b.nloc || 0;
+
+                // Ensure numerical comparison for all metric keys
+                if (['nloc', 'start_line', 'cognitive_complexity', 'cyclomatic_complexity', 'total_cognitive_complexity', 'maintainability_index', 'max_nesting_depth', 'halstead_volume'].includes(sortConfig.key)) {
+                    aValue = Number(aValue) || 0;
+                    bValue = Number(bValue) || 0;
                 }
 
                 if (aValue < bValue) {
@@ -75,11 +77,27 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
     };
 
     const getComplexityColor = (complexity) => {
-        if (!complexity) return isDarkMode ? 'text-gray-400' : 'text-gray-500';
+        if (complexity === undefined || complexity === null) return isDarkMode ? 'text-gray-400' : 'text-gray-500';
         if (complexity >= 20) return 'text-red-500 font-bold';
         if (complexity >= 15) return 'text-orange-500 font-semibold';
         if (complexity >= 10) return 'text-yellow-500 font-semibold';
         return isDarkMode ? 'text-emerald-400' : 'text-emerald-600';
+    };
+
+    const getMaintainabilityColor = (index) => {
+        if (index === undefined || index === null) return isDarkMode ? 'text-gray-400' : 'text-gray-500';
+
+        if (isDarkMode) {
+            if (index < 10) return 'text-red-400 font-bold';
+            if (index < 15) return 'text-pink-400 font-semibold';
+            if (index < 20) return 'text-purple-400 font-semibold';
+            return 'text-emerald-400';
+        } else {
+            if (index < 10) return 'text-red-600 font-bold';
+            if (index < 15) return 'text-orange-600 font-semibold';
+            if (index < 20) return 'text-yellow-600 font-semibold';
+            return 'text-emerald-600';
+        }
     };
 
     return (
@@ -98,22 +116,56 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                 </button>
 
                 <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-                    <div>
-                        <h1 className="text-3xl font-black bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent">
-                            {file?.name || 'Unknown File'}
-                        </h1>
-                        <div className={`flex gap-6 mt-2 text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                            <div className="flex items-center gap-2">
-                                <span className="font-semibold">{file?.totalLoc || 0}</span> Lines of Code
+                    <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3">
+                            <h1 className="text-3xl font-black bg-gradient-to-r from-blue-500 to-purple-600 bg-clip-text text-transparent truncate max-w-2xl" title={file?.filename}>
+                                {file?.name || file?.filename?.split('/').pop() || 'Unknown File'}
+                            </h1>
+                            {file?.language && (
+                                <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest ${isDarkMode ? 'bg-slate-700 text-blue-300' : 'bg-blue-100 text-blue-700'}`}>
+                                    {file.language}
+                                </span>
+                            )}
+                        </div>
+
+                        <div className={`grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-x-8 gap-y-2 mt-4 text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                            <div className="flex flex-col">
+                                <span className="opacity-50 uppercase font-bold text-[10px]">Total LOC</span>
+                                <span className={`font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{file?.total_loc || 0}</span>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <span className="font-semibold">{file?.functions?.length || 0}</span> Functions
+                            <div className="flex flex-col">
+                                <span className="opacity-50 uppercase font-bold text-[10px]">Logical LOC</span>
+                                <span className={`font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{file?.total_nloc || 0}</span>
                             </div>
+                            <div className="flex flex-col">
+                                <span className="opacity-50 uppercase font-bold text-[10px]">Functions</span>
+                                <span className={`font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{file?.function_count || file?.functions?.length || 0}</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="opacity-50 uppercase font-bold text-[10px]">Total Complexity</span>
+                                <span className={`font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{file?.total_complexity || 0}</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="opacity-50 uppercase font-bold text-[10px]">Max Complexity</span>
+                                <span className={`font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{file?.complexity_max || 0}</span>
+                            </div>
+                            <div className="flex flex-col">
+                                <span className="opacity-50 uppercase font-bold text-[10px]">Maintainability</span>
+                                <span className={`font-mono text-sm ${getMaintainabilityColor(file?.maintainability_index)}`}>
+                                    {file?.maintainability_index?.toFixed(2) || '—'}
+                                </span>
+                            </div>
+                            {file?.halstead_volume && (
+                                <div className="flex flex-col">
+                                    <span className="opacity-50 uppercase font-bold text-[10px]">Halstead Vol</span>
+                                    <span className={`font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{file.halstead_volume.toFixed(2)}</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
                     {/* Search Bar */}
-                    <div className="relative w-full md:w-72">
+                    <div className="relative w-full md:w-72 mt-4 md:mt-0">
                         <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                             <Search size={16} className={isDarkMode ? 'text-gray-500' : 'text-gray-400'} />
                         </div>
@@ -138,28 +190,58 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                 } animate-in fade-in zoom-in-95 duration-500 delay-100`}>
 
                 {/* Table Header */}
-                <div className={`grid grid-cols-12 gap-4 p-4 border-b text-sm font-bold uppercase tracking-wider ${isDarkMode ? 'bg-slate-800/80 border-slate-700 text-gray-400' : 'bg-gray-50/80 border-gray-200 text-gray-500'
+                <div className={`grid grid-cols-12 gap-2 p-4 border-b text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'bg-slate-800/80 border-slate-700 text-gray-400' : 'bg-gray-50/80 border-gray-200 text-gray-500'
                     }`}>
                     <div
-                        className="col-span-5 flex items-center gap-2 cursor-pointer hover:text-blue-500 transition-colors"
+                        className="col-span-3 flex items-center gap-1 cursor-pointer hover:text-blue-500 transition-colors"
                         onClick={() => requestSort('name')}
                     >
-                        Function Name {getSortIcon('name')}
+                        Function {getSortIcon('name')}
                     </div>
                     <div
-                        className="col-span-2 flex items-center gap-2 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
-                        onClick={() => requestSort('complexity')}
+                        className="col-span-1 flex items-center gap-1 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
+                        onClick={() => requestSort('cognitive_complexity')}
                     >
-                        Complexity {getSortIcon('complexity')}
+                        Cogn. {getSortIcon('cognitive_complexity')}
                     </div>
                     <div
-                        className="col-span-2 flex items-center gap-2 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
+                        className="col-span-1 flex items-center gap-1 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
+                        onClick={() => requestSort('cyclomatic_complexity')}
+                    >
+                        Cycl. {getSortIcon('cyclomatic_complexity')}
+                    </div>
+                    <div
+                        className="col-span-1 flex items-center gap-1 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
+                        onClick={() => requestSort('total_cognitive_complexity')}
+                    >
+                        Total {getSortIcon('total_cognitive_complexity')}
+                    </div>
+                    <div
+                        className="col-span-1 flex items-center gap-1 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
+                        onClick={() => requestSort('maintainability_index')}
+                    >
+                        MI {getSortIcon('maintainability_index')}
+                    </div>
+                    <div
+                        className="col-span-1 flex items-center gap-1 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
+                        onClick={() => requestSort('max_nesting_depth')}
+                    >
+                        Nest {getSortIcon('max_nesting_depth')}
+                    </div>
+                    <div
+                        className="col-span-1 flex items-center gap-1 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
+                        onClick={() => requestSort('halstead_volume')}
+                    >
+                        Halst. {getSortIcon('halstead_volume')}
+                    </div>
+                    <div
+                        className="col-span-1 flex items-center gap-1 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
                         onClick={() => requestSort('nloc')}
                     >
                         LOC {getSortIcon('nloc')}
                     </div>
                     <div
-                        className="col-span-2 flex items-center gap-2 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
+                        className="col-span-1 flex items-center gap-1 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
                         onClick={() => requestSort('start_line')}
                     >
                         Line {getSortIcon('start_line')}
@@ -184,24 +266,39 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                                         });
                                     }
                                 }}
-                                className={`grid grid-cols-12 gap-4 p-4 border-b last:border-b-0 items-center transition-all cursor-pointer group ${isDarkMode
+                                className={`grid grid-cols-12 gap-2 p-4 border-b last:border-b-0 items-center transition-all cursor-pointer group ${isDarkMode
                                     ? 'border-slate-700 hover:bg-slate-700/50'
                                     : 'border-gray-100 hover:bg-blue-50/50'
                                     }`}
                             >
-                                <div className="col-span-5 font-mono text-sm font-medium truncate flex items-center gap-3" style={{ paddingLeft: `${fn.depth * 24}px` }}>
-                                    <div className={`p-1.5 rounded-lg ${isDarkMode ? 'bg-slate-700 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
-                                        <Code size={14} />
+                                <div className="col-span-3 font-mono text-xs font-medium truncate flex items-center gap-2" style={{ paddingLeft: `${fn.depth * 16}px` }}>
+                                    <div className={`p-1 rounded-lg ${isDarkMode ? 'bg-slate-700 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
+                                        <Code size={12} />
                                     </div>
                                     <span className="truncate" title={fn.long_name || fn.name}>{fn.name}</span>
                                 </div>
-                                <div className={`col-span-2 text-right font-mono text-sm ${getComplexityColor(fn.cognitive_complexity)}`}>
-                                    {fn.cognitive_complexity}
+                                <div className={`col-span-1 text-right font-mono text-xs ${getComplexityColor(fn.cognitive_complexity)}`}>
+                                    {fn.cognitive_complexity ?? '—'}
                                 </div>
-                                <div className={`col-span-2 text-right font-mono text-sm ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                <div className={`col-span-1 text-right font-mono text-xs ${getComplexityColor(fn.cyclomatic_complexity)}`}>
+                                    {fn.cyclomatic_complexity ?? '—'}
+                                </div>
+                                <div className={`col-span-1 text-right font-mono text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    {fn.total_cognitive_complexity ?? '—'}
+                                </div>
+                                <div className={`col-span-1 text-right font-mono text-xs ${getMaintainabilityColor(fn.maintainability_index)}`}>
+                                    {fn.maintainability_index?.toFixed(1) ?? '—'}
+                                </div>
+                                <div className={`col-span-1 text-right font-mono text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
+                                    {fn.max_nesting_depth ?? '—'}
+                                </div>
+                                <div className={`col-span-1 text-right font-mono text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                    {fn.halstead_volume?.toFixed(0) ?? '—'}
+                                </div>
+                                <div className={`col-span-1 text-right font-mono text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                                     {fn.nloc}
                                 </div>
-                                <div className={`col-span-2 text-right font-mono text-sm ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
+                                <div className={`col-span-1 text-right font-mono text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                                     :{fn.start_line}
                                 </div>
                             </div>
