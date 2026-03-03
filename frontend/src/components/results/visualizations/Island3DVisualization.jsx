@@ -6,7 +6,7 @@ import { Settings } from 'lucide-react';
 import FunctionTableView from './FunctionTableView';
 import { SceneDiffer } from '../../../utils/SceneDiffer';
 
-function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, isDarkMode, isTimelinePlaying, animatingCommit }) {
+function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, isDarkMode, isTimelinePlaying, animatingCommit, showContributors = false }) {
     const mountRef = useRef(null);
     const sceneRef = useRef(null);
     const rendererRef = useRef(null);
@@ -50,8 +50,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     // Refs for values needed inside useEffect without adding them as dependencies
     const animatingCommitRef = useRef(animatingCommit);
     const isTimelinePlayingRef = useRef(isTimelinePlaying);
+    const showContributorsRef = useRef(showContributors);
     animatingCommitRef.current = animatingCommit;
     isTimelinePlayingRef.current = isTimelinePlaying;
+    showContributorsRef.current = showContributors;
 
     if (!individualFiles || individualFiles.length === 0) {
         return (
@@ -643,7 +645,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             // Small delay to let React finish rendering state from this batch
             setTimeout(() => {
                 // Ensure timeline is STILL playing after the delay to prevent stranded drones
-                if (sceneRef.current && isTimelinePlayingRef.current) {
+                if (sceneRef.current && isTimelinePlayingRef.current && showContributorsRef.current) {
                     createDrone(commitAuthor, sceneRef.current, 200, 200);
                     triggerLaserStrike(commitAuthor, changedFilenames, sceneRef.current);
                 }
@@ -1379,22 +1381,27 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         console.log(`[Island3D] Triggering strike for ${author} on files: [${modifiedFiles.join(', ')}] (commit: ${animatingCommit.hash?.substring(0, 7)})`);
 
-        // Warm up / ensure drone for current author
-        createDrone(author, sceneRef.current, 200, 200);
+        if (showContributors) {
+            // Warm up / ensure drone for current author
+            createDrone(author, sceneRef.current, 200, 200);
 
-        // Fire lasers with a small delay to ensure scene is ready
-        if (modifiedFiles.length > 0) {
-            setTimeout(() => {
-                triggerLaserStrike(author, modifiedFiles, sceneRef.current);
-                // Clear pending after firing
-                pendingStrikeFilesRef.current = [];
-            }, 100);
+            // Fire lasers with a small delay to ensure scene is ready
+            if (modifiedFiles.length > 0) {
+                setTimeout(() => {
+                    triggerLaserStrike(author, modifiedFiles, sceneRef.current);
+                    // Clear pending after firing
+                    pendingStrikeFilesRef.current = [];
+                }, 100);
+            } else {
+                console.warn(`[Island3D] No files to target for commit ${animatingCommit.hash?.substring(0, 7)}`);
+            }
         } else {
-            console.warn(`[Island3D] No files to target for commit ${animatingCommit.hash?.substring(0, 7)}`);
+            // If feature is disabled, simply clear the pending buffer
+            pendingStrikeFilesRef.current = [];
         }
 
         lastProcessedCommitRef.current = animatingCommit.hash;
-    }, [animatingCommit, isTimelinePlaying]);
+    }, [animatingCommit, isTimelinePlaying, showContributors]);
 
     const handleMenuAction = (action) => {
         if (!activeFileForMenu) return;
@@ -1409,9 +1416,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         setActiveFileForMenu(null);
     };
 
-    // --- Cleanup Drones on Timeline Stop ---
+    // --- Cleanup Drones on Timeline Stop or Toggle Off ---
     useEffect(() => {
-        if (!isTimelinePlaying && sceneRef.current) {
+        if ((!isTimelinePlaying || !showContributors) && sceneRef.current) {
             // Fade out and remove all drones dynamically
             contributorDronesRef.current.forEach((droneData, author) => {
                 const { group } = droneData;
@@ -1435,7 +1442,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             pendingStrikeFilesRef.current = [];
             lastProcessedCommitRef.current = null;
         }
-    }, [isTimelinePlaying]);
+    }, [isTimelinePlaying, showContributors]);
 
     // If in functions mode, render the separate component
     if (viewMode === 'functions' && focusedFile) {
