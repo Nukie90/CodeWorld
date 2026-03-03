@@ -642,7 +642,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             console.log(`[Island3D] Incremental diff found ${changedFilenames.length} changed files. Firing laser for ${commitAuthor}.`);
             // Small delay to let React finish rendering state from this batch
             setTimeout(() => {
-                if (sceneRef.current) {
+                // Ensure timeline is STILL playing after the delay to prevent stranded drones
+                if (sceneRef.current && isTimelinePlayingRef.current) {
                     createDrone(commitAuthor, sceneRef.current, 200, 200);
                     triggerLaserStrike(commitAuthor, changedFilenames, sceneRef.current);
                 }
