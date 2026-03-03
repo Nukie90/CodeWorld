@@ -59,6 +59,7 @@ def normalize_node_metrics(
         function_count=function_count,
         total_complexity=cc_sum,
         complexity_max=cc_max,
+        halstead_volume=0.0,
         functions=funcs,
     )
 
@@ -75,6 +76,7 @@ def normalize_node_zip(node_result: Dict[str, Any], folder_name: str = "src") ->
     total_loc = total_nloc = total_functions = 0
     cc_sum = 0
     cc_max_global = 0
+    halstead_volume_global = 0.0
 
     for file_result in results:
         filename = file_result.get("fileName")
@@ -90,6 +92,8 @@ def normalize_node_zip(node_result: Dict[str, Any], folder_name: str = "src") ->
             total_functions += fm.function_count
             cc_sum += fm.total_complexity
             cc_max_global = max(cc_max_global, fm.complexity_max)
+            if fm.halstead_volume is not None:
+                halstead_volume_global += fm.halstead_volume
         except Exception:
             # Handle potential errors during normalization
             continue
@@ -104,6 +108,7 @@ def normalize_node_zip(node_result: Dict[str, Any], folder_name: str = "src") ->
         total_functions=total_functions,
         total_complexity=cc_sum,
         complexity_max=cc_max_global,
+        halstead_volume=halstead_volume_global,
         files=all_files,
     )
 

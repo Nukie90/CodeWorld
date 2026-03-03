@@ -245,7 +245,7 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         cognitive_complexity=global_res["complexity"],
         cyclomatic_complexity=int(lizard_global_cc) if lizard_global_cc else 1,
         nloc=0, # To be updated
-        token_count=0,
+        halstead_volume=0.0,
         maintainability_index=100.0,
         start_line=1,
         end_line=len(code.splitlines()),
@@ -337,7 +337,7 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
                 cognitive_complexity=res["complexity"],
                 cyclomatic_complexity=0, # Will be set via lizard
                 nloc=func_nloc,
-                token_count=0,
+                halstead_volume=fn_halstead_map.get(start_line, 0.0),
                 start_line=start_line,
                 end_line=end_line,
                 max_nesting_depth=res["max_nesting"],
@@ -451,6 +451,7 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         function_count=len(functions),
         total_complexity=complexity_sum,
         complexity_max=complexity_max,
+        halstead_volume=halstead_volume,
         maintainability_index=maintainability_index,
         functions=roots
     )

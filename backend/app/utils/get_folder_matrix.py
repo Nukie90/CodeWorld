@@ -61,6 +61,7 @@ async def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnaly
         total_functions = 0
         total_complexity = 0
         complexity_max = 0
+        halstead_volume = 0.0
         
         # Get list of adapters
         adapters = get_adapters()
@@ -81,6 +82,9 @@ async def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnaly
                 
                 if file_metrics.complexity_max > complexity_max:
                     complexity_max = file_metrics.complexity_max
+                
+                if file_metrics.halstead_volume is not None:
+                    halstead_volume += file_metrics.halstead_volume
         
         folder_metrics = FolderMetrics(
             folder_name=folder_name,
@@ -90,6 +94,7 @@ async def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnaly
             total_functions=total_functions,
             total_complexity=total_complexity,
             complexity_max=complexity_max,
+            halstead_volume=halstead_volume,
             files=file_metrics_list
         )
         
