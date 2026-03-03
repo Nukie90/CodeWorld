@@ -1408,6 +1408,34 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         setActiveFileForMenu(null);
     };
 
+    // --- Cleanup Drones on Timeline Stop ---
+    useEffect(() => {
+        if (!isTimelinePlaying && sceneRef.current) {
+            // Fade out and remove all drones dynamically
+            contributorDronesRef.current.forEach((droneData, author) => {
+                const { group } = droneData;
+                gsap.to(group.scale, {
+                    x: 0, y: 0, z: 0,
+                    duration: 0.8,
+                    ease: "back.in(1.5)",
+                    onComplete: () => {
+                        sceneRef.current.remove(group);
+                        // Optional cleanup
+                        group.traverse((child) => {
+                            if (child.isMesh || child.isSprite) {
+                                if (child.geometry) child.geometry.dispose();
+                                if (child.material) child.material.dispose();
+                            }
+                        });
+                    }
+                });
+            });
+            contributorDronesRef.current.clear();
+            pendingStrikeFilesRef.current = [];
+            lastProcessedCommitRef.current = null;
+        }
+    }, [isTimelinePlaying]);
+
     // If in functions mode, render the separate component
     if (viewMode === 'functions' && focusedFile) {
         return (
