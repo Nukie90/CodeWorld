@@ -6,7 +6,7 @@ import { Settings } from 'lucide-react';
 import FunctionTableView from './FunctionTableView';
 import { SceneDiffer } from '../../../utils/SceneDiffer';
 
-function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, isDarkMode, isTimelinePlaying }) {
+function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, isDarkMode, isTimelinePlaying, animatingCommit }) {
     const mountRef = useRef(null);
     const sceneRef = useRef(null);
     const rendererRef = useRef(null);
@@ -15,6 +15,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
     const [hoveredObject, setHoveredObject] = useState(null);
     const [hoverInfoPosition, setHoverInfoPosition] = useState({ x: 0, y: 0 });
+
+    const [rebuildTrigger, setRebuildTrigger] = useState(0);
 
     // New Interaction State
     const [viewMode, setViewMode] = useState('island'); // 'island' | 'functions'
@@ -39,6 +41,17 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const buildingMeshesRef = useRef(new Map()); // filename -> { mesh, cap, data }
     const directoryMeshesRef = useRef(new Map()); // path -> { mesh, ring }
     const sceneInitializedRef = useRef(false);
+
+    // Contributor & Animation Refs
+    const contributorDronesRef = useRef(new Map()); // authorName -> { group, label, color }
+    const lastProcessedCommitRef = useRef(null);
+    const pendingStrikeFilesRef = useRef([]); // Files changed in most recent diff
+    const laserGroupRef = useRef(null);
+    // Refs for values needed inside useEffect without adding them as dependencies
+    const animatingCommitRef = useRef(animatingCommit);
+    const isTimelinePlayingRef = useRef(isTimelinePlaying);
+    animatingCommitRef.current = animatingCommit;
+    isTimelinePlayingRef.current = isTimelinePlaying;
 
     if (!individualFiles || individualFiles.length === 0) {
         return (
@@ -193,6 +206,25 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         return colors[Math.min(depth, colors.length - 1)];
     };
 
+    const getAuthorColor = (name) => {
+        if (!name) return 0xffffff;
+        let hash = 0;
+        for (let i = 0; i < name.length; i++) {
+            hash = name.charCodeAt(i) + ((hash << 5) - hash);
+        }
+        const colors = [
+            0x38bdf8, // sky
+            0x818cf8, // indigo
+            0xc084fc, // purple
+            0xf472b6, // pink
+            0xfb7185, // rose
+            0xfbbf24, // amber
+            0x34d399, // emerald
+            0x2dd4bf, // teal
+        ];
+        return colors[Math.abs(hash) % colors.length];
+    };
+
     // --- Animation Helper Functions ---
 
     const animateBuildingHeight = (mesh, cap, targetHeight, currentHeight, duration = 0.5) => {
@@ -327,84 +359,316 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         }
     };
 
+    const createDrone = (author, scene, islandCenterX, islandCenterZ) => {
+        if (!author) return null;
+        if (contributorDronesRef.current.has(author)) return contributorDronesRef.current.get(author);
+
+        console.log(`[Island3D] Creating new drone for ${author}`);
+        const group = new THREE.Group();
+        const color = getAuthorColor(author);
+
+        // UFO Body (Disk)
+        const diskGeo = new THREE.CylinderGeometry(5, 6, 1.5, 16);
+        const diskMat = new THREE.MeshStandardMaterial({
+            color: 0x334155,
+            metalness: 0.9,
+            roughness: 0.2,
+            emissive: color,
+            emissiveIntensity: 0.5
+        });
+        const disk = new THREE.Mesh(diskGeo, diskMat);
+        group.add(disk);
+
+        // UFO Dome
+        const domeGeo = new THREE.SphereGeometry(3, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+        const domeMat = new THREE.MeshStandardMaterial({
+            color: color,
+            transparent: true,
+            opacity: 0.6,
+            metalness: 0.5,
+            roughness: 0.1
+        });
+        const dome = new THREE.Mesh(domeGeo, domeMat);
+        dome.position.y = 0.5;
+        group.add(dome);
+
+        // Lights around the rim
+        for (let j = 0; j < 8; j++) {
+            const lightGeo = new THREE.SphereGeometry(0.5, 8, 8);
+            const lightMat = new THREE.MeshBasicMaterial({ color: color });
+            const light = new THREE.Mesh(lightGeo, lightMat);
+            const angle = (j / 8) * Math.PI * 2;
+            light.position.set(Math.cos(angle) * 5.2, 0, Math.sin(angle) * 5.2);
+            group.add(light);
+        }
+
+        // Name Label (Canvas Texture)
+        const canvas = document.createElement('canvas');
+        canvas.width = 256;
+        canvas.height = 64;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'rgba(0,0,0,0)';
+        ctx.fillRect(0, 0, 256, 64);
+        ctx.font = 'bold 32px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
+        ctx.fillText(author, 128, 40);
+
+        const spriteMap = new THREE.CanvasTexture(canvas);
+        const spriteMat = new THREE.SpriteMaterial({ map: spriteMap, transparent: true });
+        const sprite = new THREE.Sprite(spriteMat);
+        sprite.position.y = 8;
+        sprite.scale.set(15, 4, 1);
+        group.add(sprite);
+
+        const orbitRadius = 180 + (contributorDronesRef.current.size * 30);
+        const orbitAngle = Math.random() * Math.PI * 2;
+        const baseHoverY = 120 + Math.random() * 40;
+        group.position.set(
+            islandCenterX + Math.cos(orbitAngle) * orbitRadius,
+            baseHoverY,
+            islandCenterZ + Math.sin(orbitAngle) * orbitRadius
+        );
+        group.userData = { type: 'drone', author };
+
+        scene.add(group);
+        const droneData = {
+            group,
+            color,
+            radius: orbitRadius,
+            angle: orbitAngle,
+            speed: 0.002 + Math.random() * 0.003,
+            baseY: baseHoverY // Store for absolute hover logic
+        };
+        contributorDronesRef.current.set(author, droneData);
+        return droneData;
+    };
+
+    const triggerLaserStrike = (author, modifiedFiles, scene) => {
+        if (!author || !modifiedFiles || modifiedFiles.length === 0) {
+            console.log(`[Island3D] Skipping strike: author=${author}, files=${modifiedFiles?.length}`);
+            return;
+        }
+
+        // Ensure drone exists
+        const droneData = createDrone(author, scene, 200, 200);
+        if (!droneData) {
+            console.warn(`[Island3D] Failed to find/create drone for ${author}`);
+            return;
+        }
+
+        const { group: droneGroup, color } = droneData;
+
+        modifiedFiles.forEach(filename => {
+            const building = buildingMeshesRef.current.get(filename);
+            if (!building) {
+                console.warn(`[Island3D] Building not found for file: ${filename}`);
+                return;
+            }
+
+            console.log(`[Island3D] Firing laser at ${filename}`);
+            const targetPos = new THREE.Vector3();
+            building.cap.getWorldPosition(targetPos);
+
+            const startPos = new THREE.Vector3();
+            droneGroup.getWorldPosition(startPos);
+            // Fire from the bottom of the drone
+            startPos.y -= 2;
+
+            // 1. Create Laser Beam
+            const distance = startPos.distanceTo(targetPos);
+            const laserGeo = new THREE.CylinderGeometry(0.5, 0.5, distance, 8);
+            const laserMat = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.8
+            });
+            const laser = new THREE.Mesh(laserGeo, laserMat);
+
+            // Position and orient laser
+            laser.position.copy(startPos).add(targetPos).multiplyScalar(0.5);
+            laser.lookAt(targetPos);
+            laser.rotateX(Math.PI / 2); // local rotation
+
+            scene.add(laser);
+            // 2. Animate Laser (Flicker, Fade, and Track)
+            gsap.timeline({
+                onUpdate: () => {
+                    if (droneGroup && laser) {
+                        const startPos = new THREE.Vector3();
+
+                        // Force matrix update to prevent 1-frame render lag
+                        droneGroup.updateMatrixWorld(true);
+                        building.cap.updateMatrixWorld(true);
+
+                        // We want the laser to come from the bottom center of the UFO
+                        // We use a local offset and apply the drone's current world matrix
+                        const localBottom = new THREE.Vector3(0, -2, 0);
+                        localBottom.applyMatrix4(droneGroup.matrixWorld);
+                        startPos.copy(localBottom);
+
+                        // The target building cap is animating (bouncing), so we MUST read its current position too
+                        const currentTargetPos = new THREE.Vector3();
+                        building.cap.getWorldPosition(currentTargetPos);
+
+                        // Midpoint between current drone bottom and moving target cap
+                        const midpoint = new THREE.Vector3().copy(startPos).add(currentTargetPos).multiplyScalar(0.5);
+                        laser.position.copy(midpoint);
+
+                        // Look at target and fix orientation
+                        laser.lookAt(currentTargetPos);
+                        laser.rotateX(Math.PI / 2); // local rotation
+
+                        // Stretch scale to match new distance
+                        const newDistance = startPos.distanceTo(currentTargetPos);
+                        laser.scale.y = newDistance / distance; // distance is the original length 
+                    }
+                }
+            })
+                .to(laser.scale, { x: 2, z: 2, duration: 0.1, yoyo: true, repeat: 1 })
+                .to(laser.material, {
+                    opacity: 0, duration: 0.3, onComplete: () => {
+                        scene.remove(laser);
+                        laserGeo.dispose();
+                        laserMat.dispose();
+                    }
+                });
+
+            // 3. Impact Effects on Tower
+            // Growth Spurt
+            const currentHeight = building.height;
+            gsap.fromTo(building.mesh.scale,
+                { y: building.mesh.scale.y * 1.2 },
+                { y: building.mesh.scale.y, duration: 0.6, ease: "elastic.out(1, 0.3)" }
+            );
+            gsap.fromTo(building.cap.position,
+                { y: building.cap.position.y + 5 },
+                { y: building.cap.position.y, duration: 0.6, ease: "elastic.out(1, 0.3)" }
+            );
+
+            // Pulse Shockwave
+            const ringGeo = new THREE.TorusGeometry(building.mesh.geometry.parameters.radiusTop + 2, 0.2, 8, 32);
+            const ringMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 1 });
+            const ring = new THREE.Mesh(ringGeo, ringMat);
+            ring.rotation.x = Math.PI / 2;
+            ring.position.copy(targetPos);
+            ring.position.y = (building.data.depth || 1) * 3; // Position at base of tower
+            scene.add(ring);
+
+            gsap.to(ring.scale, { x: 5, y: 5, duration: 0.8, ease: "power2.out" });
+            gsap.to(ring.material, {
+                opacity: 0, duration: 0.8, ease: "power2.out", onComplete: () => {
+                    scene.remove(ring);
+                    ringGeo.dispose();
+                    ringMat.dispose();
+                }
+            });
+        });
+
+        gsap.to(droneGroup.rotation, { z: 0.3, duration: 0.1, yoyo: true, repeat: 1 });
+    };
+
+    // --- Data Synchronization (Incremental) ---
+    useEffect(() => {
+        if (!sceneInitializedRef.current || !previousFilesRef.current || !sceneRef.current) return;
+
+        const diff = SceneDiffer.diffFiles(previousFilesRef.current, individualFiles);
+        if (diff.added.length === 0 && diff.removed.length === 0 && diff.modified.length === 0) return;
+
+        console.log('[Island3D] Incremental update:', SceneDiffer.getSummary(diff));
+
+        // Handle removed files
+        diff.removed.forEach(file => {
+            const buildingData = buildingMeshesRef.current.get(file.filename);
+            if (buildingData) {
+                animateBuildingFadeOut(buildingData.mesh, buildingData.cap, 0.3, () => {
+                    sceneRef.current.remove(buildingData.mesh);
+                    sceneRef.current.remove(buildingData.cap);
+                    buildingData.mesh.geometry.dispose();
+                    buildingData.mesh.material.dispose();
+                    buildingData.cap.geometry.dispose();
+                    buildingData.cap.material.dispose();
+                    buildingMeshesRef.current.delete(file.filename);
+                });
+            }
+        });
+
+        // Handle modified files
+        diff.modified.forEach(({ old: oldFile, new: newFile, filename }) => {
+            const buildingData = buildingMeshesRef.current.get(filename);
+            if (buildingData) {
+                const oldMetrics = calculateFileMetrics(oldFile);
+                const newMetrics = calculateFileMetrics(newFile);
+
+                // Animate height change if complexity changed
+                if (oldMetrics.totalComplexity !== newMetrics.totalComplexity) {
+                    const oldHeight = 10 + (Math.sqrt(oldMetrics.totalComplexity || 1) * 15);
+                    const newHeight = 10 + (Math.sqrt(newMetrics.totalComplexity || 1) * 15);
+                    animateBuildingHeight(buildingData.mesh, buildingData.cap, newHeight, oldHeight, 0.5);
+                }
+
+                // Animate color change if maintainability index changed
+                if (oldMetrics.maintainabilityIndex !== newMetrics.maintainabilityIndex) {
+                    const isUnsupported = newFile.is_unsupported;
+                    const newColor = isUnsupported
+                        ? (isDarkMode ? 0xcfcfcf : 0x9ca3af)
+                        : getMaintainabilityColor(newMetrics.maintainabilityIndex);
+                    animateBuildingColor(buildingData.mesh, buildingData.cap, newColor, 0.5);
+                }
+
+                // Update stored data
+                buildingData.data = newFile;
+                buildingData.mesh.userData = {
+                    ...buildingData.mesh.userData, // Preserve depth and other metadata
+                    ...newFile,
+                    name: newFile.filename.split('/').pop(),
+                    totalComplexity: newMetrics.totalComplexity.toFixed(2),
+                    maintainabilityIndex: newMetrics.maintainabilityIndex,
+                    totalLoc: newMetrics.totalLoc,
+                    numFunctions: newMetrics.numFunctions
+                };
+            }
+        });
+
+        // Collect files changed in this step for laser strikes
+        const changedFilenames = [
+            ...diff.modified.map(f => f.filename),
+            ...diff.added.map(f => f.filename)
+        ];
+
+        // Fire laser strike directly here (avoids race condition with separate useEffect)
+        if (changedFilenames.length > 0 && isTimelinePlayingRef.current && animatingCommitRef.current) {
+            const commitAuthor = animatingCommitRef.current.author;
+            console.log(`[Island3D] Incremental diff found ${changedFilenames.length} changed files. Firing laser for ${commitAuthor}.`);
+            // Small delay to let React finish rendering state from this batch
+            setTimeout(() => {
+                if (sceneRef.current) {
+                    createDrone(commitAuthor, sceneRef.current, 200, 200);
+                    triggerLaserStrike(commitAuthor, changedFilenames, sceneRef.current);
+                }
+            }, 150);
+        }
+
+        // Handle added files - need full rebuild for layout recalculation
+        if (diff.added.length > 0) {
+            console.log('[Island3D] New files added, doing full rebuild for layout recalculation');
+            sceneInitializedRef.current = false; // Force full rebuild
+            buildingMeshesRef.current.clear();
+            directoryMeshesRef.current.clear();
+            setRebuildTrigger(c => c + 1);
+        } else {
+            // No new files, incremental update complete
+            previousFilesRef.current = individualFiles;
+        }
+
+    }, [individualFiles]); // Only run on data changes
+
+    // --- Main Scene Initialization ---
     useEffect(() => {
         if (!mountRef.current) return;
 
-        // --- Incremental Update Path ---
-        // If scene is already initialized and we have previous files, do incremental update
-        if (sceneInitializedRef.current && previousFilesRef.current && sceneRef.current) {
-            const diff = SceneDiffer.diffFiles(previousFilesRef.current, individualFiles);
-            console.log('[Island3D] Incremental update:', SceneDiffer.getSummary(diff));
-
-            // Handle removed files
-            diff.removed.forEach(file => {
-                const buildingData = buildingMeshesRef.current.get(file.filename);
-                if (buildingData) {
-                    animateBuildingFadeOut(buildingData.mesh, buildingData.cap, 0.3, () => {
-                        sceneRef.current.remove(buildingData.mesh);
-                        sceneRef.current.remove(buildingData.cap);
-                        buildingData.mesh.geometry.dispose();
-                        buildingData.mesh.material.dispose();
-                        buildingData.cap.geometry.dispose();
-                        buildingData.cap.material.dispose();
-                        buildingMeshesRef.current.delete(file.filename);
-                    });
-                }
-            });
-
-            // Handle modified files
-            diff.modified.forEach(({ old: oldFile, new: newFile, filename }) => {
-                const buildingData = buildingMeshesRef.current.get(filename);
-                if (buildingData) {
-                    const oldMetrics = calculateFileMetrics(oldFile);
-                    const newMetrics = calculateFileMetrics(newFile);
-
-                    // Animate height change if complexity changed
-                    if (oldMetrics.totalComplexity !== newMetrics.totalComplexity) {
-                        const oldHeight = 10 + (Math.sqrt(oldMetrics.totalComplexity || 1) * 15);
-                        const newHeight = 10 + (Math.sqrt(newMetrics.totalComplexity || 1) * 15);
-                        animateBuildingHeight(buildingData.mesh, buildingData.cap, newHeight, oldHeight, 0.5);
-                    }
-
-                    // Animate color change if maintainability index changed
-                    if (oldMetrics.maintainabilityIndex !== newMetrics.maintainabilityIndex) {
-                        const isUnsupported = newFile.is_unsupported;
-                        const newColor = isUnsupported
-                            ? (isDarkMode ? 0xcfcfcf : 0x9ca3af)
-                            : getMaintainabilityColor(newMetrics.maintainabilityIndex);
-                        animateBuildingColor(buildingData.mesh, buildingData.cap, newColor, 0.5);
-                    }
-
-                    // Update stored data
-                    buildingData.data = newFile;
-                    buildingData.mesh.userData = {
-                        type: 'file',
-                        name: newFile.filename.split('/').pop(),
-                        ...newFile,
-                        totalComplexity: newMetrics.totalComplexity.toFixed(2),
-                        maintainabilityIndex: newMetrics.maintainabilityIndex,
-                        totalLoc: newMetrics.totalLoc,
-                        numFunctions: newMetrics.numFunctions
-                    };
-                }
-            });
-
-            // For added files, we need to do a full rebuild to recalculate layout
-            // This is because D3 pack layout needs all files to calculate positions
-            if (diff.added.length > 0) {
-                console.log('[Island3D] New files added, doing full rebuild for layout recalculation');
-                sceneInitializedRef.current = false; // Force full rebuild
-                buildingMeshesRef.current.clear();
-                directoryMeshesRef.current.clear();
-            } else {
-                // No new files, incremental update complete
-                previousFilesRef.current = individualFiles;
-                return;
-            }
-        }
-
         // --- Full Scene Rebuild Path ---
-        // This runs on first load or when layout needs recalculation (new files added)
+        // This runs on first load, when layout needs recalculation (new files added), or config changes
         console.log('[Island3D] Full scene rebuild');
 
         // --- Layout Calculation with D3 ---
@@ -691,6 +955,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     type: 'file',
                     name: node.data.name,
                     ...node.data.fileData,
+                    depth: node.depth, // Needed for shockwave positioning
                     totalComplexity: complexity.toFixed(2),
                     maintainabilityIndex: node.data.maintainabilityIndex,
                     totalLoc: node.data.totalLoc,
@@ -771,6 +1036,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     materialsToDispose.push(dolphinMaterial);
                 }
             }
+
+            // Contributor drones are now created dynamically via createDrone during timeline playback
+            contributorDronesRef.current.forEach(drone => {
+                scene.add(drone.group);
+            });
         } else if (viewMode === 'functions' && focusedFile) {
             // --- Function Visualization (Satellites) ---
 
@@ -912,6 +1182,18 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 }
             });
 
+            // Contributor Drones Animation
+            contributorDronesRef.current.forEach(d => {
+                d.angle += d.speed;
+                d.group.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
+                d.group.position.z = islandCenterZ + Math.sin(d.angle) * d.radius;
+                d.group.rotation.y = -d.angle + Math.PI / 2;
+
+                // Hover effect (absolute sine to prevent vertical drift)
+                const baseHoverY = d.baseY || 120;
+                d.group.position.y = baseHoverY + Math.sin(time * 2 + d.angle) * 2;
+            });
+
             // Camera Movement
             const euler = new THREE.Euler(pitchRef.current, yawRef.current, 0, 'YXZ');
             camera.quaternion.setFromEuler(euler);
@@ -1051,6 +1333,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         };
         window.addEventListener('resize', handleResize);
 
+        // Mark scene as initialized for future incremental updates
+        // IMPORTANT: Must be BEFORE the return() cleanup, or React will never execute these lines.
+        sceneInitializedRef.current = true;
+        previousFilesRef.current = individualFiles;
+
         return () => {
             if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
             window.removeEventListener('resize', handleResize);
@@ -1074,11 +1361,39 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             renderer.dispose();
         };
 
-        // Mark scene as initialized for future incremental updates
-        sceneInitializedRef.current = true;
-        previousFilesRef.current = individualFiles;
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [rebuildTrigger, onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile, towerOpacity, showDecorations, isTimelinePlaying]);
 
-    }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile, towerOpacity, showDecorations, isTimelinePlaying]);
+    // --- Timeline Animation Side Effect ---
+    useEffect(() => {
+        if (!isTimelinePlaying || !animatingCommit || !sceneRef.current) return;
+        if (lastProcessedCommitRef.current === animatingCommit.hash) return;
+
+        const author = animatingCommit.author;
+
+        // Use files detected by SceneDiffer in the main effect, fall back to `files_changed` if available
+        const modifiedFiles = pendingStrikeFilesRef.current.length > 0
+            ? pendingStrikeFilesRef.current
+            : (animatingCommit.files_changed?.map(f => f.filename) || []);
+
+        console.log(`[Island3D] Triggering strike for ${author} on files: [${modifiedFiles.join(', ')}] (commit: ${animatingCommit.hash?.substring(0, 7)})`);
+
+        // Warm up / ensure drone for current author
+        createDrone(author, sceneRef.current, 200, 200);
+
+        // Fire lasers with a small delay to ensure scene is ready
+        if (modifiedFiles.length > 0) {
+            setTimeout(() => {
+                triggerLaserStrike(author, modifiedFiles, sceneRef.current);
+                // Clear pending after firing
+                pendingStrikeFilesRef.current = [];
+            }, 100);
+        } else {
+            console.warn(`[Island3D] No files to target for commit ${animatingCommit.hash?.substring(0, 7)}`);
+        }
+
+        lastProcessedCommitRef.current = animatingCommit.hash;
+    }, [animatingCommit, isTimelinePlaying]);
 
     const handleMenuAction = (action) => {
         if (!activeFileForMenu) return;

@@ -1079,6 +1079,7 @@ function ResultsPage() {
                 onFileClick={handleFileClickFrom3D}
                 isDarkMode={isDarkMode}
                 isTimelinePlaying={isAnimating}
+                animatingCommit={animatingCommit}
               />
             )}
             {(!individual_files?.length || individual_files.length === 0) && (
