@@ -15,6 +15,9 @@
 - add options to change the circle packing to bezier curve
 - [/] for global functions, display the whole file
 - add "npx eslint" for js and "pylint" for python to calculate the code quality score and get linting errors
+- add contributor floating around the island 
+- add a timeline play for 3d visualization (play from yesterday, 1 week ago, 2 weeks ago)
+- add more col to the table view to include the maintainability index and other info.
 
 
 repo demo result
