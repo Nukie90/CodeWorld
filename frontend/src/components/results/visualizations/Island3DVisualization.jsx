@@ -28,6 +28,12 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const [towerOpacity, setTowerOpacity] = useState(1.0); // 0.0 to 1.0
     const [showDecorations, setShowDecorations] = useState(false);
     const [showOptionsPanel, setShowOptionsPanel] = useState(false);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [searchResults, setSearchResults] = useState([]);
+    const [isSearchFocused, setIsSearchFocused] = useState(false);
+    const [isSearchActive, setIsSearchActive] = useState(false);
+
+
 
     const keysRef = useRef({});
     const moveSpeed = 0.5;
@@ -51,7 +57,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const animatingCommitRef = useRef(animatingCommit);
     const isTimelinePlayingRef = useRef(isTimelinePlaying);
     const showContributorsRef = useRef(showContributors);
+    const searchBeaconRef = useRef(null);
+    const highlightTimelineRef = useRef(null);
+    const focusedMeshRef = useRef(null);
     animatingCommitRef.current = animatingCommit;
+
     isTimelinePlayingRef.current = isTimelinePlaying;
     showContributorsRef.current = showContributors;
 
@@ -666,6 +676,164 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
     }, [individualFiles]); // Only run on data changes
 
+    // --- Search & Focus Logic ---
+
+    const handleSearch = (term) => {
+        setSearchTerm(term);
+        if (!term.trim()) {
+            setSearchResults([]);
+            return;
+        }
+
+        const matches = individualFiles
+            .filter(f => f.filename.toLowerCase().includes(term.toLowerCase()))
+            .map(f => ({
+                filename: f.filename,
+                name: f.filename.split('/').pop()
+            }))
+            .slice(0, 10); // Limit results
+
+        setSearchResults(matches);
+    };
+
+    const clearSearchHighlight = () => {
+        if (highlightTimelineRef.current) {
+            highlightTimelineRef.current.kill();
+            highlightTimelineRef.current = null;
+        }
+        if (focusedMeshRef.current && focusedMeshRef.current.material.emissive) {
+            // Restore default emissive
+            const defaultIntensity = isDarkMode ? (focusedMeshRef.current.userData.type === 'file' ? 0.6 : 0) : 0;
+            const targetColor = focusedMeshRef.current.material.color;
+
+            gsap.to(focusedMeshRef.current.material.emissive, {
+                r: targetColor.r,
+                g: targetColor.g,
+                b: targetColor.b,
+                duration: 0.5
+            });
+            focusedMeshRef.current.material.emissiveIntensity = defaultIntensity;
+            focusedMeshRef.current = null;
+        }
+        if (searchBeaconRef.current) {
+            searchBeaconRef.current.visible = false;
+        }
+        setIsSearchActive(false);
+    };
+
+    const focusOnFile = (filename) => {
+        const buildingData = buildingMeshesRef.current.get(filename);
+        if (!buildingData || !sceneRef.current) return;
+
+        // Clear previous if any
+        clearSearchHighlight();
+
+        const { mesh, cap } = buildingData;
+        focusedMeshRef.current = mesh;
+        const targetPos = new THREE.Vector3();
+        cap.getWorldPosition(targetPos);
+
+        // 1. Visual Highlight Pulse (Infinite)
+        const originalEmissive = mesh.material.emissive.clone();
+        highlightTimelineRef.current = gsap.timeline({ repeat: -1, yoyo: true })
+            .to(mesh.material.emissive, { r: 1, g: 1, b: 1, duration: 0.8, ease: "sine.inOut" });
+
+        mesh.material.emissiveIntensity = isDarkMode ? 1.0 : 0.8;
+
+        // 2. Add/Move Beacon Pointer (Beautiful Version)
+        if (!searchBeaconRef.current) {
+            const group = new THREE.Group();
+
+            // Vertical Glow Beam
+            const beamGeo = new THREE.CylinderGeometry(1.5, 1.5, 400, 16);
+            const beamMat = new THREE.MeshBasicMaterial({
+                color: 0x3b82f6,
+                transparent: true,
+                opacity: 0.3,
+                blending: THREE.AdditiveBlending
+            });
+            const beam = new THREE.Mesh(beamGeo, beamMat);
+            beam.position.y = 200;
+            group.add(beam);
+
+            // Inner Core Beam
+            const coreGeo = new THREE.CylinderGeometry(0.5, 0.5, 400, 8);
+            const coreMat = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+                opacity: 0.8
+            });
+            const core = new THREE.Mesh(coreGeo, coreMat);
+            core.position.y = 200;
+            group.add(core);
+
+            // Ground Rings
+            for (let i = 0; i < 3; i++) {
+                const ringGeo = new THREE.TorusGeometry(8 + i * 4, 0.3, 16, 64);
+                const ringMat = new THREE.MeshBasicMaterial({
+                    color: 0x3b82f6,
+                    transparent: true,
+                    opacity: 0.5 - (i * 0.1)
+                });
+                const ring = new THREE.Mesh(ringGeo, ringMat);
+                ring.rotation.x = Math.PI / 2;
+                ring.userData = { phase: i * 0.5 };
+                group.add(ring);
+
+                gsap.to(ring.scale, {
+                    x: 1.2, y: 1.2,
+                    duration: 1 + i * 0.2,
+                    repeat: -1,
+                    yoyo: true,
+                    ease: "sine.inOut"
+                });
+            }
+
+            // Floating Diamond (Top)
+            const diamondGeo = new THREE.OctahedronGeometry(6, 0);
+            const diamondMat = new THREE.MeshStandardMaterial({
+                color: 0x3b82f6,
+                emissive: 0x3b82f6,
+                emissiveIntensity: 0.8,
+                metalness: 0.8,
+                roughness: 0.2,
+                transparent: true,
+                opacity: 0.9
+            });
+            const diamond = new THREE.Mesh(diamondGeo, diamondMat);
+            diamond.position.y = 400;
+            group.add(diamond);
+
+            gsap.to(diamond.rotation, {
+                y: Math.PI * 2,
+                duration: 4,
+                repeat: -1,
+                ease: "none"
+            });
+            gsap.to(diamond.position, {
+                y: 410,
+                duration: 2,
+                repeat: -1,
+                yoyo: true,
+                ease: "sine.inOut"
+            });
+
+            sceneRef.current.add(group);
+            searchBeaconRef.current = group;
+        }
+
+        const beacon = searchBeaconRef.current;
+        beacon.position.set(targetPos.x, targetPos.y + 10, targetPos.z);
+        beacon.visible = true;
+
+        setIsSearchActive(true);
+        setSearchTerm('');
+        setSearchResults([]);
+        setIsSearchFocused(false);
+    };
+
+
+
     // --- Main Scene Initialization ---
     useEffect(() => {
         if (!mountRef.current) return;
@@ -691,6 +859,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         // Store pointer lock state before cleanup
         const wasPointerLocked = document.pointerLockElement === mountRef.current;
+        searchBeaconRef.current = null; // Reset beacon ref to ensure it's recreated in the new scene
 
         // Cleanup previous
         if (mountRef.current.hasChildNodes()) {
@@ -1658,6 +1827,67 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         <p className={`text-[10px] mt-1 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
                             {showDecorations ? 'Trees & dolphins visible' : 'Trees & dolphins hidden'}
                         </p>
+                    </div>
+                )}
+            </div>
+
+            {/* Search Bar - Moved to top-left to avoid overlap with the "Type" panel toggle */}
+            <div className="absolute top-6 left-20 z-[25] w-full max-w-sm px-4 flex items-center gap-3">
+                <div className={`relative flex-1 flex items-center backdrop-blur-xl border shadow-2xl rounded-2xl transition-all duration-300 ${isSearchFocused
+                    ? 'ring-2 ring-blue-500/50 border-blue-400/50 bg-white/20 dark:bg-black/40'
+                    : 'border-white/20 bg-white/10 dark:bg-black/20 hover:bg-white/15 dark:hover:bg-black/25'
+                    }`}>
+                    <div className="pl-4 text-white/50">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </div>
+                    <input
+                        type="text"
+                        placeholder="Search file name..."
+                        value={searchTerm}
+                        onFocus={() => setIsSearchFocused(true)}
+                        onBlur={() => setTimeout(() => setIsSearchFocused(false), 200)}
+                        onChange={(e) => handleSearch(e.target.value)}
+                        className="w-full bg-transparent border-none focus:ring-0 text-gray-800 dark:text-gray-100 placeholder:text-gray-400 dark:placeholder:text-gray-500 text-sm font-medium py-3 px-3"
+                    />
+                    {searchTerm && (
+                        <button
+                            onClick={() => { setSearchTerm(''); setSearchResults([]); }}
+                            className="pr-4 text-gray-400 hover:text-gray-100 transition-colors"
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    )}
+                </div>
+
+                {/* OK Button to dismiss highight */}
+                {isSearchActive && (
+                    <button
+                        onClick={clearSearchHighlight}
+                        className="px-4 py-3 bg-blue-500 hover:bg-blue-600 text-white rounded-2xl shadow-lg font-bold text-sm transition-all transform hover:scale-105 active:scale-95 flex items-center gap-2 animate-in zoom-in duration-300"
+                    >
+                        <span>OK</span>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                    </button>
+                )}
+
+                {/* Search Results Dropdown */}
+
+                {searchResults.length > 0 && isSearchFocused && (
+                    <div className="absolute top-full left-4 right-4 mt-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/20 dark:border-slate-800/50 max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                        {searchResults.map((result, idx) => (
+                            <button
+                                key={idx}
+                                onClick={() => focusOnFile(result.filename)}
+                                className="w-full text-left px-4 py-3 hover:bg-blue-500/10 dark:hover:bg-blue-400/10 border-b border-gray-100/50 dark:border-slate-800/30 last:border-0 transition-colors group"
+                            >
+                                <div className="text-sm font-bold text-gray-800 dark:text-gray-100 group-hover:text-blue-500 transition-colors">
+                                    {result.name}
+                                </div>
+                                <div className="text-[10px] text-gray-500 dark:text-gray-400 truncate opacity-70">
+                                    {result.filename}
+                                </div>
+                            </button>
+                        ))}
                     </div>
                 )}
             </div>
