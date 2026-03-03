@@ -52,6 +52,7 @@ function ResultsPage() {
   const [allCommits, setAllCommits] = useState([])
   const [currentCommitIndex, setCurrentCommitIndex] = useState(-1)
   const [animationSpeed, setAnimationSpeed] = useState(800)
+  const [showContributors, setShowContributors] = useState(false) // Toggle added here
   const animationRef = useRef(null)
   const animationSpeedRef = useRef(animationSpeed)
 
@@ -640,6 +641,24 @@ function ResultsPage() {
             </button>
           </div>
 
+          <div className="flex flex-wrap items-center gap-2 mb-4 px-3 py-2 border border-white/20 dark:border-gray-700 rounded-xl bg-white/10 dark:bg-gray-800/50 backdrop-blur-sm shadow-sm hover:border-blue-400/50 transition-all">
+            <div className="flex items-center justify-between w-full">
+              <span className={`text-xs font-bold ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>Display Contributors</span>
+              <button
+                onClick={() => setShowContributors(!showContributors)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${showContributors
+                  ? 'bg-blue-500 shadow-[0_0_10px_rgba(59,130,246,0.3)]'
+                  : (isDarkMode ? 'bg-gray-700' : 'bg-gray-300')
+                  }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${showContributors ? 'translate-x-6' : 'translate-x-1'
+                    }`}
+                />
+              </button>
+            </div>
+          </div>
+
           <select
             value={currentBranch}
             onChange={handleBranchChange}
@@ -1169,6 +1188,7 @@ function ResultsPage() {
                 isDarkMode={isDarkMode}
                 isTimelinePlaying={isAnimating}
                 animatingCommit={animatingCommit}
+                showContributors={showContributors}
               />
             )}
             {(!individual_files?.length || individual_files.length === 0) && (
