@@ -141,7 +141,7 @@ async def github_callback(code: str, request: Request):
     _TOKENS[access_token] = username
 
     frontend_url = (
-        f"http://localhost:3000/?token={access_token}&username={username}"
+        f"http://localhost:5173/?token={access_token}&username={username}"
     )
 
     return RedirectResponse(url=frontend_url)
