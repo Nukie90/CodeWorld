@@ -76,8 +76,9 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
 
     const getComplexityColor = (complexity) => {
         if (!complexity) return isDarkMode ? 'text-gray-400' : 'text-gray-500';
-        if (complexity > 20) return 'text-red-500 font-bold';
-        if (complexity > 10) return 'text-orange-500 font-semibold';
+        if (complexity >= 20) return 'text-red-500 font-bold';
+        if (complexity >= 15) return 'text-orange-500 font-semibold';
+        if (complexity >= 10) return 'text-yellow-500 font-semibold';
         return isDarkMode ? 'text-emerald-400' : 'text-emerald-600';
     };
 

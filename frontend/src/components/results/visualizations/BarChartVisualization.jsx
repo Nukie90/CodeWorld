@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 
-function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, fixedFileOrder }) {
+function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, fixedFileOrder, isDarkMode }) {
   const [hoveredFunction, setHoveredFunction] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
 
@@ -43,15 +43,18 @@ function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, 
     if (complexity === undefined || complexity === null) {
       return '#9ca3af'; // gray for undefined
     }
-    if (maxComplexity === minComplexity) {
-      return '#22c55e'; // green if all same
+    // Discrete bands for complexity (Low = Good, High = Bad)
+    if (isDarkMode) {
+      if (complexity >= 20) return '#ef4444'; // Red (Bad)
+      if (complexity >= 15) return '#ec4899'; // Pink
+      if (complexity >= 10) return '#a855f7'; // Purple
+      return '#06b6d4'; // Cyan (Good)
+    } else {
+      if (complexity >= 20) return '#ef4444'; // Bright Red
+      if (complexity >= 15) return '#f97316'; // Bright Orange
+      if (complexity >= 10) return '#facc15'; // Bright Yellow
+      return '#22c55e'; // Bright Green (Good)
     }
-    const normalized = (complexity - minComplexity) / (maxComplexity - minComplexity);
-    // Interpolate between green and red
-    const red = Math.round(34 + normalized * 221); // 34 (green) to 255 (red)
-    const green = Math.round(197 - normalized * 175); // 197 (green) to 22 (red)
-    const blue = Math.round(34 - normalized * 12); // 34 (green) to 22 (red)
-    return `rgb(${red}, ${green}, ${blue})`;
   };
 
   const barWidth = '60px';

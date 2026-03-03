@@ -1069,6 +1069,7 @@ function ResultsPage() {
                 onFunctionClick={handleFunctionClick}
                 onFileClick={handleFileClickFrom3D}
                 fixedFileOrder={fixedFileOrder}
+                isDarkMode={isDarkMode}
               />
             )}
             {activeTab === 'island3D' && individual_files?.length > 0 && (

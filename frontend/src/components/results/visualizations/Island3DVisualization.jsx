@@ -111,6 +111,23 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const minComplexity = allComplexities.length > 0 ? Math.min(...allComplexities) : 1;
     const maxComplexity = allComplexities.length > 0 ? Math.max(...allComplexities) : 10;
 
+    const getComplexityColor = (complexity) => {
+        if (complexity === undefined || complexity === null) return 0x6b7280;
+
+        // Intensity mapping for complexity (High complexity = Bad/Red, Low = Good/Cyan-Green)
+        if (isDarkMode) {
+            if (complexity >= 20) return 0xef4444; // Red (Bad)
+            if (complexity >= 15) return 0xec4899; // Pink
+            if (complexity >= 10) return 0xa855f7; // Purple
+            return 0x06b6d4; // Cyan (Good)
+        } else {
+            if (complexity >= 20) return 0xef4444; // Bright Red
+            if (complexity >= 15) return 0xf97316; // Bright Orange
+            if (complexity >= 10) return 0xfacc15; // Bright Yellow
+            return 0x22c55e; // Bright Green (Good)
+        }
+    };
+
     const getMaintainabilityColor = (index) => {
         if (index === undefined || index === null) {
             return 0x6b7280; // Gray
@@ -120,34 +137,35 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         if (isDarkMode) {
             if (clamped < 10) {
-                // 0-9: purple → red
-                const t = clamped / 9;
-                return new THREE.Color(0xa855f7).lerp(new THREE.Color(0xff0055), t).getHex();
+                // 0-9: red
+                return 0xef4444;
+            } else if (clamped < 15) {
+                // 10-14: pink
+                return 0xec4899;
             } else if (clamped < 20) {
-                // 10-19: purple → amber
-                const t = (clamped - 10) / 9;
-                return new THREE.Color(0xa855f7).lerp(new THREE.Color(0xec4899), t).getHex();
+                // 15-19: purple
+                return 0xa855f7;
             } else {
-                // 20-100: pink → cyan
-                const t = (clamped - 20) / 80;
-                return new THREE.Color(0x56d3e9).lerp(new THREE.Color(0x06b6d4), t).getHex();
+                // 20-100: cyan
+                return 0x06b6d4;
+            }
+        }
+        else {
+            if (clamped < 10) {
+                // 0-9: bright red
+                return 0xef4444;
+            } else if (clamped < 15) {
+                // 10-14: bright orange
+                return 0xf97316;
+            } else if (clamped < 20) {
+                // 15-19: bright yellow
+                return 0xfacc15;
+            } else {
+                // 20-100: bright green
+                return 0x22c55e;
             }
         }
 
-        // Light mode: muted dark → saturated bright within each band
-        if (clamped < 10) {
-            // 0-9: dark red → bright red
-            const t = clamped / 9;
-            return new THREE.Color(0x991b1b).lerp(new THREE.Color(0xef4444), t).getHex();
-        } else if (clamped < 20) {
-            // 10-19: dark amber → bright yellow
-            const t = (clamped - 10) / 9;
-            return new THREE.Color(0x92400e).lerp(new THREE.Color(0xf59e0b), t).getHex();
-        } else {
-            // 20-100: dark green → bright green
-            const t = (clamped - 20) / 80;
-            return new THREE.Color(0x166534).lerp(new THREE.Color(0x22c55e), t).getHex();
-        }
     };
 
     // Directory colors based on depth
@@ -1320,7 +1338,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 <h4 className={`font-bold text-sm mb-3 flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
                     Terraced Map
                 </h4>
-                <div className={`space-y-2 text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                <div className={`space-y-3 text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                     <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-[#f5d5a8] rounded-sm" />
                         <span>Platform = Directory</span>
@@ -1329,9 +1347,26 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         <div className="w-1 h-3 bg-emerald-500 rounded-sm mx-1" />
                         <span>Tower = File</span>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <div className="flex-1 h-1 bg-gradient-to-r from-rose-500 via-amber-500 to-emerald-500 rounded-full w-16" />
-                        <span>Maintainability</span>
+                    <div className="flex flex-col gap-2">
+                        <div className="flex items-center justify-between font-bold mb-1">
+                            <span>Maintainability</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#ef4444' : '#ef4444' }} />
+                            <span>0-9 (Poor)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#ec4899' : '#f97316' }} />
+                            <span>10-14 (Moderate)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#a855f7' : '#facc15' }} />
+                            <span>15-19 (Good)</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#06b6d4' : '#22c55e' }} />
+                            <span>20-100 (Excellent)</span>
+                        </div>
                     </div>
                 </div>
             </div>
