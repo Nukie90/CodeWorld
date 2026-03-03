@@ -875,12 +875,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     materialsToDispose.push(material);
                 };
 
-                // For root (depth 0), render each child cluster individually to preserve organic valleys
+                // For root (depth 0), render all child clusters as one combined platform
                 if (node.depth === 0) {
-                    node.children.forEach(child => {
-                        if (child.children) renderShape([child], 15);
-                        else renderShape([child], 15); // Single file children also get sand
-                    });
+                    renderShape(node.children, 15);
                 } else {
                     renderShape(node.children, 8);
                 }
