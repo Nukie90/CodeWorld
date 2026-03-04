@@ -54,6 +54,7 @@ function ResultsPage() {
   const [animationSpeed, setAnimationSpeed] = useState(800)
   const [showContributors, setShowContributors] = useState(false) // Toggle added here
   const [topNComplexity, setTopNComplexity] = useState('All');
+  const [isCustomMode, setIsCustomMode] = useState(false);
   const [selectedDirectory, setSelectedDirectory] = useState('All');
   const [availableDirectories, setAvailableDirectories] = useState([]);
   const animationRef = useRef(null)
@@ -616,6 +617,76 @@ function ResultsPage() {
             <h3 className="text-xl font-bold bg-gradient-to-r from-blue-500 to-blue-800 bg-clip-text text-transparent">Git Graph</h3>
           </div>
 
+          <select
+            value={currentBranch}
+            onChange={handleBranchChange}
+            disabled={branchLoading || branches.length === 0}
+            className={`w-full px-4 py-3 border ${borderColor} rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm mb-4 ${panelBg} font-medium transition-all hover:border-blue-400`}
+          >
+            <option value="">Select branch</option>
+            {branches.map((b) => (
+              <option key={b} value={b}>{b}</option>
+            ))}
+          </select>
+
+          {/* New Filters: Complexity and Directory */}
+          <div className={`grid grid-cols-2 gap-2 mb-4 p-3 rounded-xl border ${borderColor} ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-50/50'} backdrop-blur-sm`}>
+            <div className="flex flex-col gap-1">
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Top Complexity:</span>
+              <div className="flex gap-1">
+                <select
+                  value={isCustomMode ? 'Custom' : topNComplexity}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'Custom') {
+                      setIsCustomMode(true);
+                      // Keep current value or set a sensible default if it was 'All'
+                      if (topNComplexity === 'All') setTopNComplexity('500');
+                    } else {
+                      setIsCustomMode(false);
+                      setTopNComplexity(val);
+                    }
+                  }}
+                  className={`flex-1 px-2 py-1.5 border ${borderColor} rounded-lg text-xs ${panelBg} focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-medium`}
+                >
+                  {['20', '50', '100', '250', '500', '1000', 'All'].map(val => (
+                    <option key={val} value={val}>{val === 'All' ? 'All Files' : `Top ${val}`}</option>
+                  ))}
+                  <option value="Custom">Custom...</option>
+                </select>
+                {isCustomMode && (
+                  <input
+                    type="number"
+                    value={topNComplexity}
+                    onChange={(e) => setTopNComplexity(e.target.value)}
+                    className={`w-16 px-2 py-1.5 border ${borderColor} rounded-lg text-xs ${panelBg} focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-bold text-blue-500`}
+                    title="Enter custom number of files"
+                    min="1"
+                  />
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Directory:</span>
+              <select
+                value={selectedDirectory}
+                onChange={(e) => setSelectedDirectory(e.target.value)}
+                className={`w-full px-2 py-1.5 border ${borderColor} rounded-lg text-xs ${panelBg} focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all`}
+              >
+                {availableDirectories.map(dir => (
+                  <option key={dir} value={dir}>{dir === 'All' ? 'Root (All)' : dir}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* File Count Display */}
+          <div className="flex items-center justify-between mb-4 px-3">
+            <span className={`text-xs font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Showing <span className="text-blue-500">{filteredFiles.length}</span> of <span className={textColor}>{individual_files.length}</span> files
+            </span>
+          </div>
+
           <div className={`flex items-center gap-2 ${isDarkMode ? 'bg-gray-800/50' : 'bg-gray-100/50'} backdrop-blur-sm px-3 py-2 rounded-xl mb-4 border ${borderColor}`}>
             <button
               onClick={handleStepPrev}
@@ -658,60 +729,6 @@ function ResultsPage() {
                 className="w-20 h-1.5 bg-gray-300 dark:bg-gray-700 rounded-full appearance-none cursor-pointer accent-blue-600"
               />
             </div>
-          </div>
-
-          {/* New Filters: Complexity and Directory */}
-          <div className={`grid grid-cols-2 gap-2 mb-4 p-3 rounded-xl border ${borderColor} ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-50/50'} backdrop-blur-sm`}>
-            <div className="flex flex-col gap-1">
-              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Top Complexity:</span>
-              <div className="flex gap-1">
-                <select
-                  value={['50', '100', '250', '500', '1000', 'All'].includes(topNComplexity) ? topNComplexity : 'Custom'}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === 'Custom') {
-                      setTopNComplexity('500'); // Default when switching to custom
-                    } else {
-                      setTopNComplexity(val);
-                    }
-                  }}
-                  className={`flex-1 px-2 py-1.5 border ${borderColor} rounded-lg text-xs ${panelBg} focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-medium`}
-                >
-                  {['25', '50', '100', '250', '500', '1000', 'All'].map(val => (
-                    <option key={val} value={val}>{val === 'All' ? 'All Files' : `Top ${val}`}</option>
-                  ))}
-                  <option value="Custom">Custom...</option>
-                </select>
-                {!['50', '100', '250', '500', '1000', 'All'].includes(topNComplexity) && (
-                  <input
-                    type="number"
-                    value={topNComplexity}
-                    onChange={(e) => setTopNComplexity(e.target.value)}
-                    className={`w-16 px-2 py-1.5 border ${borderColor} rounded-lg text-xs ${panelBg} focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-bold text-blue-500`}
-                    title="Enter custom number of files"
-                  />
-                )}
-              </div>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Directory:</span>
-              <select
-                value={selectedDirectory}
-                onChange={(e) => setSelectedDirectory(e.target.value)}
-                className={`w-full px-2 py-1.5 border ${borderColor} rounded-lg text-xs ${panelBg} focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all`}
-              >
-                {availableDirectories.map(dir => (
-                  <option key={dir} value={dir}>{dir === 'All' ? 'Root (All)' : dir}</option>
-                ))}
-              </select>
-            </div>
-          </div>
-
-          {/* File Count Display */}
-          <div className="flex items-center justify-between mb-4 px-3">
-            <span className={`text-xs font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
-              Showing <span className="text-blue-500">{filteredFiles.length}</span> of <span className={textColor}>{individual_files.length}</span> files
-            </span>
           </div>
 
           {/* Timeline Quick Filters */}
@@ -766,18 +783,6 @@ function ResultsPage() {
               </button>
             </div>
           </div>
-
-          <select
-            value={currentBranch}
-            onChange={handleBranchChange}
-            disabled={branchLoading || branches.length === 0}
-            className={`w-full px-4 py-3 border ${borderColor} rounded-xl focus:ring-2 focus:ring-blue-500 focus:outline-none text-sm mb-4 ${panelBg} font-medium transition-all hover:border-blue-400`}
-          >
-            <option value="">Select branch</option>
-            {branches.map((b) => (
-              <option key={b} value={b}>{b}</option>
-            ))}
-          </select>
 
           {/* Current Commit Display - Clickable to open modal */}
           {animatingCommit && (
