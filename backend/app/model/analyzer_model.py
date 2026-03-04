@@ -26,6 +26,7 @@ class FileMetrics(BaseModel):
     function_count: int
     total_complexity: int
     complexity_max: int
+    total_cognitive_complexity: Optional[int] = None
     halstead_volume: Optional[float] = None
     maintainability_index: Optional[float] = None
     is_unsupported: bool = False

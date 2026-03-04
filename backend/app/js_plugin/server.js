@@ -723,6 +723,8 @@ app.post('/analyze-code', express.json(), (req, res) => {
             maintainability_index = Math.max(0, Math.min(100, originalMI * 100 / 171));
         }
 
+        const total_cognitive_complexity = roots.reduce((sum, r) => sum + (r.totalCC || 0), 0);
+
         const responseMetrics = {
             filename: filename,
             language: 'javascript',
@@ -731,6 +733,7 @@ app.post('/analyze-code', express.json(), (req, res) => {
             function_count: function_count,
             total_complexity: babelMetrics.fileCYC !== undefined ? babelMetrics.fileCYC : complexity_sum,
             complexity_max: complexity_max,
+            total_cognitive_complexity: total_cognitive_complexity,
             halstead_volume: babelMetrics.halsteadVolume || 0.0,
             maintainability_index: parseFloat(maintainability_index.toFixed(2)),
             functions: hierarchicalFunctions, // Returns roots with nested children
@@ -811,6 +814,8 @@ app.post('/analyze-batch', express.json({ limit: '50mb' }), (req, res) => {
                 if (f.CC > complexity_max) complexity_max = f.CC;
             });
 
+            const total_cognitive_complexity = roots.reduce((sum, r) => sum + (r.totalCC || 0), 0);
+
             return {
                 filename,
                 language: 'javascript',
@@ -819,6 +824,7 @@ app.post('/analyze-batch', express.json({ limit: '50mb' }), (req, res) => {
                 function_count: babelMetrics.functions.length,
                 total_complexity: complexity_sum,
                 complexity_max,
+                total_cognitive_complexity: total_cognitive_complexity,
                 halstead_volume: babelMetrics.halsteadVolume || 0.0,
                 functions: hierarchicalFunctions,
             };

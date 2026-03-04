@@ -18,7 +18,7 @@
 - add contributor floating around the island 
 - add a timeline play for 3d visualization (play from yesterday, 1 week ago, 2 weeks ago)
 - add more col to the table view to include the maintainability index and other info.
-
+- show the number of total files in and add ability to select only top (50,100,250,500,1000,All) cognitive complexity files to visualize, or select the which directory (root, ...) also consider to if we change the repo or play the timeline 3d, we need to update the possible options and the count of files too
 
 repo demo result
 [Timeline] Animation Complete

@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Home, Moon, Sun, Play, Square, GitCommit, Copy, Check, Code, FileText, Hash, X } from 'lucide-react';
 import { useLocation } from 'react-router-dom'
@@ -53,6 +53,9 @@ function ResultsPage() {
   const [currentCommitIndex, setCurrentCommitIndex] = useState(-1)
   const [animationSpeed, setAnimationSpeed] = useState(800)
   const [showContributors, setShowContributors] = useState(false) // Toggle added here
+  const [topNComplexity, setTopNComplexity] = useState('All');
+  const [selectedDirectory, setSelectedDirectory] = useState('All');
+  const [availableDirectories, setAvailableDirectories] = useState([]);
   const animationRef = useRef(null)
   const animationSpeedRef = useRef(animationSpeed)
 
@@ -82,9 +85,60 @@ function ResultsPage() {
     fetchBranches()
   }, [analysisResult?.repo_url, token])
 
-  const folderMetrics = analysisResult?.analysis?.folder_metrics || {}
-  const folderName = folderMetrics?.folder_name?.split('.git')[0] || ''
   const individual_files = analysisResult?.analysis?.individual_files || []
+
+  // Extract unique directories from individual_files
+  useEffect(() => {
+    if (individual_files && individual_files.length > 0) {
+      const dirs = new Set();
+      individual_files.forEach(f => {
+        const parts = (f.filename || '').split('/');
+        if (parts.length > 1) {
+          let currentPath = '';
+          for (let i = 0; i < parts.length - 1; i++) {
+            currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+            dirs.add(currentPath);
+          }
+        }
+      });
+      const sortedDirs = Array.from(dirs).sort();
+      const newDirs = ['All', ...sortedDirs];
+      setAvailableDirectories(newDirs);
+
+      // Reset selected directory if it's no longer available
+      if (selectedDirectory !== 'All' && !dirs.has(selectedDirectory)) {
+        setSelectedDirectory('All');
+      }
+    } else {
+      setAvailableDirectories(['All']);
+      setSelectedDirectory('All');
+    }
+  }, [individual_files, selectedDirectory]);
+
+  // Filter and sort files based on complexity and directory
+  const filteredFiles = useMemo(() => {
+    let result = [...individual_files];
+
+    // 1. Filter by directory
+    if (selectedDirectory !== 'All') {
+      result = result.filter(f => (f.filename || '').startsWith(selectedDirectory + '/') || f.filename === selectedDirectory);
+    }
+
+    // 2. Sort by total_cognitive_complexity descending
+    result.sort((a, b) => (b.total_cognitive_complexity || 0) - (a.total_cognitive_complexity || 0));
+
+    // 3. Slice by topNComplexity
+    if (topNComplexity !== 'All') {
+      const topN = parseInt(topNComplexity);
+      if (!isNaN(topN)) {
+        result = result.slice(0, topN);
+      }
+    }
+
+    return result;
+  }, [individual_files, selectedDirectory, topNComplexity]);
+
+  const folderMetrics = analysisResult?.analysis?.folder_metrics || {}
 
   const folderSummary = {
     'Total files': folderMetrics?.total_files,
@@ -606,6 +660,60 @@ function ResultsPage() {
             </div>
           </div>
 
+          {/* New Filters: Complexity and Directory */}
+          <div className={`grid grid-cols-2 gap-2 mb-4 p-3 rounded-xl border ${borderColor} ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-50/50'} backdrop-blur-sm`}>
+            <div className="flex flex-col gap-1">
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Top Complexity:</span>
+              <div className="flex gap-1">
+                <select
+                  value={['50', '100', '250', '500', '1000', 'All'].includes(topNComplexity) ? topNComplexity : 'Custom'}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    if (val === 'Custom') {
+                      setTopNComplexity('500'); // Default when switching to custom
+                    } else {
+                      setTopNComplexity(val);
+                    }
+                  }}
+                  className={`flex-1 px-2 py-1.5 border ${borderColor} rounded-lg text-xs ${panelBg} focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-medium`}
+                >
+                  {['25', '50', '100', '250', '500', '1000', 'All'].map(val => (
+                    <option key={val} value={val}>{val === 'All' ? 'All Files' : `Top ${val}`}</option>
+                  ))}
+                  <option value="Custom">Custom...</option>
+                </select>
+                {!['50', '100', '250', '500', '1000', 'All'].includes(topNComplexity) && (
+                  <input
+                    type="number"
+                    value={topNComplexity}
+                    onChange={(e) => setTopNComplexity(e.target.value)}
+                    className={`w-16 px-2 py-1.5 border ${borderColor} rounded-lg text-xs ${panelBg} focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-bold text-blue-500`}
+                    title="Enter custom number of files"
+                  />
+                )}
+              </div>
+            </div>
+            <div className="flex flex-col gap-1">
+              <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Directory:</span>
+              <select
+                value={selectedDirectory}
+                onChange={(e) => setSelectedDirectory(e.target.value)}
+                className={`w-full px-2 py-1.5 border ${borderColor} rounded-lg text-xs ${panelBg} focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all`}
+              >
+                {availableDirectories.map(dir => (
+                  <option key={dir} value={dir}>{dir === 'All' ? 'Root (All)' : dir}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* File Count Display */}
+          <div className="flex items-center justify-between mb-4 px-3">
+            <span className={`text-xs font-bold ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+              Showing <span className="text-blue-500">{filteredFiles.length}</span> of <span className={textColor}>{individual_files.length}</span> files
+            </span>
+          </div>
+
           {/* Timeline Quick Filters */}
           <div className="flex flex-wrap items-center gap-2 mb-4">
             <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} w-full`}>
@@ -1052,7 +1160,7 @@ function ResultsPage() {
                         </h4>
                       </div>
 
-                      <div className="grid grid-cols-4 gap-4 mb-6">
+                      <div className="grid grid-cols-5 gap-4 mb-6">
                         <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
                           <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Total LOC</span>
                           <span className={`text-xl font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
@@ -1068,6 +1176,10 @@ function ResultsPage() {
                         <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
                           <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Max Complexity</span>
                           <span className="text-xl font-black bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">{fullFileData.total_complexity || "—"}</span>
+                        </div>
+                        <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
+                          <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Cog Complexity</span>
+                          <span className="text-xl font-black bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">{fullFileData.total_cognitive_complexity || "0"}</span>
                         </div>
                         <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
                           <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Functions</span>
@@ -1171,18 +1283,18 @@ function ResultsPage() {
 
           {/* Visualization Content */}
           <div className="flex-1 overflow-hidden">
-            {activeTab === 'bar' && individual_files?.length > 0 && (
+            {activeTab === 'bar' && filteredFiles?.length > 0 && (
               <BarChartVisualization
-                individualFiles={individual_files}
+                individualFiles={filteredFiles}
                 onFunctionClick={handleFunctionClick}
                 onFileClick={handleFileClickFrom3D}
                 fixedFileOrder={fixedFileOrder}
                 isDarkMode={isDarkMode}
               />
             )}
-            {activeTab === 'island3D' && individual_files?.length > 0 && (
+            {activeTab === 'island3D' && filteredFiles?.length > 0 && (
               <Island3DVisualization
-                individualFiles={individual_files}
+                individualFiles={filteredFiles}
                 onFunctionClick={handleFunctionClick}
                 onFileClick={handleFileClickFrom3D}
                 isDarkMode={isDarkMode}
@@ -1191,7 +1303,7 @@ function ResultsPage() {
                 showContributors={showContributors}
               />
             )}
-            {(!individual_files?.length || individual_files.length === 0) && (
+            {(!filteredFiles?.length || filteredFiles.length === 0) && (
               <div className="flex items-center justify-center h-full text-gray-400">
                 No files to visualize
               </div>

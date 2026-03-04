@@ -443,6 +443,9 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         mi_normalized = max(0.0, min(100.0, original_mi * 100.0 / 171.0))
         maintainability_index = round(mi_normalized, 2)
 
+    # Calculate Total Cognitive Complexity for the file
+    total_cognitive_complexity = sum(f.total_cognitive_complexity for f in roots if f.total_cognitive_complexity is not None)
+
     return FileMetrics(
         filename=filename,
         language="python",
@@ -451,6 +454,7 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         function_count=len(functions),
         total_complexity=complexity_sum,
         complexity_max=complexity_max,
+        total_cognitive_complexity=total_cognitive_complexity,
         halstead_volume=halstead_volume,
         maintainability_index=maintainability_index,
         functions=roots
