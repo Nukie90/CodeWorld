@@ -19,7 +19,7 @@ function ResultsPage() {
   const [isDarkMode, setIsDarkMode] = useState(false);
 
   // Panel visibility states
-  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(false);
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(false);
   const [isTopPanelOpen, setIsTopPanelOpen] = useState(false);
   const [isBottomPanelOpen, setIsBottomPanelOpen] = useState(false);
