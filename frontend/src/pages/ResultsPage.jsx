@@ -1,20 +1,14 @@
 // Main Dashboard: Repository Analysis Results
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
-
-import BarChartVisualization from '../components/features/visualizations/BarChartVisualization';
-import Island3DVisualization from '../components/features/visualizations/Island3DVisualization';
-import CommitDetailModal from '../components/features/git_graph/CommitDetailModal';
-import ChatBot from '../components/features/chat/ChatBot';
-
-import ResultsSidebar from '../components/features/results/ResultsSidebar';
-import ResultsDetailsPanel from '../components/features/results/ResultsDetailsPanel';
-import ResultsControlBar from '../components/features/results/ResultsControlBar';
-
-import { useRepoBranches } from '../hooks/useRepoBranches';
-import { useRepoAnimation } from '../hooks/useRepoAnimation';
-import { repoService } from '../services/api';
+import { Link, useNavigate } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Home, Moon, Sun, Play, Square, GitCommit, Copy, Check, Code, FileText, Hash, X } from 'lucide-react';
+import { useLocation } from 'react-router-dom'
+import axios from 'axios'
+import BarChartVisualization from '../components/results/visualizations/BarChartVisualization';
+import Island3DVisualization from '../components/results/visualizations/Island3DVisualization';
+import GitGraph from '../components/git/GitGraph';
+import CommitDetailModal from '../components/git/CommitDetailModal';
+import ChatBot from '../components/chat/ChatBot';
 
 function ResultsPage() {
   const navigate = useNavigate();
@@ -635,6 +629,7 @@ function ResultsPage() {
         />
       )}
 
+      {/* AI Chatbot Overlay */}
       <ChatBot
         isDarkMode={isDarkMode}
         projectContext={{
