@@ -1939,65 +1939,69 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 )}
             </div>
 
-            {/* Controls Help */}
-            <div className={`absolute bottom-4 left-4 backdrop-blur-md rounded-xl shadow-lg p-4 z-10 border ${isDarkMode
-                ? 'bg-slate-800/80 border-slate-700/50'
-                : 'bg-white/80 border-white/50'}`}>
-                <h4 className={`font-bold text-sm mb-2 flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
-                    Controls
-                </h4>
-                <div className={`space-y-1 text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <div className="flex items-center gap-2">
-                        <kbd className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>WASD</kbd><span>Move</span>
+            {/* Bottom-left UI Stack */}
+            <div className="absolute bottom-4 left-4 z-10 flex flex-col gap-4">
+                {/* Controls Help */}
+                <div className={`backdrop-blur-md rounded-xl shadow-lg p-4 border ${isDarkMode
+                    ? 'bg-slate-800/80 border-slate-700/50'
+                    : 'bg-white/80 border-white/50'}`}>
+                    <h4 className={`font-bold text-sm mb-2 flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                        Controls
+                    </h4>
+                    <div className={`space-y-1 text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        <div className="flex items-center gap-2">
+                            <kbd className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>WASD</kbd><span>Move</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <kbd className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>Click</kbd><span>Capture Mouse</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <kbd className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>ESC</kbd><span>Release Mouse</span>
+                        </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <kbd className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>Click</kbd><span>Capture Mouse</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <kbd className={`px-1.5 py-0.5 rounded text-[10px] font-mono ${isDarkMode ? 'bg-slate-700' : 'bg-gray-100'}`}>ESC</kbd><span>Release Mouse</span>
+                </div>
+
+                {/* Legend (Terraced Map Info) */}
+                <div className={`backdrop-blur-md rounded-xl shadow-lg p-4 border ${isDarkMode
+                    ? 'bg-slate-800/80 border-slate-700/50'
+                    : 'bg-white/80 border-white/50'}`}>
+                    <h4 className={`font-bold text-sm mb-3 flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
+                        Terraced Map
+                    </h4>
+                    <div className={`space-y-3 text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 bg-[#f5d5a8] rounded-sm" />
+                            <span>Platform = Directory</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <div className="w-1 h-3 bg-emerald-500 rounded-sm mx-1" />
+                            <span>Tower = File</span>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                            <div className="flex items-center justify-between font-bold mb-1">
+                                <span>Maintainability</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#ef4444' : '#ef4444' }} />
+                                <span>0-9 (Poor)</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#ec4899' : '#f97316' }} />
+                                <span>10-14 (Moderate)</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#a855f7' : '#facc15' }} />
+                                <span>15-19 (Good)</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#06b6d4' : '#22c55e' }} />
+                                <span>20-100 (Excellent)</span>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* Legend */}
-            <div className={`absolute bottom-4 right-4 backdrop-blur-md rounded-xl shadow-lg p-4 z-10 border ${isDarkMode
-                ? 'bg-slate-800/80 border-slate-700/50'
-                : 'bg-white/80 border-white/50'}`}>
-                <h4 className={`font-bold text-sm mb-3 flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
-                    Terraced Map
-                </h4>
-                <div className={`space-y-3 text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#f5d5a8] rounded-sm" />
-                        <span>Platform = Directory</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-1 h-3 bg-emerald-500 rounded-sm mx-1" />
-                        <span>Tower = File</span>
-                    </div>
-                    <div className="flex flex-col gap-2">
-                        <div className="flex items-center justify-between font-bold mb-1">
-                            <span>Maintainability</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#ef4444' : '#ef4444' }} />
-                            <span>0-9 (Poor)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#ec4899' : '#f97316' }} />
-                            <span>10-14 (Moderate)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#a855f7' : '#facc15' }} />
-                            <span>15-19 (Good)</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#06b6d4' : '#22c55e' }} />
-                            <span>20-100 (Excellent)</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
     );
 }
