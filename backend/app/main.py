@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 # from app.routes.analyzer_routes import router as analyzer_router
 from app.routes.github_routes import router as github_router
+from app.routes.ai_routes import router as ai_router
 
 # Load environment variables from backend/.env when available (development convenience).
 try:
@@ -34,6 +35,7 @@ app.add_middleware(
 
 # app.include_router(analyzer_router, prefix="/api")
 app.include_router(github_router, prefix="/api")
+app.include_router(ai_router, prefix="/api/ai")
 
 @app.get("/")
 async def home():
