@@ -7,6 +7,7 @@ import BarChartVisualization from '../components/results/visualizations/BarChart
 import Island3DVisualization from '../components/results/visualizations/Island3DVisualization';
 import GitGraph from '../components/git/GitGraph';
 import CommitDetailModal from '../components/git/CommitDetailModal';
+import ChatBot from '../components/chat/ChatBot';
 
 function ResultsPage() {
   const navigate = useNavigate();
@@ -1328,6 +1329,16 @@ function ResultsPage() {
           onClose={() => setSelectedCommitForModal(null)}
         />
       )}
+
+      {/* AI Chatbot Overlay */}
+      <ChatBot
+        isDarkMode={isDarkMode}
+        projectContext={{
+          repo_url: analysisResult?.repo_url,
+          folder_metrics: analysisResult?.analysis?.folder_metrics,
+          individual_files: analysisResult?.analysis?.individual_files
+        }}
+      />
     </div>
   );
 }
