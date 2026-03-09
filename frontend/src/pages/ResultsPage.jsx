@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Home, Moon, Sun, Play, Square, GitCommit, Copy, Check, Code, FileText, Hash, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Home, Moon, Sun, Play, Square, GitCommit, Copy, Check, Code, FileText, Hash, X, Sparkles, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useLocation } from 'react-router-dom'
 import axios from 'axios'
 import BarChartVisualization from '../components/results/visualizations/BarChartVisualization';
@@ -905,6 +905,17 @@ function ResultsPage() {
                   <Code size={14} strokeWidth={2.5} />
                   Highlighted
                 </button>
+                <button
+                  onClick={() => setCodeDisplayMode('aiSuggest')}
+                  className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${codeDisplayMode === 'aiSuggest'
+                    ? 'bg-gradient-to-r from-purple-500 to-indigo-600 text-white shadow-lg'
+                    : `${textColor} hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-white`
+                    }`}
+                  title="AI Suggestions"
+                >
+                  <Sparkles size={14} strokeWidth={2.5} />
+                  AI Suggest
+                </button>
               </div>
 
               <button
@@ -932,24 +943,84 @@ function ResultsPage() {
             </div>
           )}
 
-          <div className={`${isDarkMode ? 'bg-gray-900' : 'bg-white'} rounded-xl p-5 flex-1 overflow-auto border ${borderColor} shadow-inner`}>
+          <div className={`${isDarkMode ? 'bg-gray-900' : 'bg-white'} rounded-xl ${codeDisplayMode === 'aiSuggest' ? 'p-0' : 'p-5'} flex-1 overflow-auto border ${borderColor} shadow-inner`}>
             {codeLoading ? (
               <div className="flex items-center justify-center h-full">
                 <p className="text-gray-400 text-sm">Loading function code...</p>
               </div>
             ) : selectedCode ? (
               <div className="h-full flex flex-col">
-                <div className={`mb-4 pb-3 border-b ${borderColor}`}>
-                  <h4 className={`font-bold text-base ${textColor}`}>
-                    {selectedCode.functionName}
+                {codeDisplayMode !== 'aiSuggest' && (
+                  <div className={`mb-4 pb-3 border-b ${borderColor}`}>
+                    <h4 className={`font-bold text-base ${textColor}`}>
+                      {selectedCode.functionName}
+                    </h4>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
+                      {selectedCode.filename} (Lines {selectedCode.startLine}
+                      {selectedCode.endLine ? `-${selectedCode.endLine}` : ''})
+                    </p>
+                  </div>
+                )}
+                {codeDisplayMode === 'aiSuggest' && (
+                  <h4 className={`text-base font-semibold px-4 pt-4 ${isDarkMode ? 'text-indigo-200' : 'text-indigo-900/80'}`}>
+                    Let's spice up that code a bit!
                   </h4>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5">
-                    {selectedCode.filename} (Lines {selectedCode.startLine}
-                    {selectedCode.endLine ? `-${selectedCode.endLine}` : ''})
-                  </p>
-                </div>
+                )}
                 <div className="flex-1 overflow-auto relative">
-                  {codeDisplayMode === 'highlighted' ? (
+                  {codeDisplayMode === 'aiSuggest' ? (
+                    <div className={`h-full flex flex-col overflow-y-auto rounded-xl p-4`} style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                      <style>{`
+                        .h-full::-webkit-scrollbar {
+                          display: none;
+                        }
+                      `}</style>
+                      <div className="space-y-4">
+                        {/* Suggestion 1 */}
+                        <div className={`p-5 rounded-[2rem] shadow-sm transform transition-all hover:scale-[1.01] ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
+                          <span className={`text-xs font-medium mb-1.5 block opacity-50 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Create a modular structure
+                          </span>
+                          <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                            By extracting the core validation logic into a dedicated helper, you can whisk the complexity away and leave a clean, readable entry point...
+                          </p>
+                        </div>
+
+                        {/* Suggestion 2 */}
+                        <div className={`p-5 rounded-[2rem] shadow-sm transform transition-all hover:scale-[1.01] ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
+                          <span className={`text-xs font-medium mb-1.5 block opacity-50 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Simplify logic flow
+                          </span>
+                          <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                            Skillful use of guard clauses has the magical power to flatten nested conditionals and transport the next developer to a land of clarity...
+                          </p>
+                        </div>
+
+                        {/* Suggestion 3 */}
+                        <div className={`p-5 rounded-[2rem] shadow-sm transform transition-all hover:scale-[1.01] ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white'}`}>
+                          <span className={`text-xs font-medium mb-1.5 block opacity-50 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                            Improve readability
+                          </span>
+                          <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                            Through the art of descriptive naming, you can mesmerize your team, taking them on a journey through the logic without a single comment...
+                          </p>
+                        </div>
+
+                        {/* Original Section */}
+                        <div className={`p-5 rounded-[2rem] shadow-sm flex items-start gap-4 ${isDarkMode ? 'bg-gray-800/60 border border-gray-700' : 'bg-white'}`}>
+                          <div className="flex-1">
+                            <span className={`text-xs font-medium mb-1.5 block opacity-50 ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
+                              Original: {selectedCode.functionName}
+                            </span>
+                            <p className={`text-sm leading-relaxed ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                              The current implementation of "{selectedCode.functionName}" has high cyclomatic complexity and could benefit from some of the optimizations suggested above...
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+
+                    </div>
+                  ) : codeDisplayMode === 'highlighted' ? (
                     <div className="relative">
                       {showLineNumbers && (
                         <div
