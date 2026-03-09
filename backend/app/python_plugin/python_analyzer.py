@@ -3,7 +3,7 @@ import token
 import tokenize
 from io import BytesIO
 from typing import List, Dict, Any, Optional
-from app.model.analyzer_model import FileMetrics, FunctionMetric
+from app.model.analyzer_model import FileMetrics, FunctionMetric, LintError
 
 GLOBAL_FUNC_NAME = "code outside functions"
 
@@ -446,7 +446,89 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
     # Calculate Total Cognitive Complexity for the file
     total_cognitive_complexity = sum(f.total_cognitive_complexity for f in roots if f.total_cognitive_complexity is not None)
 
-    return FileMetrics(
+    # Run Pylint
+    # Run Pylint
+    lint_score = None
+    lint_errors = []
+    
+    try:
+        import tempfile
+        import json
+        import subprocess
+        import os
+        import sys
+
+        wrapper_code = """
+import sys
+import json
+from pylint.lint import Run
+from pylint.reporters.json_reporter import JSONReporter
+from io import StringIO
+
+pylint_output = StringIO()
+reporter = JSONReporter(pylint_output)
+try:
+    results = Run(sys.argv[1:], reporter=reporter, exit=False)
+    score = results.linter.stats.global_note
+except Exception:
+    score = None
+
+print("===PYLINT_SCORE===")
+print(score)
+print("===PYLINT_JSON===")
+print(pylint_output.getvalue())
+"""
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.py', delete=False, encoding='utf-8') as wrapper_f:
+            wrapper_f.write(wrapper_code)
+            wrapper_file_name = wrapper_f.name
+        
+        try:
+            pylint_args = [
+                sys.executable, wrapper_file_name,
+                "--reports=n",
+                "--disable=C",
+                "--from-stdin", filename
+            ]
+            
+            process = subprocess.run(pylint_args, input=code, capture_output=True, text=True)
+            output_str = process.stdout
+            
+            if "===PYLINT_SCORE===" in output_str and "===PYLINT_JSON===" in output_str:
+                parts = output_str.split("===PYLINT_SCORE===")[1].split("===PYLINT_JSON===")
+                score_str = parts[0].strip()
+                json_str = parts[1].strip()
+                
+                if score_str and score_str != "None":
+                    try:
+                        lint_score = float(score_str)
+                    except ValueError:
+                        pass
+                        
+                if json_str:
+                    try:
+                        errors_data = json.loads(json_str)
+                        for err in errors_data:
+                            lint_errors.append(LintError(
+                                type=err.get("type", ""),
+                                module=err.get("module", ""),
+                                obj=err.get("obj", ""),
+                                line=err.get("line", 0),
+                                column=err.get("column", 0),
+                                endLine=err.get("endLine"),
+                                endColumn=err.get("endColumn"),
+                                path=filename,
+                                symbol=err.get("symbol", ""),
+                                message=err.get("message", ""),
+                                message_id=err.get("message-id", "")
+                            ))
+                    except json.JSONDecodeError:
+                        pass
+        finally:
+            os.remove(wrapper_file_name)
+    except Exception as e:
+        print(f"Error running pylint on {filename}: {e}")
+
+    file_metrics = FileMetrics(
         filename=filename,
         language="python",
         total_loc=loc,
@@ -457,5 +539,13 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         total_cognitive_complexity=total_cognitive_complexity,
         halstead_volume=halstead_volume,
         maintainability_index=maintainability_index,
+        lint_score=lint_score,
+        lint_errors=lint_errors,
         functions=roots
     )
+
+    # write to json file
+    with open(f"{filename}.json", "w") as f:
+        json.dump(file_metrics.model_dump(), f, indent=2)
+
+    return file_metrics

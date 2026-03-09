@@ -1,6 +1,19 @@
 # models.py
 from pydantic import BaseModel, Field
-from typing import List, Optional
+from typing import List, Optional, Any
+
+class LintError(BaseModel):
+    type: str
+    module: str
+    obj: str
+    line: int
+    column: int
+    endLine: Optional[int] = None
+    endColumn: Optional[int] = None
+    path: str
+    symbol: str
+    message: str
+    message_id: str
 
 class FunctionMetric(BaseModel):
     name: str
@@ -30,6 +43,8 @@ class FileMetrics(BaseModel):
     halstead_volume: Optional[float] = None
     maintainability_index: Optional[float] = None
     is_unsupported: bool = False
+    lint_score: Optional[float] = None
+    lint_errors: List[LintError] = Field(default_factory=list)
     functions: List[FunctionMetric]
 
 class FolderMetrics(BaseModel):
@@ -41,6 +56,7 @@ class FolderMetrics(BaseModel):
     total_complexity: int
     complexity_max: int
     maintainability_index: Optional[float] = None
+    average_lint_score: Optional[float] = None
     files: List[FileMetrics]
 
 class FolderAnalysisResult(BaseModel):
