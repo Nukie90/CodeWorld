@@ -6,8 +6,54 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const AdmZip = require('adm-zip');
+const { ESLint } = require("eslint");
 
 const app = express();
+
+const eslint = new ESLint();
+
+async function getLintResults(code, filename) {
+    let lint_score = null;
+    let lint_errors = [];
+    const safeFilename = filename;
+
+    try {
+        const results = await eslint.lintText(code, { filePath: safeFilename });
+
+        if (results && results.length > 0) {
+            const result = results[0];
+            const messages = result.messages || [];
+
+            lint_errors = messages.map(msg => ({
+                type: msg.severity === 2 ? "error" : "warning",
+                module: path.parse(safeFilename).name || "",
+                obj: "",
+                line: msg.line || 0,
+                column: msg.column || 0,
+                endLine: msg.endLine ?? null,
+                endColumn: msg.endColumn ?? null,
+                path: safeFilename,
+                symbol: msg.ruleId || "",
+                message: msg.message || "",
+                message_id: msg.ruleId || ""
+            }));
+
+            // Simple score formula similar in spirit to pylint
+            const errorCount = result.errorCount || 0;
+            const warningCount = result.warningCount || 0;
+
+            // start from 10
+            // error = -1
+            // warning = -0.5
+            const rawScore = 10 - (errorCount * 1.0) - (warningCount * 0.5);
+            lint_score = Math.max(0, Number(rawScore.toFixed(2)));
+        }
+    } catch (e) {
+        console.error(`Error running eslint on ${safeFilename}:`, e.message);
+    }
+
+    return { lint_score, lint_errors };
+}
 
 app.use(cors());
 app.use(express.json());
@@ -286,68 +332,113 @@ function calculateMetrics(code) {
     }
 }
 
-// function calculateCC(functionCode) {
-//     let complexity = 1;
-//     let ast;
+async function buildFileMetricsResponse(code, filename) {
+    const babelMetrics = calculateMetrics(code);
+    babelMetrics.functions.sort((a, b) => a.id - b.id);
 
-//     try {
-//         let src = String(functionCode).trim();
-//         try {
-//             // First, attempt to parse the string normally as a module
-//             ast = parser.parse(src, {
-//                 sourceType: 'module',
-//                 plugins: ['jsx', 'typescript', 'classProperties', 'objectRestSpread'],
-//                 allowReturnOutsideFunction: true
-//             });
-//         } catch (parseError) {
-//             // If it fails, maybe it's just an isolated function expression that needs wrapping
-//             if (/^(async\s+)?function\b/.test(src)) {
-//                 src = `(${src})`;
-//             }
-//             // Class/Object method shorthand like "foo() { ... }" → wrap into object
-//             else if (/^\w+\s*\([^)]*\)\s*\{/.test(src)) {
-//                 src = `({ ${src} })`;
-//             }
+    const fnMap = new Map();
+    const childrenMap = new Map();
+    const roots = [];
 
-//             // Arrow functions are already expressions; leave them as-is
-//             // Now parse in expression position (no extra block!)
-//             ast = parser.parse(`${src};`, {
-//                 sourceType: 'module',
-//                 plugins: ['jsx', 'typescript', 'classProperties', 'objectRestSpread'],
-//                 allowReturnOutsideFunction: true
-//             });
-//         }
+    babelMetrics.functions.forEach(f => {
+        f.children = [];
+        fnMap.set(f.id, f);
+        childrenMap.set(f.id, []);
+    });
 
-//         traverse(ast, {
-//             enter(path) {
-//                 switch (path.type) {
-//                     case 'IfStatement':
-//                     case 'ConditionalExpression':
-//                     case 'ForStatement':
-//                     case 'ForInStatement':
-//                     case 'ForOfStatement':
-//                     case 'WhileStatement':
-//                     case 'DoWhileStatement':
-//                     case 'CatchClause':
-//                         complexity++;
-//                         break;
-//                     case 'LogicalExpression':
-//                         if (path.node.operator === '&&' || path.node.operator === '||') complexity++;
-//                         break;
-//                     case 'SwitchCase':
-//                         if (path.node.test) complexity++;
-//                         break;
-//                 }
-//             }
-//         });
+    babelMetrics.functions.forEach(f => {
+        if (f.parentId !== null && fnMap.has(f.parentId)) {
+            childrenMap.get(f.parentId).push(f);
+        } else {
+            roots.push(f);
+        }
+    });
 
-//         return complexity;
-//     } catch (error) {
-//         console.error('Error calculating cyclomatic complexity:', error);
-//         console.error('Function code causing error:', functionCode);
-//         return 1;
-//     }
-// }
+    function processNode(fnId) {
+        const f = fnMap.get(fnId);
+        const children = childrenMap.get(fnId);
+
+        let childCogSum = 0;
+        let childCycSum = 0;
+
+        children.forEach(c => {
+            const sums = processNode(c.id);
+            childCogSum += sums.cc;
+            childCycSum += sums.cyc;
+            f.children.push(c);
+        });
+
+        f.totalCC = (f.CC || 0) + childCogSum;
+        f.totalCYC = (f.CYC || 0) + childCycSum;
+
+        return { cc: f.totalCC, cyc: f.totalCYC };
+    }
+
+    roots.forEach(r => processNode(r.id));
+
+    function formatFunction(f, parentLongName = '') {
+        const currentLongName = parentLongName ? `${parentLongName}.${f.name}` : f.name;
+
+        return {
+            name: f.name,
+            long_name: currentLongName,
+            start_line: f.lineStart ?? null,
+            end_line: f.lineEnd ?? null,
+            nloc: f.NLOC ?? 0,
+            cognitive_complexity: f.CC ?? 0,
+            cyclomatic_complexity: f.CYC ?? 0,
+            total_cognitive_complexity: f.totalCC ?? (f.CC ?? 0),
+            maintainability_index: f.MI ?? 100.0,
+            max_nesting_depth: f.maxNesting ?? 0,
+            halstead_volume: f.halsteadVolume ?? 0.0,
+            id: f.id ?? null,
+            parentId: f.parentId ?? null,
+            children: f.children.map(c => formatFunction(c, currentLongName))
+        };
+    }
+
+    const hierarchicalFunctions = roots.map(r => formatFunction(r, ''));
+
+    let complexity_sum = 0;
+    let complexity_max = 0;
+
+    babelMetrics.functions.forEach(f => {
+        const cyc = f.CYC ?? 0;
+        complexity_sum += cyc;
+        if (cyc > complexity_max) complexity_max = cyc;
+    });
+
+    let maintainability_index = 100.0;
+    if (babelMetrics.LOC > 0) {
+        const logV = babelMetrics.halsteadVolume > 0 ? Math.log(babelMetrics.halsteadVolume) : 0;
+        const logLOC = Math.log(babelMetrics.LOC);
+        const fileCyc = babelMetrics.fileCYC !== undefined ? babelMetrics.fileCYC : complexity_sum;
+        const originalMI = 171 - 5.2 * logV - 0.23 * fileCyc - 16.2 * logLOC;
+        maintainability_index = Math.max(0, Math.min(100, originalMI * 100 / 171));
+    }
+
+    const total_cognitive_complexity =
+        roots.reduce((sum, r) => sum + (r.totalCC || 0), 0);
+
+    const { lint_score, lint_errors } = await getLintResults(code, filename);
+
+    return {
+        filename,
+        language: /\.(ts|tsx)$/i.test(filename) ? "typescript" : "javascript",
+        total_loc: babelMetrics.LOC ?? 0,
+        total_nloc: babelMetrics.NLOC ?? 0,
+        function_count: babelMetrics.functions.length,
+        total_complexity: babelMetrics.fileCYC !== undefined ? babelMetrics.fileCYC : complexity_sum,
+        complexity_max,
+        total_cognitive_complexity,
+        halstead_volume: babelMetrics.halsteadVolume ?? 0.0,
+        maintainability_index: parseFloat(maintainability_index.toFixed(2)),
+        is_unsupported: false,
+        lint_score,
+        lint_errors,
+        functions: hierarchicalFunctions
+    };
+}
 
 function calculateCognitiveComplexity(funcPath, baseNesting = 0, functionName = null) {
     let complexity = 0;
@@ -520,25 +611,38 @@ function isCodeFile(file) {
     return file.endsWith('.jsx') || file.endsWith('.js') || file.endsWith('.ts') || file.endsWith('.tsx');
 }
 
-function analyzeFileAt(filePath, rootPathForRel) {
-    // like your analyzeFile, but preserves path relative to detected root
+async function analyzeFileAt(filePath, rootPathForRel) {
     try {
         const code = fs.readFileSync(filePath, 'utf8');
         const rel = rootPathForRel ? path.relative(rootPathForRel, filePath) : path.basename(filePath);
-        return {
-            fileName: rel.replaceAll(path.sep, '/'),
-            metrics: calculateMetrics(code)
-        };
+        const fileName = rel.replaceAll(path.sep, '/');
+
+        return await buildFileMetricsResponse(code, fileName);
     } catch (error) {
         const rel = rootPathForRel ? path.relative(rootPathForRel, filePath) : path.basename(filePath);
+        const fileName = rel.replaceAll(path.sep, '/');
+
         return {
-            fileName: rel.replaceAll(path.sep, '/'),
+            filename: fileName,
+            language: /\.(ts|tsx)$/i.test(fileName) ? "typescript" : "javascript",
+            total_loc: 0,
+            total_nloc: 0,
+            function_count: 0,
+            total_complexity: 0,
+            complexity_max: 0,
+            total_cognitive_complexity: 0,
+            halstead_volume: 0.0,
+            maintainability_index: 0.0,
+            is_unsupported: false,
+            lint_score: null,
+            lint_errors: [],
+            functions: [],
             error: error.message
         };
     }
 }
 
-app.post('/analyze-zip', (req, res) => {
+app.post('/analyze-zip', async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
     }
@@ -565,8 +669,9 @@ app.post('/analyze-zip', (req, res) => {
         // Traverse from the chosen root
         const results = [];
 
-        (function processDirectory(directory) {
-            fs.readdirSync(directory).forEach(file => {
+        async function processDirectory(directory) {
+            const files = fs.readdirSync(directory);
+            for (const file of files) {
                 const fullPath = path.join(directory, file);
                 const stat = fs.statSync(fullPath);
 
@@ -574,14 +679,16 @@ app.post('/analyze-zip', (req, res) => {
                 if (stat.isDirectory()) {
                     if (file === 'node_modules' || file.startsWith('.git') || file === 'dist' || file === 'build') {
                         console.log(`Skipping ignored folder: ${fullPath}`);
-                        return;
+                        continue;
                     }
-                    processDirectory(fullPath);
+                    await processDirectory(fullPath);
                 } else if (isCodeFile(file)) {
-                    results.push(analyzeFileAt(fullPath, rootPath));
+                    results.push(await analyzeFileAt(fullPath, rootPath));
                 }
-            });
-        })(rootPath);
+            }
+        }
+
+        await processDirectory(rootPath);
 
 
         // Clean up extracted contents
@@ -602,26 +709,21 @@ app.post('/analyze-zip', (req, res) => {
 });
 
 // Keep the original single file endpoint
-app.post('/analyze', (req, res) => {
+app.post('/analyze', async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
     }
 
     try {
-        // Calculate without saving to disk first
-        const metrics = calculateMetrics(req.file.buffer.toString('utf8'));
-        const result = {
-            fileName: req.file.originalname,
-            metrics: metrics
-        };
-
-        res.json(result.metrics);
+        const code = req.file.buffer.toString('utf8');
+        const result = await buildFileMetricsResponse(code, req.file.originalname);
+        res.json(result);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
 });
 
-app.post('/analyze-code', express.json(), (req, res) => {
+app.post('/analyze-code', express.json(), async (req, res) => {
     const { code, filename } = req.body;
 
     if (!code || !filename) {
@@ -629,116 +731,7 @@ app.post('/analyze-code', express.json(), (req, res) => {
     }
 
     try {
-        const babelMetrics = calculateMetrics(code);
-
-        // Sort by ID to preserve order
-        babelMetrics.functions.sort((a, b) => a.id - b.id);
-
-        const fnMap = new Map();
-        const childrenMap = new Map();
-        const roots = [];
-
-        // Initialize maps
-        babelMetrics.functions.forEach(f => {
-            f.children = []; // Prepare for nesting
-            fnMap.set(f.id, f);
-            childrenMap.set(f.id, []);
-        });
-
-        // Build hierarchy
-        babelMetrics.functions.forEach(f => {
-            if (f.parentId !== null && fnMap.has(f.parentId)) {
-                childrenMap.get(f.parentId).push(f);
-            } else {
-                roots.push(f);
-            }
-        });
-
-        // Compute Total CC recursively and build nested structure
-        function processNode(fnId) {
-            const f = fnMap.get(fnId);
-            const children = childrenMap.get(fnId);
-            let childSum = 0;
-            let childCycSum = 0;
-
-            children.forEach(c => {
-                const sums = processNode(c.id);
-                childSum += sums.cc;
-                childCycSum += sums.cyc;
-                f.children.push(c); // Add child object to parent
-            });
-
-            f.totalCC = f.CC + childSum;
-            f.totalCYC = f.CYC + childCycSum;
-
-            return { cc: f.totalCC, cyc: f.totalCYC };
-        }
-
-        roots.forEach(r => processNode(r.id));
-
-        // Helper to format the tree for response recursively
-        function formatFunction(f, parentLongName = '') {
-            const currentLongName = parentLongName ? `${parentLongName}.${f.name}` : f.name;
-
-            const children = f.children.map(c => formatFunction(c, currentLongName));
-
-            return {
-                cognitive_complexity: f.CC,
-                total_cognitive_complexity: f.totalCC, // Add total CC
-                cyclomatic_complexity: f.CYC,
-                maintainability_index: f.MI ?? 100.0,
-                nloc: f.NLOC,
-                halstead_volume: f.halsteadVolume || 0.0,
-                name: f.name,
-                long_name: currentLongName,
-                start_line: f.lineStart,
-                end_line: f.lineEnd, // Available now
-                max_nesting_depth: f.maxNesting || 0,
-                children: children
-            };
-        }
-
-        const hierarchicalFunctions = roots.map(r => formatFunction(r, ''));
-
-        // Recalculate global stats if needed, or just return top-level stats
-        let complexity_sum = 0;
-        let complexity_max = 0;
-
-        // For stats, we might want to iterate ALL functions to get max/sum, not just roots?
-        // Usually sum is sum of ALL functions' CC. 
-        babelMetrics.functions.forEach(f => {
-            complexity_sum += f.CYC; // maintainability index expects cyclomatic
-            if (f.CYC > complexity_max) complexity_max = f.CYC;
-        });
-
-        const function_count = babelMetrics.functions.length;
-        const complexity_avg = function_count > 0 ? parseFloat((complexity_sum / function_count).toFixed(2)) : 0.0;
-
-        let maintainability_index = 100.0;
-        if (babelMetrics.LOC > 0) {
-            const logV = babelMetrics.halsteadVolume > 0 ? Math.log(babelMetrics.halsteadVolume) : 0;
-            const logLOC = Math.log(babelMetrics.LOC);
-            const fileCyc = babelMetrics.fileCYC !== undefined ? babelMetrics.fileCYC : complexity_sum;
-            const originalMI = 171 - 5.2 * logV - 0.23 * fileCyc - 16.2 * logLOC;
-            maintainability_index = Math.max(0, Math.min(100, originalMI * 100 / 171));
-        }
-
-        const total_cognitive_complexity = roots.reduce((sum, r) => sum + (r.totalCC || 0), 0);
-
-        const responseMetrics = {
-            filename: filename,
-            language: 'javascript',
-            total_loc: babelMetrics.LOC,
-            total_nloc: babelMetrics.NLOC,
-            function_count: function_count,
-            total_complexity: babelMetrics.fileCYC !== undefined ? babelMetrics.fileCYC : complexity_sum,
-            complexity_max: complexity_max,
-            total_cognitive_complexity: total_cognitive_complexity,
-            halstead_volume: babelMetrics.halsteadVolume || 0.0,
-            maintainability_index: parseFloat(maintainability_index.toFixed(2)),
-            functions: hierarchicalFunctions, // Returns roots with nested children
-        };
-
+        const responseMetrics = await buildFileMetricsResponse(code, filename);
         res.json(responseMetrics);
     } catch (error) {
         console.error(`Error analyzing code for ${filename}:`, error);
@@ -749,92 +742,34 @@ app.post('/analyze-code', express.json(), (req, res) => {
 // Batch endpoint: analyze multiple files in a single HTTP request (eliminates N sequential calls per commit)
 // Body: { files: [{ code: string, filename: string }, ...] }
 // Returns: array of analysis results (same schema as /analyze-code per item)
-app.post('/analyze-batch', express.json({ limit: '50mb' }), (req, res) => {
+app.post('/analyze-batch', express.json({ limit: '50mb' }), async (req, res) => {
     const { files } = req.body;
     if (!Array.isArray(files) || files.length === 0) {
         return res.status(400).json({ error: 'Request must include a non-empty "files" array' });
     }
 
-    const results = files.map(({ code, filename }) => {
-        if (!code || !filename) {
-            return { filename: filename || '', error: 'Missing code or filename' };
-        }
-        try {
-            const babelMetrics = calculateMetrics(code);
-            babelMetrics.functions.sort((a, b) => a.id - b.id);
-
-            const fnMap = new Map();
-            const childrenMap = new Map();
-            const roots = [];
-
-            babelMetrics.functions.forEach(f => {
-                f.children = [];
-                fnMap.set(f.id, f);
-                childrenMap.set(f.id, []);
-            });
-            babelMetrics.functions.forEach(f => {
-                if (f.parentId !== null && fnMap.has(f.parentId)) {
-                    childrenMap.get(f.parentId).push(f);
-                } else {
-                    roots.push(f);
-                }
-            });
-
-            function processNode(fnId) {
-                const fn = fnMap.get(fnId);
-                const children = childrenMap.get(fnId);
-                let childSum = 0;
-                children.forEach(c => { childSum += processNode(c.id); fn.children.push(c); });
-                fn.totalCC = fn.CC + childSum;
-                return fn.totalCC;
-            }
-            roots.forEach(r => processNode(r.id));
-
-            function formatFunction(f, parentLongName = '') {
-                const currentLongName = parentLongName ? `${parentLongName}.${f.name}` : f.name;
-                return {
-                    cognitive_complexity: f.CC,
-                    total_cognitive_complexity: f.totalCC,
-                    nloc: f.NLOC,
-                    halstead_volume: f.halsteadVolume || 0.0,
-                    name: f.name,
-                    long_name: currentLongName,
-                    start_line: f.lineStart,
-                    end_line: f.lineEnd,
-                    max_nesting_depth: f.maxNesting || 0,
-                    children: f.children.map(c => formatFunction(c, currentLongName))
-                };
-            }
-
-            const hierarchicalFunctions = roots.map(r => formatFunction(r, ''));
-            let complexity_sum = 0;
-            let complexity_max = 0;
-            babelMetrics.functions.forEach(f => {
-                complexity_sum += f.CC;
-                if (f.CC > complexity_max) complexity_max = f.CC;
-            });
-
-            const total_cognitive_complexity = roots.reduce((sum, r) => sum + (r.totalCC || 0), 0);
-
-            return {
-                filename,
-                language: 'javascript',
-                total_loc: babelMetrics.LOC,
-                total_nloc: babelMetrics.NLOC,
-                function_count: babelMetrics.functions.length,
-                total_complexity: complexity_sum,
-                complexity_max,
-                total_cognitive_complexity: total_cognitive_complexity,
-                halstead_volume: babelMetrics.halsteadVolume || 0.0,
-                functions: hierarchicalFunctions,
-            };
-        } catch (error) {
-            console.error(`Batch: error analyzing ${filename}:`, error.message);
-            return { filename, error: error.message };
-        }
-    });
-
-    res.json(results);
+    try {
+    return await buildFileMetricsResponse(code, filename);
+} catch (error) {
+    console.error(`Batch: error analyzing ${filename}:`, error.message);
+    return {
+        filename,
+        language: /\.(ts|tsx)$/i.test(filename) ? "typescript" : "javascript",
+        total_loc: code.split('\n').length,
+        total_nloc: 0,
+        function_count: 0,
+        total_complexity: 0,
+        complexity_max: 0,
+        total_cognitive_complexity: 0,
+        halstead_volume: 0.0,
+        maintainability_index: 0.0,
+        is_unsupported: false,
+        lint_score: null,
+        lint_errors: [],
+        functions: [],
+        error: error.message
+    };
+}
 });
 
 

@@ -3,7 +3,7 @@ const fs = require('fs');
 
 // Read code from a separate file to avoid string escaping issues
 try {
-    const codeToCheck = fs.readFileSync('./temp_code.js', 'utf8');
+    const codeToCheck = fs.readFileSync('./temp.jsx', 'utf8');
 
     const metrics = calculateMetrics(codeToCheck);
 
