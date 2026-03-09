@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import * as d3 from 'd3';
 import gsap from 'gsap';
@@ -36,7 +36,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
 
     const keysRef = useRef({});
-    const moveSpeed = 0.5;
+    const moveSpeed = 1.5;
 
     // Persist Camera Orientation
     const yawRef = useRef(0);
@@ -77,6 +77,15 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             </div>
         );
     }
+    const { islandSize, islandCenterX, islandCenterZ } = useMemo(() => {
+        const numFiles = individualFiles?.length || 0;
+        const size = Math.max(400, Math.sqrt(numFiles) * 35);
+        return {
+            islandSize: size,
+            islandCenterX: size / 2,
+            islandCenterZ: size / 2
+        };
+    }, [individualFiles?.length]);
 
     // --- Data Processing Helpers ---
 
@@ -384,8 +393,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         const group = new THREE.Group();
         const color = getAuthorColor(author);
 
-        // UFO Body (Disk)
-        const diskGeo = new THREE.CylinderGeometry(5, 6, 1.5, 16);
+        // UFO Body (Disk) - Even Larger
+        const diskGeo = new THREE.CylinderGeometry(12, 16, 4, 16);
         const diskMat = new THREE.MeshStandardMaterial({
             color: 0x334155,
             metalness: 0.9,
@@ -396,8 +405,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         const disk = new THREE.Mesh(diskGeo, diskMat);
         group.add(disk);
 
-        // UFO Dome
-        const domeGeo = new THREE.SphereGeometry(3, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
+        // UFO Dome - Even Larger
+        const domeGeo = new THREE.SphereGeometry(8, 16, 16, 0, Math.PI * 2, 0, Math.PI / 2);
         const domeMat = new THREE.MeshStandardMaterial({
             color: color,
             transparent: true,
@@ -406,39 +415,41 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             roughness: 0.1
         });
         const dome = new THREE.Mesh(domeGeo, domeMat);
-        dome.position.y = 0.5;
+        dome.position.y = 1.5;
         group.add(dome);
 
-        // Lights around the rim
+        // Lights around the rim - Scaled
         for (let j = 0; j < 8; j++) {
-            const lightGeo = new THREE.SphereGeometry(0.5, 8, 8);
+            const lightGeo = new THREE.SphereGeometry(1.2, 8, 8);
             const lightMat = new THREE.MeshBasicMaterial({ color: color });
             const light = new THREE.Mesh(lightGeo, lightMat);
             const angle = (j / 8) * Math.PI * 2;
-            light.position.set(Math.cos(angle) * 5.2, 0, Math.sin(angle) * 5.2);
+            light.position.set(Math.cos(angle) * 14, 0, Math.sin(angle) * 14);
             group.add(light);
         }
 
-        // Name Label (Canvas Texture)
+        // Name Label (Canvas Texture) - Wider for long names
         const canvas = document.createElement('canvas');
-        canvas.width = 256;
-        canvas.height = 64;
+        canvas.width = 1024;
+        canvas.height = 128;
         const ctx = canvas.getContext('2d');
         ctx.fillStyle = 'rgba(0,0,0,0)';
-        ctx.fillRect(0, 0, 256, 64);
-        ctx.font = 'bold 32px sans-serif';
+        ctx.fillRect(0, 0, 1024, 128);
+        ctx.font = 'bold 80px sans-serif';
         ctx.textAlign = 'center';
+        ctx.shadowColor = 'rgba(0,0,0,0.7)';
+        ctx.shadowBlur = 10;
         ctx.fillStyle = '#' + color.toString(16).padStart(6, '0');
-        ctx.fillText(author, 128, 40);
+        ctx.fillText(author, 512, 85);
 
         const spriteMap = new THREE.CanvasTexture(canvas);
         const spriteMat = new THREE.SpriteMaterial({ map: spriteMap, transparent: true });
         const sprite = new THREE.Sprite(spriteMat);
-        sprite.position.y = 8;
-        sprite.scale.set(15, 4, 1);
+        sprite.position.y = 25;
+        sprite.scale.set(60, 8, 1);
         group.add(sprite);
 
-        const orbitRadius = 180 + (contributorDronesRef.current.size * 30);
+        const orbitRadius = (islandSize * 0.45) + (contributorDronesRef.current.size * 30);
         const orbitAngle = Math.random() * Math.PI * 2;
         const baseHoverY = 120 + Math.random() * 40;
         group.position.set(
@@ -468,7 +479,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         }
 
         // Ensure drone exists
-        const droneData = createDrone(author, scene, 200, 200);
+        const droneData = createDrone(author, scene, islandCenterX, islandCenterZ);
         if (!droneData) {
             console.warn(`[Island3D] Failed to find/create drone for ${author}`);
             return;
@@ -661,7 +672,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             setTimeout(() => {
                 // Ensure timeline is STILL playing after the delay to prevent stranded drones
                 if (sceneRef.current && isTimelinePlayingRef.current && showContributorsRef.current) {
-                    createDrone(commitAuthor, sceneRef.current, 200, 200);
+                    createDrone(commitAuthor, sceneRef.current, islandCenterX, islandCenterZ);
                     triggerLaserStrike(commitAuthor, changedFilenames, sceneRef.current);
                 }
             }, 150);
@@ -882,9 +893,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             .sum(d => d.value ? d.value : 0) // Sizing files by LOC (D3 pack uses value for area)
             .sort((a, b) => b.value - a.value);
 
+        // Dynamic Island Sizing uses memoized values
+
         // Pack the circles
         const packLayout = d3.pack()
-            .size([400, 400]) // Arbitrary large workspace size
+            .size([islandSize, islandSize]) // Dynamic workspace size
             .padding(d => d.depth === 0 ? 30 : 20);
 
         packLayout(root);
@@ -925,11 +938,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         scene.background = new THREE.CanvasTexture(canvas);
 
         // Camera
-        const camera = new THREE.PerspectiveCamera(55, mountRef.current.clientWidth / mountRef.current.clientHeight, 0.1, 2000);
-
-        // Center camera roughly
-        const islandCenterX = 200;
-        const islandCenterZ = 200;
+        const camera = new THREE.PerspectiveCamera(55, mountRef.current.clientWidth / mountRef.current.clientHeight, 0.1, 3000);
 
         // Initial position
         if (cameraRef.current) {
@@ -937,7 +946,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             camera.position.copy(cameraRef.current.position);
             camera.quaternion.copy(cameraRef.current.quaternion);
         } else {
-            camera.position.set(islandCenterX, 200, islandCenterZ + 300);
+            camera.position.set(islandCenterX, islandSize * 0.5, islandCenterZ + islandSize * 0.75);
             camera.lookAt(islandCenterX, 0, islandCenterZ);
         }
         cameraRef.current = camera;
@@ -964,17 +973,17 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         scene.add(ambientLight);
 
         const sunLight = new THREE.DirectionalLight(isDarkMode ? 0xa5b4fc : 0xfff5e6, isDarkMode ? 0.8 : 1.5); // Moon/Sun
-        sunLight.position.set(islandCenterX + 100, 300, islandCenterZ + 100);
+        sunLight.position.set(islandCenterX + islandSize * 0.25, 300 + islandSize * 0.25, islandCenterZ + islandSize * 0.25);
         sunLight.castShadow = true;
         // Reduce shadow map resolution during timeline playback for faster rendering
         const shadowMapSize = isTimelinePlaying ? 512 : 4096;
         sunLight.shadow.mapSize.width = shadowMapSize;
         sunLight.shadow.mapSize.height = shadowMapSize;
         sunLight.shadow.camera.near = 10;
-        sunLight.shadow.camera.far = 1000;
+        sunLight.shadow.camera.far = 2000;
 
         // Adjust shadow frustum to cover the whole island
-        const shadowSize = 400;
+        const shadowSize = islandSize * 0.8;
         sunLight.shadow.camera.left = -shadowSize;
         sunLight.shadow.camera.right = shadowSize;
         sunLight.shadow.camera.top = shadowSize;

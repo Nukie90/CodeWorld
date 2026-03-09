@@ -51,7 +51,7 @@ function ResultsPage() {
   const [fixedFileOrder, setFixedFileOrder] = useState(null)
   const [allCommits, setAllCommits] = useState([])
   const [currentCommitIndex, setCurrentCommitIndex] = useState(-1)
-  const [animationSpeed, setAnimationSpeed] = useState(800)
+  const [animationSpeed, setAnimationSpeed] = useState(400)
   const [showContributors, setShowContributors] = useState(false) // Toggle added here
   const [topNComplexity, setTopNComplexity] = useState('All');
   const [isCustomMode, setIsCustomMode] = useState(false);
@@ -408,6 +408,11 @@ function ResultsPage() {
       setBranchLoading(false);
     }
 
+    if (daysAgo === 'all') {
+      handlePlayAnimation(0);
+      return;
+    }
+
     const targetDate = new Date();
     targetDate.setDate(targetDate.getDate() - daysAgo);
 
@@ -416,7 +421,7 @@ function ResultsPage() {
 
     // If no exact match after date, default to edges
     if (targetIndex === -1) {
-      if (new Date(commits[0].date) >= targetDate) {
+      if (commits.length > 0 && new Date(commits[0].date) >= targetDate) {
         targetIndex = 0;
       } else {
         targetIndex = commits.length - 1;
@@ -731,39 +736,36 @@ function ResultsPage() {
             </div>
           </div>
 
-          {/* Timeline Quick Filters */}
-          <div className="flex flex-wrap items-center gap-2 mb-4">
-            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'} w-full`}>
+          <div className="flex flex-col gap-1 mb-4">
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               Start Timeline From:
             </span>
-            <button
-              onClick={() => handlePlayFromDate(0)}
+            <select
+              onChange={(e) => {
+                const val = e.target.value;
+                if (val === 'all') {
+                  handlePlayFromDate('all');
+                } else {
+                  handlePlayFromDate(parseInt(val));
+                }
+                e.target.value = ""; // Reset to placeholder
+              }}
+              defaultValue=""
               disabled={branchLoading || branches.length === 0}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isDarkMode ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white' : 'bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:text-blue-600'} border shadow-sm disabled:opacity-50 flex-1`}
+              className={`w-full px-3 py-1.5 border ${borderColor} rounded-lg text-xs ${panelBg} focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all font-medium`}
             >
-              Today
-            </button>
-            <button
-              onClick={() => handlePlayFromDate(1)}
-              disabled={branchLoading || branches.length === 0}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isDarkMode ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white' : 'bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:text-blue-600'} border shadow-sm disabled:opacity-50 flex-1`}
-            >
-              Yesterday
-            </button>
-            <button
-              onClick={() => handlePlayFromDate(7)}
-              disabled={branchLoading || branches.length === 0}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isDarkMode ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white' : 'bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:text-blue-600'} border shadow-sm disabled:opacity-50 flex-1`}
-            >
-              1 Wk
-            </button>
-            <button
-              onClick={() => handlePlayFromDate(14)}
-              disabled={branchLoading || branches.length === 0}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${isDarkMode ? 'bg-gray-800 text-gray-300 border-gray-700 hover:bg-gray-700 hover:text-white' : 'bg-white text-gray-700 border-gray-200 hover:bg-blue-50 hover:text-blue-600'} border shadow-sm disabled:opacity-50 flex-1`}
-            >
-              2 Wks
-            </button>
+              <option value="" disabled>Select Starting Point...</option>
+              <option value="0">Today</option>
+              <option value="1">Yesterday</option>
+              <option value="7">1 week ago</option>
+              <option value="14">2 weeks ago</option>
+              <option value="30">1 month ago</option>
+              <option value="60">2 months ago</option>
+              <option value="180">6 months ago</option>
+              <option value="365">1 year ago</option>
+              <option value="730">2 years ago</option>
+              <option value="all">All</option>
+            </select>
           </div>
 
           <div className="flex flex-wrap items-center gap-2 mb-4 px-3 py-2 border border-white/20 dark:border-gray-700 rounded-xl bg-white/10 dark:bg-gray-800/50 backdrop-blur-sm shadow-sm hover:border-blue-400/50 transition-all">

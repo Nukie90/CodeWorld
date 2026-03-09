@@ -5,6 +5,11 @@
 - [/] right now it fake load when load new project, fix it
 - [/] complexity of the function is not correct (some are not visible in the frontend) need to use cognitive complexity not cyclomatic complexity
 
+# tasks for now
+1. for the "Start Timeline From:" make the timeline display as a options ("Today", "Yesterday", "1 week ago", "2 weeks ago", "1 month ago", "2 months ago", "6 months ago", "1 year ago", "2 years ago", "All") also check that it don't crash incase there are no commits in the selected time range
+2. change the ufo size and contributors text to be bigger
+3. right now it look like the island is fix size so when we try to display larger project the tower in the island is compact to a small area and leaving no gap between, there should be a solution where the island size is dynamic based on the number of files.
+
 # features left to implement
 - refactor
 - ai for complexity reduce
