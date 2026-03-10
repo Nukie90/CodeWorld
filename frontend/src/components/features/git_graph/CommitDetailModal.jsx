@@ -1,3 +1,4 @@
+// Commit Metadata & File Changes Modal
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { GitCommit, FileText, X } from 'lucide-react';

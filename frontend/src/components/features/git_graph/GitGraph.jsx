@@ -1,3 +1,4 @@
+// Git Commit History Timeline Visualization
 import { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { GitCommit, Calendar, User, FileText, X } from 'lucide-react';

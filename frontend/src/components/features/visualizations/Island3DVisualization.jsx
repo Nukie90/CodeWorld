@@ -1,10 +1,11 @@
+// 3D Island Visualization: Immersive Code City
 import { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import * as d3 from 'd3';
 import gsap from 'gsap';
 import { Settings } from 'lucide-react';
 import FunctionTableView from './FunctionTableView';
-import { SceneDiffer } from '../../utils/SceneDiffer';
+import { SceneDiffer } from '../../../utils/SceneDiffer';
 
 function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, isDarkMode, isTimelinePlaying, animatingCommit, showContributors = false }) {
     const mountRef = useRef(null);

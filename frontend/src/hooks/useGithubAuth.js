@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import axios from 'axios'
+import { authService } from '../services/api'
 
 export function useGithubAuth() {
   const [token, setToken] = useState('')
@@ -43,13 +43,11 @@ export function useGithubAuth() {
   const login = async () => {
     console.log('Initiating GitHub login...')
     try {
-      const resp = await axios.get(
-        'http://127.0.0.1:8000/api/auth/github/login'
-      )
+      const resp = await authService.login()
       if (resp.data?.auth_url) {
         window.location.href = resp.data.auth_url
         console.log('GitHub auth URL:', resp.data.auth_url);
-        
+
       } else {
         setStatusMessage('Failed to get GitHub auth URL')
       }
@@ -71,10 +69,7 @@ export function useGithubAuth() {
     }
 
     try {
-      await axios.post(
-        'http://127.0.0.1:8000/api/auth/logout',
-        { token }
-      )
+      await authService.logout(token)
     } catch (error) {
       console.error('Logout error', error)
       // Continue with logout even if backend call fails

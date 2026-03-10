@@ -1,3 +1,4 @@
+// Tabular View: Function-level Metrics
 import React, { useState, useMemo } from 'react';
 import { Search, ArrowUpDown, ArrowUp, ArrowDown, Code, ArrowLeft } from 'lucide-react';
 

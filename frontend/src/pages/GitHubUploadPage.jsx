@@ -1,7 +1,8 @@
+// Repository Upload & Analysis Initiation Page
 import { useState } from 'react'
-import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
 import { useGithubAuth } from '../hooks/useGithubAuth'
+import { repoService } from '../services/api'
 
 function GitHubUploadPage() {
   const navigate = useNavigate()
@@ -47,14 +48,11 @@ function GitHubUploadPage() {
     }
 
     try {
-      const resp = await axios.post(
-        'http://127.0.0.1:8000/api/analyze/repo',
-        {
-          repo_url: repoUrl,
-          token: token || null,
-          task_id: taskId
-        }
-      )
+      const resp = await repoService.analyzeRepo({
+        repo_url: repoUrl,
+        token: token || null,
+        task_id: taskId
+      })
 
       setProgress(100)
       setUploadStatus('success')

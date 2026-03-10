@@ -1,3 +1,4 @@
+// Bar Chart View: Complexity & Metric Comparison
 import React, { useState } from 'react';
 
 function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, fixedFileOrder, isDarkMode }) {

@@ -1,3 +1,4 @@
+// AI Chat Assistant: Floating UI Widget
 import React, { useState, useRef, useEffect } from 'react';
 import { MessageSquare, X, Send, User, Bot, ChevronDown, ChevronUp, Loader } from 'lucide-react';
 import axios from 'axios';
