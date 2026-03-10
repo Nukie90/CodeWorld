@@ -3,10 +3,10 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Home, Moon, Sun, Play, Square, GitCommit, Copy, Check, Code, FileText, Hash, X, Sparkles, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { useLocation } from 'react-router-dom'
 import axios from 'axios'
-import BarChartVisualization from '../components/results/visualizations/BarChartVisualization';
-import Island3DVisualization from '../components/results/visualizations/Island3DVisualization';
-import GitGraph from '../components/git/GitGraph';
-import CommitDetailModal from '../components/git/CommitDetailModal';
+import BarChartVisualization from '../components/visualizations/BarChartVisualization';
+import Island3DVisualization from '../components/visualizations/Island3DVisualization';
+import GitGraph from '../components/git_graph/GitGraph';
+import CommitDetailModal from '../components/git_graph/CommitDetailModal';
 import ChatBot from '../components/chat/ChatBot';
 
 function ResultsPage() {

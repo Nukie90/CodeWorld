@@ -3,11 +3,11 @@ import axios from 'axios'
 import InfoTip from "../common/InfoTip";
 import "./result.css";
 import FolderVisualizationSelector from "./FolderVisualizationSelector"
-import CirclePackingVisualization from "./visualizations/CirclePackingVisualization"
-import TreemapVisualization from "./visualizations/TreemapVisualization"
-import ForceTreeVisualization from "./visualizations/ForceTreeVisualization"
-import InteractiveCircleVisualization from "./visualizations/InteractiveCircleVisualization"
-import RadarChartVisualization from "./visualizations/RadarChartVisualization"
+import CirclePackingVisualization from "../visualizations/CirclePackingVisualization"
+import TreemapVisualization from "../visualizations/TreemapVisualization"
+import ForceTreeVisualization from "../visualizations/ForceTreeVisualization"
+import InteractiveCircleVisualization from "../visualizations/InteractiveCircleVisualization"
+import RadarChartVisualization from "../visualizations/RadarChartVisualization"
 
 const FOLDER_METRIC_HELP = {
   "Total files": "Number of JavaScript files analyzed within the folder.",
@@ -25,7 +25,7 @@ const FOLDER_METRIC_HELP = {
 /* FunctionTreeItem component for recursive rendering */
 function FunctionTreeItem({ fn }) {
   const hasChildren = fn.children && fn.children.length > 0;
-  
+
   // Prefer total_cognitive_complexity if available, otherwise cognitive_complexity, otherwise cyclomatic_complexity
   const complexity = fn.total_cognitive_complexity ?? fn.cognitive_complexity ?? fn.cyclomatic_complexity ?? 0;
   // Label: Total CC if hierarchical data is present, else just CC
@@ -267,7 +267,7 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
                       <summary>Functions ({file.function_count})</summary>
                       <div className="function-list">
                         {file.functions.map((fn, fnIndex) => (
-                           <FunctionTreeItem key={fnIndex} fn={fn} />
+                          <FunctionTreeItem key={fnIndex} fn={fn} />
                         ))}
                       </div>
                     </details>
