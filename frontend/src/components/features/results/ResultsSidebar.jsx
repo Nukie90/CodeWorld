@@ -39,8 +39,7 @@ function ResultsSidebar({
     token,
     handleCommitClick,
     allCommits,
-    setIsBottomPanelOpen,
-    currentCommitIndex
+    setIsBottomPanelOpen
 }) {
     const textColor = isDarkMode ? 'text-white' : 'text-gray-900';
     const panelBg = isDarkMode ? 'bg-gray-800' : 'bg-white';
