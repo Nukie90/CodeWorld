@@ -79,18 +79,59 @@ function calculateMetrics(code) {
             tokens: true
         });
 
-        // Helper to count lines from tokens
-        const countTokenLines = (tokens) => {
-            const lines = new Set();
-            tokens.forEach(t => {
-                // Skip comments
-                if (t.type === 'CommentLine' || t.type === 'CommentBlock' || t.type === 'EOF') return;
+        const countLLOC = (startNode, skipNested = false) => {
+            let count = 0;
+            const visitor = {
+                enter(path) {
+                    if (path.isStatement() || path.isDeclaration()) {
+                        if (skipNested && path.isFunction() && path.node !== startNode) {
+                            path.skip();
+                            return;
+                        }
+                        count++;
+                    }
+                }
+            };
+            if (startNode === ast.program) {
+                traverse(ast, visitor);
+            } else {
+                traverse(ast, visitor, path ? path.scope : undefined, path ? path.state : undefined, path ? path.parentPath : undefined);
+                // but simpler is to use path.traverse if we have a path.
+                // Since we are inside calculateMetrics, we might not have paths for everything.
+            }
+            return count;
+        };
 
-                const start = t.loc.start.line;
-                const end = t.loc.end.line;
-                for (let i = start; i <= end; i++) lines.add(i);
+        // Simpler countLLOC using node directly if we don't have paths yet:
+        const countLLOCFromNode = (node, skipNested = false) => {
+            let count = 0;
+            traverse(ast, {
+                enter(path) {
+                    // Check if current path is a descendant of node
+                    let isDescendant = false;
+                    let curr = path;
+                    while (curr) {
+                        if (curr.node === node) {
+                            isDescendant = true;
+                            break;
+                        }
+                        curr = curr.parentPath;
+                    }
+                    if (!isDescendant) return;
+
+                    if (path.isStatement() || path.isDeclaration()) {
+                        if (skipNested && path.isFunction() && path.node !== node) {
+                            path.skip();
+                            return;
+                        }
+                        // Only increment count for non-container declarations/statements
+                        if (!path.isFunctionDeclaration() && !path.isClassDeclaration() && !path.isBlockStatement()) {
+                            count++;
+                        }
+                    }
+                }
             });
-            return lines.size;
+            return count;
         };
 
         const validTokens = ast.tokens.filter(t => t.type !== 'CommentLine' && t.type !== 'CommentBlock' && t.type !== 'EOF');
@@ -101,7 +142,7 @@ function calculateMetrics(code) {
 
         const metrics = {
             LOC: code.split('\n').length,
-            NLOC: countTokenLines(ast.tokens),
+            LLOC: countLLOCFromNode(ast.program),
             NOF: 0,
             halsteadVolume,
             functions: []
@@ -136,7 +177,7 @@ function calculateMetrics(code) {
         const globalHalsteadVolume = globalUniqueTokens.size > 0
             ? globalTokens.length * Math.log2(globalUniqueTokens.size)
             : 0;
-        const globalNLOC = countTokenLines(globalTokens);
+        const globalLLOC = countLLOCFromNode(ast.program, true);
 
         let fileCYC = 1;
         traverse(ast, {
@@ -191,11 +232,11 @@ function calculateMetrics(code) {
             }
         });
         const loc = code.split('\n').length;
-        const globalMI = calculateMaintainabilityIndex(globalHalsteadVolume, globalCYC, globalNLOC);
+        const globalMI = calculateMaintainabilityIndex(globalHalsteadVolume, globalCYC, globalLLOC);
 
         const globalFunction = {
             name: 'code outside functions',
-            NLOC: globalNLOC,
+            LLOC: globalLLOC,
             CC: globalCC,
             CYC: globalCYC,
             MI: parseFloat(globalMI.toFixed(2)),
@@ -309,7 +350,7 @@ function calculateMetrics(code) {
 
                 metrics.functions.push({
                     name: functionName,
-                    NLOC: countTokenLines(fnTokens),
+                    LLOC: countLLOCFromNode(fnNode, true),
                     CC: complexity,
                     CYC: cyclomaticComplexity,
                     MI: parseFloat(mi.toFixed(2)),
@@ -384,7 +425,7 @@ async function buildFileMetricsResponse(code, filename) {
             long_name: currentLongName,
             start_line: f.lineStart ?? null,
             end_line: f.lineEnd ?? null,
-            nloc: f.NLOC ?? 0,
+            lloc: f.LLOC ?? 0,
             cognitive_complexity: f.CC ?? 0,
             cyclomatic_complexity: f.CYC ?? 0,
             total_cognitive_complexity: f.totalCC ?? (f.CC ?? 0),
@@ -424,7 +465,7 @@ async function buildFileMetricsResponse(code, filename) {
         filename,
         language: /\.(ts|tsx)$/i.test(filename) ? "typescript" : "javascript",
         total_loc: babelMetrics.LOC ?? 0,
-        total_nloc: babelMetrics.NLOC ?? 0,
+        total_lloc: babelMetrics.LLOC ?? 0,
         function_count: babelMetrics.functions.length,
         total_complexity: babelMetrics.fileCYC !== undefined ? babelMetrics.fileCYC : complexity_sum,
         complexity_max,

@@ -68,6 +68,26 @@ def calculate_cyclomatic_complexity(node: ast.AST, skip_nested_functions: bool =
 
     return complexity
 
+def count_lloc(node: ast.AST, skip_nested_functions: bool = False) -> int:
+    """Calculate Logical Lines of Code (LLOC) based on AST statements."""
+    count = 0
+    
+    class LLOCVisitor(ast.NodeVisitor):
+        def visit(self, inner_node: ast.AST):
+            nonlocal count
+            if isinstance(inner_node, ast.stmt):
+                # Skip nested functions/classes if requested
+                if skip_nested_functions and (isinstance(inner_node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and inner_node is not node):
+                    return
+                
+                # Only increment count for non-container statements
+                if not isinstance(inner_node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+                    count += 1
+            self.generic_visit(inner_node)
+
+    LLOCVisitor().visit(node)
+    return count
+
 def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, function_name: str = None) -> Dict[str, int]:
     complexity = 0
     nesting = base_nesting
@@ -242,7 +262,7 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
              filename=filename,
              language="python",
              total_loc=len(code.splitlines()),
-             total_nloc=0,
+             total_lloc=0,
              function_count=0,
              total_complexity=0,
              complexity_max=0,
@@ -250,25 +270,19 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
              functions=[]
         )
 
-    # Count NLOC (Non-Comment Lines of Code)
-    # Using tokenize to skip comments and empty lines
+    # Calculate LLOC (Logical Lines of Code)
+    lloc = count_lloc(tree)
     N_total = 0
     unique_tokens = set()
-
-    nloc = 0
-    tokens = []
-    lines_with_code = set()
     try:
         tokens = list(tokenize.tokenize(BytesIO(code.encode('utf-8')).readline))
         for tok in tokens:
             if tok.type not in (tokenize.COMMENT, tokenize.NL, tokenize.NEWLINE, tokenize.ENDMARKER, tokenize.INDENT, tokenize.DEDENT, tokenize.ENCODING):
-                lines_with_code.add(tok.start[0])
                 if tok.string.strip():
                     N_total += 1
                     unique_tokens.add(tok.string)
-        nloc = len(lines_with_code)
     except tokenize.TokenError:
-        nloc = len([l for l in code.splitlines() if l.strip() and not l.strip().startswith('#')])
+        pass
 
     n_unique = len(unique_tokens)
     halstead_volume = N_total * math.log2(n_unique) if n_unique > 0 else 0
@@ -309,7 +323,7 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         len(global_token_texts) * math.log2(len(global_unique_tokens))
         if global_unique_tokens else 0
     )
-    global_nloc = len(global_token_lines)
+    global_lloc = count_lloc(tree, skip_nested_functions=True)
 
     # --- 1. Analyze Global Scope (Virtual Function) ---
     # Analyze the Module node (tree) directly.
@@ -332,12 +346,12 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         long_name=GLOBAL_FUNC_NAME,
         cognitive_complexity=global_res["complexity"],
         cyclomatic_complexity=global_cyclomatic_complexity,
-        nloc=global_nloc,
+        lloc=global_lloc,
         halstead_volume=global_halstead_volume,
         maintainability_index=calculate_maintainability_index(
             global_halstead_volume,
             global_cyclomatic_complexity,
-            global_nloc
+            global_lloc
         ),
         start_line=1,
         end_line=len(code.splitlines()),
@@ -420,15 +434,15 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
             n_unique_fn = len(unique_fn_tokens)
             fn_halstead_map[start_line] = n_fn * math.log2(n_unique_fn) if n_unique_fn > 0 else 0
             
-            # NLOC calculation
-            func_nloc = len([l for l in lines_with_code if start_line <= l <= end_line])
+            # LLOC calculation
+            func_lloc = count_lloc(node, skip_nested_functions=True)
 
             functions.append(FunctionMetric(
                 name=name,
                 long_name=name,
                 cognitive_complexity=res["complexity"],
                 cyclomatic_complexity=0, # Will be set via lizard
-                nloc=func_nloc,
+                lloc=func_lloc,
                 halstead_volume=fn_halstead_map.get(start_line, 0.0),
                 start_line=start_line,
                 end_line=end_line,
@@ -611,7 +625,7 @@ print(pylint_output.getvalue())
         filename=filename,
         language="python",
         total_loc=loc,
-        total_nloc=nloc,
+        total_lloc=lloc,
         function_count=len(functions),
         total_complexity=file_cyclomatic_complexity,
         complexity_max=complexity_max,

@@ -58,7 +58,7 @@ def _parse_response(data: dict) -> Optional[FileMetrics]:
             filename=data["filename"],
             language=data.get("language"),
             total_loc=data["total_loc"],
-            total_nloc=data["total_nloc"],
+            total_lloc=data["total_lloc"],
             function_count=data["function_count"],
             total_complexity=data["total_complexity"],
             complexity_max=data["complexity_max"],

@@ -28,7 +28,7 @@ def analyze_file(file_path):
         for r in roots:
             compute_total_cc(r)
             
-        print(f"{'Function Name':<30} | {'Start Line':<10} | {'End Line':<8} | {'CC':<8} | {'NLOC'}")
+        print(f"{'Function Name':<30} | {'Start Line':<10} | {'End Line':<8} | {'CC':<8} | {'LLOC'}")
         print("-" * 75)
         
         def print_node(f, indent_level=0):
@@ -39,7 +39,7 @@ def analyze_file(file_path):
             if f.children:
                 cc_display += "(total)"
             
-            print(f"{name_display:<30} | {str(f.start_line):<10} | {str(f.end_line):<8} | {cc_display:<8} | {f.nloc}")
+            print(f"{name_display:<30} | {str(f.start_line):<10} | {str(f.end_line):<8} | {cc_display:<8} | {f.lloc}")
             
             for c in f.children:
                 print_node(c, indent_level + 1)
