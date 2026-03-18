@@ -1,11 +1,72 @@
 import ast
-import token
+import math
 import tokenize
 from io import BytesIO
 from typing import List, Dict, Any, Optional
 from app.model.analyzer_model import FileMetrics, FunctionMetric, LintError
 
 GLOBAL_FUNC_NAME = "code outside functions"
+
+def calculate_maintainability_index(halstead_volume: float, cyclomatic_complexity: int, loc: int) -> float:
+    if loc <= 0:
+        return 100.0
+
+    log_v = math.log(halstead_volume) if halstead_volume > 0 else 0
+    log_loc = math.log(loc)
+    original_mi = 171 - 5.2 * log_v - 0.23 * cyclomatic_complexity - 16.2 * log_loc
+
+    return round(max(0.0, min(100.0, original_mi * 100.0 / 171.0)), 2)
+
+def calculate_cyclomatic_complexity(node: ast.AST, skip_nested_functions: bool = False) -> int:
+    complexity = 1
+
+    class CyclomaticVisitor(ast.NodeVisitor):
+        def visit_FunctionDef(self, inner_node):
+            if skip_nested_functions and inner_node is not node:
+                return
+            self.generic_visit(inner_node)
+
+        def visit_AsyncFunctionDef(self, inner_node):
+            if skip_nested_functions and inner_node is not node:
+                return
+            self.generic_visit(inner_node)
+
+        def visit_If(self, inner_node):
+            nonlocal complexity
+            complexity += 1
+            self.generic_visit(inner_node)
+
+        def visit_IfExp(self, inner_node):
+            nonlocal complexity
+            complexity += 1
+            self.generic_visit(inner_node)
+
+        def visit_For(self, inner_node):
+            nonlocal complexity
+            complexity += 1
+            self.generic_visit(inner_node)
+
+        def visit_AsyncFor(self, inner_node):
+            self.visit_For(inner_node)
+
+        def visit_While(self, inner_node):
+            nonlocal complexity
+            complexity += 1
+            self.generic_visit(inner_node)
+
+        def visit_ExceptHandler(self, inner_node):
+            nonlocal complexity
+            complexity += 1
+            self.generic_visit(inner_node)
+
+        def visit_BoolOp(self, inner_node):
+            nonlocal complexity
+            complexity += 1
+            self.generic_visit(inner_node)
+
+    CyclomaticVisitor().visit(node)
+
+    return complexity
 
 def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, function_name: str = None) -> Dict[str, int]:
     complexity = 0
@@ -191,14 +252,14 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
 
     # Count NLOC (Non-Comment Lines of Code)
     # Using tokenize to skip comments and empty lines
-    import math
     N_total = 0
     unique_tokens = set()
 
     nloc = 0
+    tokens = []
+    lines_with_code = set()
     try:
         tokens = list(tokenize.tokenize(BytesIO(code.encode('utf-8')).readline))
-        lines_with_code = set()
         for tok in tokens:
             if tok.type not in (tokenize.COMMENT, tokenize.NL, tokenize.NEWLINE, tokenize.ENDMARKER, tokenize.INDENT, tokenize.DEDENT, tokenize.ENCODING):
                 lines_with_code.add(tok.start[0])
@@ -216,12 +277,39 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         import lizard
         lizard_info = lizard.analyze_file.analyze_source_code(filename, code)
         lizard_funcs = lizard_info.function_list
-        lizard_global_cc = lizard_info.average_cyclomatic_complexity
     except Exception:
         lizard_funcs = []
-        lizard_global_cc = 1
 
     functions = []
+    file_cyclomatic_complexity = calculate_cyclomatic_complexity(tree)
+    global_cyclomatic_complexity = calculate_cyclomatic_complexity(tree, skip_nested_functions=True)
+
+    function_lines = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            start_line = getattr(node, "lineno", None)
+            end_line = getattr(node, "end_lineno", start_line)
+            if start_line is None or end_line is None:
+                continue
+            function_lines.update(range(start_line, end_line + 1))
+
+    global_token_texts = []
+    global_token_lines = set()
+    for tok in tokens:
+        if tok.type in (tokenize.COMMENT, tokenize.NL, tokenize.NEWLINE, tokenize.ENDMARKER, tokenize.INDENT, tokenize.DEDENT, tokenize.ENCODING):
+            continue
+        if tok.start[0] in function_lines:
+            continue
+        if tok.string.strip():
+            global_token_lines.add(tok.start[0])
+            global_token_texts.append(tok.string)
+
+    global_unique_tokens = set(global_token_texts)
+    global_halstead_volume = (
+        len(global_token_texts) * math.log2(len(global_unique_tokens))
+        if global_unique_tokens else 0
+    )
+    global_nloc = len(global_token_lines)
 
     # --- 1. Analyze Global Scope (Virtual Function) ---
     # Analyze the Module node (tree) directly.
@@ -243,10 +331,14 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         name=GLOBAL_FUNC_NAME,
         long_name=GLOBAL_FUNC_NAME,
         cognitive_complexity=global_res["complexity"],
-        cyclomatic_complexity=int(lizard_global_cc) if lizard_global_cc else 1,
-        nloc=0, # To be updated
-        halstead_volume=0.0,
-        maintainability_index=100.0,
+        cyclomatic_complexity=global_cyclomatic_complexity,
+        nloc=global_nloc,
+        halstead_volume=global_halstead_volume,
+        maintainability_index=calculate_maintainability_index(
+            global_halstead_volume,
+            global_cyclomatic_complexity,
+            global_nloc
+        ),
         start_line=1,
         end_line=len(code.splitlines()),
         max_nesting_depth=global_res["max_nesting"],
@@ -360,12 +452,6 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
 
     FunctionVisitor().visit(tree)
     
-    # Finalize Global NLOC
-    # Global NLOC = Total NLOC - Sum(Top-Level Functions NLOC)
-    # Top-level functions are those with parentId is None
-    top_level_nloc = sum(f.nloc for f in functions if f.parentId is None and f.id != -1)
-    global_metric.nloc = max(0, nloc - top_level_nloc)
-    
     # Map lizard functions to AST functions for cyclomatic_complexity
     for f in functions:
         if f.id == -1: 
@@ -386,21 +472,16 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         else:
             f.cyclomatic_complexity = 1  # Fallback if no matching lizard function found
             
-        # Calculate MI for function
         fn_loc = (f.end_line - (f.start_line or 1) + 1) if f.end_line else 1
-        mi = 100.0
-        if fn_loc > 0:
-            fn_halstead = fn_halstead_map.get(f.id, 0)
-            log_v = math.log(fn_halstead) if fn_halstead > 0 else 0
-            log_loc = math.log(fn_loc)
-            orig_mi = 171 - 5.2 * log_v - 0.23 * f.cyclomatic_complexity - 16.2 * log_loc
-            mi = max(0.0, min(100.0, orig_mi * 100.0 / 171.0))
-        f.maintainability_index = round(mi, 2)
+        fn_halstead = fn_halstead_map.get(f.id, 0)
+        f.maintainability_index = calculate_maintainability_index(
+            fn_halstead,
+            f.cyclomatic_complexity,
+            fn_loc
+        )
 
     # Stats
-    complexity_sum = sum(f.cyclomatic_complexity for f in functions if f.cyclomatic_complexity is not None)
     complexity_max = max((f.cyclomatic_complexity for f in functions if f.cyclomatic_complexity is not None), default=0)
-    complexity_avg = round(complexity_sum / len(functions), 2) if functions else 0.0
     
     # Build hierarchy
     fn_map = {f.id: f for f in functions if f.id is not None}
@@ -435,13 +516,11 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
     
     # Calculate Maintainability Index
     loc = len(code.splitlines())
-    maintainability_index = 100.0
-    if loc > 0:
-        log_v = math.log(halstead_volume) if halstead_volume > 0 else 0
-        log_loc = math.log(loc)
-        original_mi = 171 - 5.2 * log_v - 0.23 * complexity_sum - 16.2 * log_loc
-        mi_normalized = max(0.0, min(100.0, original_mi * 100.0 / 171.0))
-        maintainability_index = round(mi_normalized, 2)
+    maintainability_index = calculate_maintainability_index(
+        halstead_volume,
+        file_cyclomatic_complexity,
+        loc
+    )
 
     # Calculate Total Cognitive Complexity for the file
     total_cognitive_complexity = sum(f.total_cognitive_complexity for f in roots if f.total_cognitive_complexity is not None)
@@ -534,7 +613,7 @@ print(pylint_output.getvalue())
         total_loc=loc,
         total_nloc=nloc,
         function_count=len(functions),
-        total_complexity=complexity_sum,
+        total_complexity=file_cyclomatic_complexity,
         complexity_max=complexity_max,
         total_cognitive_complexity=total_cognitive_complexity,
         halstead_volume=halstead_volume,
@@ -543,9 +622,5 @@ print(pylint_output.getvalue())
         lint_errors=lint_errors,
         functions=roots
     )
-
-    # write to json file
-    with open(f"{filename}.json", "w") as f:
-        json.dump(file_metrics.model_dump(), f, indent=2)
 
     return file_metrics

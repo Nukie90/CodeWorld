@@ -58,6 +58,16 @@ async function getLintResults(code, filename) {
 app.use(cors());
 app.use(express.json());
 
+function calculateMaintainabilityIndex(halsteadVolume, cyclomaticComplexity, loc) {
+    if (loc <= 0) return 100.0;
+
+    const logV = halsteadVolume > 0 ? Math.log(halsteadVolume) : 0;
+    const logLOC = Math.log(loc);
+    const originalMI = 171 - 5.2 * logV - 0.23 * cyclomaticComplexity - 16.2 * logLOC;
+
+    return Math.max(0, Math.min(100, originalMI * 100 / 171));
+}
+
 function calculateMetrics(code) {
     try {
         const ast = parser.parse(code, {
@@ -74,7 +84,7 @@ function calculateMetrics(code) {
             const lines = new Set();
             tokens.forEach(t => {
                 // Skip comments
-                if (t.type === 'CommentLine' || t.type === 'CommentBlock') return;
+                if (t.type === 'CommentLine' || t.type === 'CommentBlock' || t.type === 'EOF') return;
 
                 const start = t.loc.start.line;
                 const end = t.loc.end.line;
@@ -106,15 +116,28 @@ function calculateMetrics(code) {
             node: ast.program
         }, 0, 'code outside functions');
 
-        // Calculate Global NLOC: Total NLOC - Sum(Child Functions NLOC)
-        // Or more accurately: Count tokens that are NOT inside any child function.
-        // But for simplicity and speed, let's use the token subtraction method if possible,
-        // or just count lines in the file that aren't covered by functions.
-        // Actually, existing countTokenLines(ast.tokens) gives total NLOC.
-        // We need to subtract NLOC of all discovered functions later, or compute it now.
-        // Let's postpone Global NLOC finalization until after we find all functions.
+        const functionRanges = [];
+        traverse(ast, {
+            enter(path) {
+                if (!path.isFunction()) return;
 
-        // Calculate file-level Cyclomatic Complexity to avoid double-counting
+                const start = path.node.start;
+                const end = path.node.end;
+                if (start === undefined || end === undefined) return;
+
+                functionRanges.push({ start, end });
+            }
+        });
+
+        const globalTokens = validTokens.filter(t =>
+            !functionRanges.some(range => t.start >= range.start && t.end <= range.end)
+        );
+        const globalUniqueTokens = new Set(globalTokens.map(t => code.slice(t.start, t.end)));
+        const globalHalsteadVolume = globalUniqueTokens.size > 0
+            ? globalTokens.length * Math.log2(globalUniqueTokens.size)
+            : 0;
+        const globalNLOC = countTokenLines(globalTokens);
+
         let fileCYC = 1;
         traverse(ast, {
             enter(path) {
@@ -167,23 +190,16 @@ function calculateMetrics(code) {
                 }
             }
         });
-
         const loc = code.split('\n').length;
-        let globalMI = 100.0;
-        if (loc > 0) {
-            const logV = halsteadVolume > 0 ? Math.log(halsteadVolume) : 0;
-            const logLOC = Math.log(loc);
-            const originalMI = 171 - 5.2 * logV - 0.23 * fileCYC - 16.2 * logLOC;
-            globalMI = Math.max(0, Math.min(100, originalMI * 100 / 171));
-        }
+        const globalMI = calculateMaintainabilityIndex(globalHalsteadVolume, globalCYC, globalNLOC);
 
         const globalFunction = {
             name: 'code outside functions',
-            NLOC: 0, // Will be updated
+            NLOC: globalNLOC,
             CC: globalCC,
             CYC: globalCYC,
             MI: parseFloat(globalMI.toFixed(2)),
-            halsteadVolume: 0.0,
+            halsteadVolume: globalHalsteadVolume,
             maxNesting: globalMaxNesting,
             lineStart: 1,
             lineEnd: loc,
@@ -284,13 +300,7 @@ function calculateMetrics(code) {
                 });
 
                 const fnLoc = (lineEnd !== null && lineStart !== null) ? (lineEnd - lineStart + 1) : 1;
-                let mi = 100.0;
-                if (fnLoc > 0) {
-                    const logV = fnHalsteadVolume > 0 ? Math.log(fnHalsteadVolume) : 0;
-                    const logLOC = Math.log(fnLoc);
-                    const originalMI = 171 - 5.2 * logV - 0.23 * cyclomaticComplexity - 16.2 * logLOC;
-                    mi = Math.max(0, Math.min(100, originalMI * 100 / 171));
-                }
+                const mi = calculateMaintainabilityIndex(fnHalsteadVolume, cyclomaticComplexity, fnLoc);
 
                 // Determine Parent ID
                 // If getFunctionParent returns null, it's a top-level function -> parent is null (sibling of global)
@@ -312,16 +322,6 @@ function calculateMetrics(code) {
                 });
             }
         });
-
-        // Finalize Global NLOC
-        // Global NLOC = Total NLOC - Sum(Top-Level Functions NLOC).
-        // Top-level functions are those with parentId === null.
-
-        const topLevelFunctionsNLOC = metrics.functions
-            .filter(f => f.parentId === null && f.id !== -1) // Exclude self (though global has id -1, just to be safe)
-            .reduce((sum, f) => sum + f.NLOC, 0);
-
-        globalFunction.NLOC = Math.max(0, metrics.NLOC - topLevelFunctionsNLOC);
 
         metrics.fileCYC = fileCYC;
 
@@ -408,14 +408,12 @@ async function buildFileMetricsResponse(code, filename) {
         if (cyc > complexity_max) complexity_max = cyc;
     });
 
-    let maintainability_index = 100.0;
-    if (babelMetrics.LOC > 0) {
-        const logV = babelMetrics.halsteadVolume > 0 ? Math.log(babelMetrics.halsteadVolume) : 0;
-        const logLOC = Math.log(babelMetrics.LOC);
-        const fileCyc = babelMetrics.fileCYC !== undefined ? babelMetrics.fileCYC : complexity_sum;
-        const originalMI = 171 - 5.2 * logV - 0.23 * fileCyc - 16.2 * logLOC;
-        maintainability_index = Math.max(0, Math.min(100, originalMI * 100 / 171));
-    }
+    const fileCyc = babelMetrics.fileCYC !== undefined ? babelMetrics.fileCYC : complexity_sum;
+    const maintainability_index = calculateMaintainabilityIndex(
+        babelMetrics.halsteadVolume ?? 0,
+        fileCyc,
+        babelMetrics.LOC ?? 0
+    );
 
     const total_cognitive_complexity =
         roots.reduce((sum, r) => sum + (r.totalCC || 0), 0);
