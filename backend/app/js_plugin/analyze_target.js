@@ -52,7 +52,7 @@ function analyzeFile(filePath) {
             outputString += msg + '\n';
         };
 
-        log('Function Name                 | Start Line | End Line | CC       | NLOC');
+        log('Function Name                 | Start Line | End Line | CC       | LLOC');
         log('-----------------------------------------------------------------------');
 
         function printNode(fnId, indentLevel = 0) {
@@ -69,7 +69,7 @@ function analyzeFile(filePath) {
                 ccDisplay += '(total)';
             }
 
-            log(`${nameCell}| ${String(f.lineStart).padEnd(11)}| ${String(f.lineEnd).padEnd(9)}| ${ccDisplay.padEnd(9)}| ${f.NLOC}`);
+            log(`${nameCell}| ${String(f.lineStart).padEnd(11)}| ${String(f.lineEnd).padEnd(9)}| ${ccDisplay.padEnd(9)}| ${f.LLOC}`);
 
             children.forEach(c => printNode(c.id, indentLevel + 1));
         }

@@ -46,7 +46,7 @@ class FunctionCodeRequest(BaseModel):
     filename: str
     function_name: str
     start_line: int
-    nloc: int
+    lloc: int
     token: Optional[str] = None
 
 
@@ -451,7 +451,7 @@ async def get_function_code(payload: FunctionCodeRequest):
                     break
             
             # Now find the end of the function body
-            max_search_lines = min(start_idx + payload.nloc * 5 + 100, len(lines))
+            max_search_lines = min(start_idx + payload.lloc * 5 + 100, len(lines))
             actual_end_idx = body_start_idx
             
             for i in range(body_start_idx, max_search_lines):
@@ -488,7 +488,7 @@ async def get_function_code(payload: FunctionCodeRequest):
             found_opening_brace = False
             
             # Look ahead to find the function end
-            max_search_lines = min(start_idx + payload.nloc * 5 + 100, len(lines))
+            max_search_lines = min(start_idx + payload.lloc * 5 + 100, len(lines))
             
             for i in range(start_idx, max_search_lines):
                 line = lines[i]
@@ -559,7 +559,7 @@ async def get_function_code(payload: FunctionCodeRequest):
             "function_name": payload.function_name,
             "start_line": payload.start_line,
             "end_line": actual_end_idx,
-            "nloc": payload.nloc
+            "lloc": payload.lloc
         }
     except HTTPException:
         raise

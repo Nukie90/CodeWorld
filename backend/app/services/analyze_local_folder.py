@@ -35,7 +35,7 @@ def _analyze_single_file(file_path: str, relative_path: str,
                 total_lines = len(content.splitlines())
                 return FileMetrics(
                     filename=f"{relative_path}\n(unsupported)",
-                    total_loc=total_lines, total_nloc=total_lines,
+                    total_loc=total_lines, total_lloc=total_lines,
                     function_count=0, total_complexity=0, complexity_max=0,
                     functions=[], is_unsupported=True
                 )
@@ -44,7 +44,7 @@ def _analyze_single_file(file_path: str, relative_path: str,
                 loc = analysis.code_count + analysis.documentation_count + analysis.empty_count
                 return FileMetrics(
                     filename=f"{relative_path}\n({analysis.language})",
-                    total_loc=loc, total_nloc=analysis.code_count,
+                    total_loc=loc, total_lloc=analysis.code_count,
                     function_count=0, total_complexity=0, complexity_max=0,
                     functions=[], is_unsupported=True
                 )
@@ -52,7 +52,7 @@ def _analyze_single_file(file_path: str, relative_path: str,
                 total_lines = len(content.splitlines())
                 return FileMetrics(
                     filename=f"{relative_path}\n(unsupported)",
-                    total_loc=total_lines, total_nloc=total_lines,
+                    total_loc=total_lines, total_lloc=total_lines,
                     function_count=0, total_complexity=0, complexity_max=0,
                     functions=[], is_unsupported=True
                 )
@@ -134,13 +134,13 @@ def _incremental_analysis(
             file_metrics_list.append(fm)
 
     # 3. Aggregate metrics
-    total_loc = total_nloc = total_functions = total_complexity = complexity_max = 0
+    total_loc = total_lloc = total_functions = total_complexity = complexity_max = 0
     halstead_volume = 0.0
     total_lint_score = 0.0
     valid_lint_files = 0
     for fm in file_metrics_list:
         total_loc += fm.total_loc
-        total_nloc += fm.total_nloc
+        total_lloc += fm.total_lloc
         total_functions += fm.function_count
         total_complexity += fm.total_complexity
         if (fm.complexity_max or 0) > complexity_max:
@@ -154,7 +154,7 @@ def _incremental_analysis(
     folder_metrics = FolderMetrics(
         folder_name=os.path.basename(local_path),
         total_files=len(file_metrics_list),
-        total_loc=total_loc, total_nloc=total_nloc,
+        total_loc=total_loc, total_lloc=total_lloc,
         total_functions=total_functions, total_complexity=total_complexity,
         complexity_max=complexity_max, halstead_volume=halstead_volume,
         average_lint_score=round(total_lint_score / valid_lint_files, 2) if valid_lint_files > 0 else None,
@@ -206,7 +206,7 @@ def analyze_local_folder(
 
     file_metrics_list: List[FileMetrics] = []
     total_loc = 0
-    total_nloc = 0
+    total_lloc = 0
     total_functions = 0
     total_complexity = 0
     complexity_max = 0
@@ -256,7 +256,7 @@ def analyze_local_folder(
     if progress_callback:
         progress_callback(95, "Aggregating metrics")
 
-    total_loc = total_nloc = total_functions = total_complexity = complexity_max = 0
+    total_loc = total_lloc = total_functions = total_complexity = complexity_max = 0
     halstead_volume = 0.0
     total_mi = 0.0
     valid_mi_files = 0
@@ -264,7 +264,7 @@ def analyze_local_folder(
     valid_lint_files = 0
     for fm in file_metrics_list:
         total_loc += fm.total_loc
-        total_nloc += fm.total_nloc
+        total_lloc += fm.total_lloc
         total_functions += fm.function_count
         total_complexity += fm.total_complexity
         if (fm.complexity_max or 0) > complexity_max:
@@ -282,7 +282,7 @@ def analyze_local_folder(
         folder_name=os.path.basename(path),
         total_files=len(file_metrics_list),
         total_loc=total_loc,
-        total_nloc=total_nloc,
+        total_lloc=total_lloc,
         total_functions=total_functions,
         total_complexity=total_complexity,
         complexity_max=complexity_max,

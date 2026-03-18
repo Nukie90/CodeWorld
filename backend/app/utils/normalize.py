@@ -19,11 +19,11 @@ def normalize_node_metrics(
     filename: str | None = None
 ) -> FileMetrics:
     """
-    Convert Node {LOC, NLOC, NOF, functions[{name,NLOC,CC,lineStart}]} -> FileMetrics
-    Assumption: comment_lines ≈ LOC - NLOC (treating blanks+comments together so total_loc == LOC).
+    Convert Node {LOC, LLOC, NOF, functions[{name,LLOC,CC,lineStart}]} -> FileMetrics
+    Assumption: comment_lines ≈ LOC - LLOC (treating blanks+comments together so total_loc == LOC).
     """
     loc = int(node_result.get("LOC", 0))
-    nloc = int(node_result.get("NLOC", 0))
+    lloc = int(node_result.get("LLOC", 0))
     funcs_in: List[Dict[str, Any]] = node_result.get("functions", []) or []
 
     # Build FunctionMetric list
@@ -35,7 +35,7 @@ def normalize_node_metrics(
         fm = FunctionMetric(
             name=name,
             start_line=f.get("lineStart"),
-            nloc=int(f.get("NLOC", 0)),
+            lloc=int(f.get("LLOC", 0)),
             cyclomatic_complexity=int(f.get("CC", 0)),
         )
         funcs.append(fm)
@@ -48,14 +48,14 @@ def normalize_node_metrics(
 
 
     # comment_lines unavailable; approximate so total_loc matches LOC
-    comment_lines = max(loc - nloc, 0)
-    total_loc = nloc + comment_lines  # equals LOC under our approximation
+    comment_lines = max(loc - lloc, 0)
+    total_loc = lloc + comment_lines  # equals LOC under our approximation
 
     return FileMetrics(
         filename=filename or "unknown",
         language=_infer_language(filename),
         total_loc=total_loc,
-        total_nloc=nloc,
+        total_lloc=lloc,
         function_count=function_count,
         total_complexity=cc_sum,
         complexity_max=cc_max,
@@ -66,14 +66,14 @@ def normalize_node_metrics(
 def normalize_node_zip(node_result: Dict[str, Any], folder_name: str = "src") -> Dict[str, Any]:
     """
     Convert Node /analyze-zip response:
-    { totalFiles: N, results: [{fileName, metrics:{LOC,NLOC,NOF,functions[]}}] }
+    { totalFiles: N, results: [{fileName, metrics:{LOC,LLOC,NOF,functions[]}}] }
     → desired hierarchical FolderMetrics JSON
     """
 
     results: List[Dict[str, Any]] = node_result.get("results", []) or []
 
     all_files: List[FileMetrics] = []
-    total_loc = total_nloc = total_functions = 0
+    total_loc = total_lloc = total_functions = 0
     cc_sum = 0
     cc_max_global = 0
     halstead_volume_global = 0.0
@@ -88,7 +88,7 @@ def normalize_node_zip(node_result: Dict[str, Any], folder_name: str = "src") ->
 
             # Aggregate folder metrics
             total_loc += fm.total_loc
-            total_nloc += fm.total_nloc
+            total_lloc += fm.total_lloc
             total_functions += fm.function_count
             cc_sum += fm.total_complexity
             cc_max_global = max(cc_max_global, fm.complexity_max)
@@ -104,7 +104,7 @@ def normalize_node_zip(node_result: Dict[str, Any], folder_name: str = "src") ->
         folder_name=folder_name,
         total_files=total_files,
         total_loc=total_loc,
-        total_nloc=total_nloc,
+        total_lloc=total_lloc,
         total_functions=total_functions,
         total_complexity=cc_sum,
         complexity_max=cc_max_global,

@@ -57,7 +57,7 @@ async def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnaly
         # Initialize Metrics
         file_metrics_list: List[FileMetrics] = []
         total_loc = 0
-        total_nloc = 0
+        total_lloc = 0
         total_functions = 0
         total_complexity = 0
         complexity_max = 0
@@ -74,7 +74,7 @@ async def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnaly
                 
                 # Aggregate folder metrics
                 total_loc += file_metrics.total_loc
-                total_nloc += file_metrics.total_nloc
+                total_lloc += file_metrics.total_lloc
                 total_functions += file_metrics.function_count
                 
                 # Ensure complexity_avg is treated as a number
@@ -90,7 +90,7 @@ async def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnaly
             folder_name=folder_name,
             total_files=len(file_metrics_list),
             total_loc=total_loc,
-            total_nloc=total_nloc,
+            total_lloc=total_lloc,
             total_functions=total_functions,
             total_complexity=total_complexity,
             complexity_max=complexity_max,
