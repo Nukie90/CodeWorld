@@ -1,22 +1,19 @@
 const js = require("@eslint/js");
 const reactPlugin = require("eslint-plugin-react");
+const reactHooks = require("eslint-plugin-react-hooks");
 const tsPlugin = require("@typescript-eslint/eslint-plugin");
 const tsParser = require("@typescript-eslint/parser");
 const globals = require("globals");
 
 module.exports = [
+  {
+    ignores: ["dist/**", "build/**", "coverage/**", "node_modules/**"]
+  },
+
   js.configs.recommended,
 
   {
     files: ["**/*.{js,jsx,ts,tsx}"],
-    rules: {
-    "no-unused-vars": "warn",
-    "no-undef": "error",
-    "no-console": "warn",
-    "eqeqeq": "warn",
-    "no-debugger": "error",
-    "prefer-const": "warn"
-  },
     languageOptions: {
       parserOptions: {
         ecmaVersion: "latest",
@@ -24,16 +21,28 @@ module.exports = [
         ecmaFeatures: { jsx: true }
       },
       globals: {
-        ...globals.browser,
-        ...globals.node
+        ...globals.browser
       }
+    },
+    rules: {
+      "no-unused-vars": "warn",
+      "no-undef": "error",
+      "no-console": "warn",
+      "eqeqeq": ["warn", "always"],
+      "no-debugger": "error",
+      "prefer-const": "warn",
+      "curly": "warn",
+      "no-var": "error",
+      "no-duplicate-imports": "warn",
+      "no-unreachable": "error"
     }
   },
 
   {
     files: ["**/*.{jsx,tsx}"],
     plugins: {
-      react: reactPlugin
+      react: reactPlugin,
+      "react-hooks": reactHooks
     },
     settings: {
       react: {
@@ -42,7 +51,9 @@ module.exports = [
     },
     rules: {
       ...reactPlugin.configs.recommended.rules,
-      "react/react-in-jsx-scope": "off"
+      "react/react-in-jsx-scope": "off",
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn"
     }
   },
 
@@ -60,6 +71,7 @@ module.exports = [
       "@typescript-eslint": tsPlugin
     },
     rules: {
+      "no-unused-vars": "off",
       "@typescript-eslint/no-unused-vars": "warn",
       "@typescript-eslint/no-explicit-any": "warn"
     }
