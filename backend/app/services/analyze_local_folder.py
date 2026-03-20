@@ -136,28 +136,12 @@ def _incremental_analysis(
     # 3. Aggregate metrics
     total_loc = total_lloc = total_functions = total_complexity = complexity_max = 0
     halstead_volume = 0.0
-    total_lint_score = 0.0
-    valid_lint_files = 0
-    for fm in file_metrics_list:
-        total_loc += fm.total_loc
-        total_lloc += fm.total_lloc
-        total_functions += fm.function_count
-        total_complexity += fm.total_complexity
-        if (fm.complexity_max or 0) > complexity_max:
-            complexity_max = fm.complexity_max
-        if fm.halstead_volume is not None:
-            halstead_volume += fm.halstead_volume
-        if getattr(fm, 'lint_score', None) is not None:
-            total_lint_score += fm.lint_score
-            valid_lint_files += 1
-
     folder_metrics = FolderMetrics(
         folder_name=os.path.basename(local_path),
         total_files=len(file_metrics_list),
         total_loc=total_loc, total_lloc=total_lloc,
         total_functions=total_functions, total_complexity=total_complexity,
         complexity_max=complexity_max, halstead_volume=halstead_volume,
-        average_lint_score=round(total_lint_score / valid_lint_files, 2) if valid_lint_files > 0 else None,
         files=file_metrics_list,
     )
     return FolderAnalysisResult(folder_metrics=folder_metrics, individual_files=file_metrics_list)
@@ -260,8 +244,6 @@ def analyze_local_folder(
     halstead_volume = 0.0
     total_mi = 0.0
     valid_mi_files = 0
-    total_lint_score = 0.0
-    valid_lint_files = 0
     for fm in file_metrics_list:
         total_loc += fm.total_loc
         total_lloc += fm.total_lloc
@@ -274,9 +256,6 @@ def analyze_local_folder(
         if getattr(fm, 'maintainability_index', None) is not None:
             total_mi += fm.maintainability_index
             valid_mi_files += 1
-        if getattr(fm, 'lint_score', None) is not None:
-            total_lint_score += fm.lint_score
-            valid_lint_files += 1
 
     folder_metrics = FolderMetrics(
         folder_name=os.path.basename(path),
@@ -288,7 +267,6 @@ def analyze_local_folder(
         complexity_max=complexity_max,
         halstead_volume=halstead_volume,
         maintainability_index=round(total_mi / valid_mi_files, 2) if valid_mi_files > 0 else None,
-        average_lint_score=round(total_lint_score / valid_lint_files, 2) if valid_lint_files > 0 else None,
         files=file_metrics_list,
     )
     return FolderAnalysisResult(folder_metrics=folder_metrics, individual_files=file_metrics_list)

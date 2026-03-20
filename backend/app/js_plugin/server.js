@@ -10,7 +10,7 @@ const { ESLint } = require("eslint");
 
 const app = express();
 
-const eslint = new ESLint();
+const eslint = new ESLint({ cwd: __dirname });
 
 async function getLintResults(code, filename) {
     let lint_score = null;
@@ -459,7 +459,7 @@ async function buildFileMetricsResponse(code, filename) {
     const total_cognitive_complexity =
         roots.reduce((sum, r) => sum + (r.totalCC || 0), 0);
 
-    const { lint_score, lint_errors } = await getLintResults(code, filename);
+    // Removed getLintResults from the main analysis path
 
     return {
         filename,
@@ -473,8 +473,6 @@ async function buildFileMetricsResponse(code, filename) {
         halstead_volume: babelMetrics.halsteadVolume ?? 0.0,
         maintainability_index: parseFloat(maintainability_index.toFixed(2)),
         is_unsupported: false,
-        lint_score,
-        lint_errors,
         functions: hierarchicalFunctions
     };
 }
@@ -673,8 +671,6 @@ async function analyzeFileAt(filePath, rootPathForRel) {
             halstead_volume: 0.0,
             maintainability_index: 0.0,
             is_unsupported: false,
-            lint_score: null,
-            lint_errors: [],
             functions: [],
             error: error.message
         };
@@ -775,6 +771,22 @@ app.post('/analyze-code', express.json(), async (req, res) => {
     } catch (error) {
         console.error(`Error analyzing code for ${filename}:`, error);
         res.status(500).json({ error: `Failed to analyze code: ${error.message}` });
+    }
+});
+
+app.post('/lint-code', express.json(), async (req, res) => {
+    const { code, filename } = req.body;
+
+    if (!code || typeof code !== 'string') {
+        return res.status(400).json({ error: 'Request must include a "code" string' });
+    }
+
+    try {
+        const lintResult = await getLintResults(code, filename);
+        res.json(lintResult);
+    } catch (error) {
+        console.error(`Error linting code for ${filename}:`, error);
+        res.status(500).json({ error: `Failed to lint code: ${error.message}` });
     }
 });
 

@@ -539,17 +539,32 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
     # Calculate Total Cognitive Complexity for the file
     total_cognitive_complexity = sum(f.total_cognitive_complexity for f in roots if f.total_cognitive_complexity is not None)
 
-    # Run Pylint
-    # Run Pylint
+    file_metrics = FileMetrics(
+        filename=filename,
+        language="python",
+        total_loc=loc,
+        total_lloc=lloc,
+        function_count=len(functions),
+        total_complexity=file_cyclomatic_complexity,
+        complexity_max=complexity_max,
+        total_cognitive_complexity=total_cognitive_complexity,
+        halstead_volume=halstead_volume,
+        maintainability_index=maintainability_index,
+        functions=roots
+    )
+
+    return file_metrics
+
+def run_pylint(code: str, filename: str) -> Dict[str, Any]:
     lint_score = None
     lint_errors = []
     
     try:
         import tempfile
-        import json
         import subprocess
         import os
         import sys
+        import json
 
         wrapper_code = """
 import sys
@@ -601,6 +616,7 @@ print(pylint_output.getvalue())
                     try:
                         errors_data = json.loads(json_str)
                         for err in errors_data:
+                            from app.model.analyzer_model import LintError
                             lint_errors.append(LintError(
                                 type=err.get("type", ""),
                                 module=err.get("module", ""),
@@ -621,20 +637,4 @@ print(pylint_output.getvalue())
     except Exception as e:
         print(f"Error running pylint on {filename}: {e}")
 
-    file_metrics = FileMetrics(
-        filename=filename,
-        language="python",
-        total_loc=loc,
-        total_lloc=lloc,
-        function_count=len(functions),
-        total_complexity=file_cyclomatic_complexity,
-        complexity_max=complexity_max,
-        total_cognitive_complexity=total_cognitive_complexity,
-        halstead_volume=halstead_volume,
-        maintainability_index=maintainability_index,
-        lint_score=lint_score,
-        lint_errors=lint_errors,
-        functions=roots
-    )
-
-    return file_metrics
+    return {"score": lint_score, "errors": lint_errors}
