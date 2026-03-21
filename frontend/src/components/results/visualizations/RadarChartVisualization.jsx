@@ -23,34 +23,34 @@ function RadarChartVisualization({ individualFiles }) {
   
   // Find maximum values for normalization
   const maxValues = {
-    nloc: Math.max(...individualFiles.map(f => f.total_nloc || f.total_loc || 0)),
+    lloc: Math.max(...individualFiles.map(f => f.total_lloc || f.total_loc || 0)),
     complexity: Math.max(...individualFiles.map(f => f.total_complexity || 0)),
     functions: Math.max(...individualFiles.map(f => f.function_count || 0)),
     maxComplexity: Math.max(...individualFiles.map(f => f.complexity_max || 0)),
     avgFunctionSize: Math.max(...individualFiles.map(f => 
-      f.total_nloc && f.function_count ? f.total_nloc / f.function_count : 0
+      f.total_lloc && f.function_count ? f.total_lloc / f.function_count : 0
     ))
   };
 
   // Process data for visualization
   const chartData = individualFiles.map(file => ({
     name: file.filename,
-    'Lines of Code': normalizeValue(file.total_nloc || file.total_loc || 0, maxValues.nloc),
+    'Lines of Code': normalizeValue(file.total_lloc || file.total_loc || 0, maxValues.lloc),
     'Avg Complexity': normalizeValue(file.total_complexity || 0, maxValues.complexity),
     'Function Count': normalizeValue(file.function_count || 0, maxValues.functions),
     'Max Complexity': normalizeValue(file.complexity_max || 0, maxValues.maxComplexity),
     'Avg Function Size': normalizeValue(
-      file.total_nloc && file.function_count ? file.total_nloc / file.function_count : 0,
+      file.total_lloc && file.function_count ? file.total_lloc / file.function_count : 0,
       maxValues.avgFunctionSize
     ),
     // Store original values for tooltip
     original: {
-      'Lines of Code': file.total_nloc || file.total_loc || 0,
+      'Lines of Code': file.total_lloc || file.total_loc || 0,
       'Avg Complexity': file.total_complexity || 0,
       'Function Count': file.function_count || 0,
       'Max Complexity': file.complexity_max || 0,
-      'Avg Function Size': file.total_nloc && file.function_count 
-        ? Math.round((file.total_nloc / file.function_count) * 10) / 10 
+      'Avg Function Size': file.total_lloc && file.function_count 
+        ? Math.round((file.total_lloc / file.function_count) * 10) / 10 
         : 0
     }
   }));

@@ -68,24 +68,25 @@ def calculate_cyclomatic_complexity(node: ast.AST, skip_nested_functions: bool =
 
     return complexity
 
-def count_lloc(node: ast.AST, skip_nested_functions: bool = False) -> int:
-    """Calculate Logical Lines of Code (LLOC) based on AST statements."""
+def count_lloc(tokens: list, start_line: int = None, end_line: int = None, exclude_ranges: list = None) -> int:
+    """Calculate Logical Lines of Code (LLOC) based on tokenize NEWLINE and semicolons to match Radon."""
     count = 0
-    
-    class LLOCVisitor(ast.NodeVisitor):
-        def visit(self, inner_node: ast.AST):
-            nonlocal count
-            if isinstance(inner_node, ast.stmt):
-                # Skip nested functions/classes if requested
-                if skip_nested_functions and (isinstance(inner_node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and inner_node is not node):
-                    return
-                
-                # Only increment count for non-container statements
-                if not isinstance(inner_node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
-                    count += 1
-            self.generic_visit(inner_node)
-
-    LLOCVisitor().visit(node)
+    for tok in tokens:
+        line_no = tok.start[0]
+        if start_line is not None and line_no < start_line:
+            continue
+        if end_line is not None and line_no > end_line:
+            continue
+            
+        if exclude_ranges:
+            if any(r_start <= line_no <= r_end for r_start, r_end in exclude_ranges):
+                continue
+        
+        if tok.type == tokenize.NEWLINE:
+            count += 1
+        elif tok.type == tokenize.OP and tok.string == ';':
+            count += 1
+            
     return count
 
 def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, function_name: str = None) -> Dict[str, int]:
@@ -254,6 +255,7 @@ def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, fu
 
 
 def calculate_metrics(code: str, filename: str) -> FileMetrics:
+    loc = len(code.splitlines())
     try:
         tree = ast.parse(code)
     except SyntaxError:
@@ -261,7 +263,7 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         return FileMetrics(
              filename=filename,
              language="python",
-             total_loc=len(code.splitlines()),
+             total_loc=loc,
              total_lloc=0,
              function_count=0,
              total_complexity=0,
@@ -270,19 +272,31 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
              functions=[]
         )
 
-    # Calculate LLOC (Logical Lines of Code)
-    lloc = count_lloc(tree)
-    N_total = 0
-    unique_tokens = set()
+    tokens = []
     try:
         tokens = list(tokenize.tokenize(BytesIO(code.encode('utf-8')).readline))
-        for tok in tokens:
-            if tok.type not in (tokenize.COMMENT, tokenize.NL, tokenize.NEWLINE, tokenize.ENDMARKER, tokenize.INDENT, tokenize.DEDENT, tokenize.ENCODING):
-                if tok.string.strip():
-                    N_total += 1
-                    unique_tokens.add(tok.string)
     except tokenize.TokenError:
         pass
+
+    # Calculate LLOC (Logical Lines of Code)
+    lloc = count_lloc(tokens)
+    
+    # Try using radon for exact 100% parity with user's baseline for the entire file
+    try:
+        import radon.raw
+        radon_res = radon.raw.analyze(code)
+        lloc = radon_res.lloc
+        loc = radon_res.loc
+    except Exception:
+        pass
+    
+    N_total = 0
+    unique_tokens = set()
+    for tok in tokens:
+        if tok.type not in (tokenize.COMMENT, tokenize.NL, tokenize.NEWLINE, tokenize.ENDMARKER, tokenize.INDENT, tokenize.DEDENT, tokenize.ENCODING):
+            if tok.string.strip():
+                N_total += 1
+                unique_tokens.add(tok.string)
 
     n_unique = len(unique_tokens)
     halstead_volume = N_total * math.log2(n_unique) if n_unique > 0 else 0
@@ -323,7 +337,17 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         len(global_token_texts) * math.log2(len(global_unique_tokens))
         if global_unique_tokens else 0
     )
-    global_lloc = count_lloc(tree, skip_nested_functions=True)
+    
+    # Exclude nested functions/classes from global LLOC
+    func_ranges = []
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            s = getattr(node, "lineno", None)
+            e = getattr(node, "end_lineno", s)
+            if s and e:
+                func_ranges.append((s, e))
+                
+    global_lloc = count_lloc(tokens, exclude_ranges=func_ranges)
 
     # --- 1. Analyze Global Scope (Virtual Function) ---
     # Analyze the Module node (tree) directly.
@@ -338,7 +362,7 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
     
     global_res = calculate_cognitive_complexity(tree, base_nesting=0, function_name=GLOBAL_FUNC_NAME)
     
-    # Global NLOC will be calculated later or we can estimate it.
+    # Global LLOC will be calculated later or we can estimate it.
     # Let's set it to 0 initially and correct it like in JS.
     
     global_metric = FunctionMetric(
@@ -435,7 +459,9 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
             fn_halstead_map[start_line] = n_fn * math.log2(n_unique_fn) if n_unique_fn > 0 else 0
             
             # LLOC calculation
-            func_lloc = count_lloc(node, skip_nested_functions=True)
+            func_lloc = count_lloc(tokens, start_line=start_line, end_line=end_line, 
+                                   exclude_ranges=[(n.lineno, n.end_lineno) for n in ast.walk(node) 
+                                                   if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)) and n is not node])
 
             functions.append(FunctionMetric(
                 name=name,
@@ -486,12 +512,11 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         else:
             f.cyclomatic_complexity = 1  # Fallback if no matching lizard function found
             
-        fn_loc = (f.end_line - (f.start_line or 1) + 1) if f.end_line else 1
         fn_halstead = fn_halstead_map.get(f.id, 0)
         f.maintainability_index = calculate_maintainability_index(
             fn_halstead,
             f.cyclomatic_complexity,
-            fn_loc
+            f.lloc or 0
         )
 
     # Stats
@@ -528,12 +553,11 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
     for r in roots:
         compute_total_cc(r)
     
-    # Calculate Maintainability Index
-    loc = len(code.splitlines())
+    # Calculate Maintainability Index from LLOC for consistency with exported metrics
     maintainability_index = calculate_maintainability_index(
         halstead_volume,
         file_cyclomatic_complexity,
-        loc
+        lloc
     )
 
     # Calculate Total Cognitive Complexity for the file

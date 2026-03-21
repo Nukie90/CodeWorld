@@ -134,7 +134,7 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
             const actualIndex = functions.length - 1 - index; // Original index
 
             // Height based on LOC
-            const height = Math.max(3, Math.min(20, (fn.nloc || 1) * 0.2));
+            const height = Math.max(3, Math.min(20, (fn.lloc || 1) * 0.2));
 
             const blockGeo = new THREE.BoxGeometry(blockWidth, height, blockDepth);
             const blockColor = getComplexityColor(fn.cyclomatic_complexity);
@@ -154,7 +154,7 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
             block.userData = {
                 type: 'function',
                 name: fn.name,
-                nloc: fn.nloc,
+                lloc: fn.lloc,
                 complexity: fn.cyclomatic_complexity,
                 start_line: fn.start_line,
                 filename: file.filename,
@@ -273,7 +273,7 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
                     filename: userData.filename,
                     functionName: userData.name,
                     startLine: userData.start_line,
-                    nloc: userData.nloc
+                    lloc: userData.lloc
                 });
             }
         };
@@ -409,7 +409,7 @@ function FunctionMoleculeVisualization({ file, isDarkMode, onBack, onFunctionCli
                             </div>
                             <div className="flex justify-between gap-4">
                                 <span>LOC:</span>
-                                <span className="font-medium text-gray-900 dark:text-gray-100">{hoveredFunction.nloc}</span>
+                                <span className="font-medium text-gray-900 dark:text-gray-100">{hoveredFunction.lloc}</span>
                             </div>
                             <div className="text-xs text-gray-500 dark:text-gray-400 mt-2 italic">
                                 Click to view code

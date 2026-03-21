@@ -144,7 +144,7 @@ function ResultsPage() {
   const folderSummary = {
     'Total files': folderMetrics?.total_files,
     'Total lines': folderMetrics?.total_loc,
-    'Logical LOC': folderMetrics?.total_nloc,
+    'Logical LOC': folderMetrics?.total_lloc,
     'Total function': folderMetrics?.total_functions,
     'Total complexity': folderMetrics?.total_complexity,
     'Max complexity': folderMetrics?.complexity_max
@@ -181,7 +181,7 @@ function ResultsPage() {
         filename: functionData.filename,
         function_name: functionData.functionName,
         start_line: functionData.startLine,
-        nloc: functionData.nloc,
+        lloc: functionData.lloc,
         token: token
       })
 
@@ -1175,7 +1175,7 @@ function ResultsPage() {
                         <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
                           <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Logical LOC</span>
                           <span className={`text-xl font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                            {fullFileData.total_nloc || "—"}
+                            {fullFileData.total_lloc || "—"}
                           </span>
                         </div>
                         <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
@@ -1204,14 +1204,14 @@ function ResultsPage() {
                                 filename: selectedFileForCard.filename,
                                 functionName: fn.name,
                                 startLine: fn.start_line,
-                                nloc: fn.nloc
+                                lloc: fn.lloc
                               })}
                               className={`${isDarkMode ? 'bg-gray-800/70 hover:bg-gray-700' : 'bg-white/70 hover:bg-blue-50'} backdrop-blur-sm rounded-xl p-3 text-left transition-all border ${borderColor} shadow-md hover:shadow-lg hover:border-blue-400 group`}
                             >
                               <div className="flex justify-between items-start">
                                 <div className="flex flex-col flex-1 min-w-0">
                                   <span className="font-bold text-sm truncate group-hover:text-blue-500 transition-colors">{fn.name}</span>
-                                  <span className="text-xs opacity-60 font-medium">Lines: {fn.nloc}</span>
+                                  <span className="text-xs opacity-60 font-medium">Lines: {fn.lloc}</span>
                                 </div>
                                 <span className={`ml-2 px-2.5 py-1 rounded-lg text-xs font-black ${fn.cyclomatic_complexity > 10
                                   ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg'

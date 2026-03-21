@@ -12,11 +12,11 @@ function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, 
     );
   }
 
-  // Calculate max height for scaling (max total nloc across all files)
-  const maxTotalNloc = Math.max(
+  // Calculate max height for scaling (max total lloc across all files)
+  const maxTotalLloc = Math.max(
     ...individualFiles.map(file => {
       const functions = file.functions || [];
-      return functions.reduce((sum, fn) => sum + (fn.nloc || 0), 0);
+      return functions.reduce((sum, fn) => sum + (fn.lloc || 0), 0);
     }),
     1
   );
@@ -93,9 +93,9 @@ function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, 
             const file = individualFiles.find(f => f.filename === fileName);
             const functions = file?.functions || [];
 
-            // Calculate total NLOC for this file to normalize local bar heights
-            const fileTotalNloc = functions.reduce((sum, fn) => sum + (fn.nloc || 0), 0);
-            const fileHeightPercentage = (fileTotalNloc / maxTotalNloc) * 100;
+            // Calculate total LLOC for this file to normalize local bar heights
+            const fileTotalLloc = functions.reduce((sum, fn) => sum + (fn.lloc || 0), 0);
+            const fileHeightPercentage = (fileTotalLloc / maxTotalLloc) * 100;
 
             return (
               <div
@@ -108,7 +108,7 @@ function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, 
                   style={{ height: `${Math.max(fileHeightPercentage, 1)}%`, minHeight: '1px' }}
                 >
                   {functions.map((fn, fnIdx) => {
-                    const fnHeightPercentage = fileTotalNloc > 0 ? ((fn.nloc || 0) / fileTotalNloc) * 100 : 0;
+                    const fnHeightPercentage = fileTotalLloc > 0 ? ((fn.lloc || 0) / fileTotalLloc) * 100 : 0;
                     // const complexity = fn.cyclomatic_complexity;
                     const complexity = fn.total_cognitive_complexity;
                     const color = getComplexityColor(complexity);
@@ -124,7 +124,7 @@ function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         onMouseEnter={(e) => handleMouseEnter(e, {
                           name: fn.name || 'Unknown',
                           cc: complexity !== undefined && complexity !== null ? complexity : 'N/A',
-                          nloc: fn.nloc || 0
+                          lloc: fn.lloc || 0
                         })}
                         onMouseLeave={handleMouseLeave}
                         onClick={(e) => {
@@ -140,7 +140,7 @@ function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, 
                               filename: file.filename,
                               functionName: fn.name || 'Unknown',
                               startLine: fn.start_line,
-                              nloc: fn.nloc || 0,
+                              lloc: fn.lloc || 0,
                               complexity: complexity
                             });
                           }
@@ -186,7 +186,7 @@ function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, 
             </div>
             <div className="text-gray-600">
               <div>CC: <span className="font-medium">{hoveredFunction.cc}</span></div>
-              <div>nloc: <span className="font-medium">{hoveredFunction.nloc}</span></div>
+              <div>lloc: <span className="font-medium">{hoveredFunction.lloc}</span></div>
             </div>
           </div>
         </div>

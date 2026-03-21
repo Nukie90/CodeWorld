@@ -78,12 +78,12 @@ function ForceTreeVisualization({ individualFiles, folderName }) {
           name: pathParts[pathParts.length - 1],
           type: 'file',
           complexity: file.total_complexity || 0,
-          nloc: file.total_nloc || 0,
+          lloc: file.total_lloc || 0,
           children: (file.functions || []).map(fn => ({
             name: fn.name,
             type: 'function',
             complexity: fn.cyclomatic_complexity,
-            nloc: fn.nloc
+            lloc: fn.lloc
           }))
         })
       })
@@ -249,13 +249,13 @@ function ForceTreeVisualization({ individualFiles, folderName }) {
       
       if (d.data.type === 'file') {
         html += `
-          <p><strong>Lines of Code:</strong> ${d.data.nloc}</p>
+          <p><strong>Lines of Code:</strong> ${d.data.lloc}</p>
           <p><strong>Complexity:</strong> ${d.data.complexity.toFixed(2)}</p>
           <p><strong>Functions:</strong> ${d.data.children ? d.data.children.length : 0}</p>
         `
       } else if (d.data.type === 'function') {
         html += `
-          <p><strong>Lines of Code:</strong> ${d.data.nloc}</p>
+          <p><strong>Lines of Code:</strong> ${d.data.lloc}</p>
           <p><strong>Complexity:</strong> ${d.data.complexity}</p>
         `
       }

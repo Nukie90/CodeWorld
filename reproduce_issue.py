@@ -11,7 +11,7 @@ def test_get_function_code():
         "filename": "backend/app/utils/normalize.py",
         "function_name": "normalize_node_metrics",
         "start_line": 17,
-        "nloc": 41
+        "lloc": 41
     }
     
     req = urllib.request.Request(url)

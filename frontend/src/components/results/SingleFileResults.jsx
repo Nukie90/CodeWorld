@@ -16,7 +16,7 @@ function SingleFileResults({ analysisResult, onBack }) {
   const { filename, analysis } = analysisResult
   const summaryItems = [
     { label: 'Total lines', value: analysis?.total_loc },
-    { label: 'Logical LOC', value: analysis?.total_nloc },
+    { label: 'Logical LOC', value: analysis?.total_lloc },
     { label: 'Functions', value: analysis?.function_count },
     { label: 'Total complexity', value: analysis?.total_complexity },
     { label: 'Max complexity', value: analysis?.complexity_max },
@@ -26,7 +26,7 @@ function SingleFileResults({ analysisResult, onBack }) {
   const functions = (analysis?.functions || []).map((fn) => ({
     name: fn.name,
     startLine: fn.start_line,
-    nloc: fn.nloc,
+    lloc: fn.lloc,
     complexity: fn.cyclomatic_complexity,
   }))
 
@@ -76,7 +76,7 @@ function SingleFileResults({ analysisResult, onBack }) {
                     <tr key={`${fn.name}-${fn.startLine}`}>
                       <td>{fn.name}</td>
                       <td>{fn.startLine}</td>
-                      <td>{fn.nloc}</td>
+                      <td>{fn.lloc}</td>
                       <td>{fn.complexity}</td>
                     </tr>
                   ))}

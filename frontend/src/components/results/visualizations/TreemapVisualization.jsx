@@ -44,7 +44,7 @@ function TreemapVisualization({ individualFiles, folderName }) {
       name: folderName,
       children: individualFiles.map(file => ({
         name: file.filename.split('/').pop(),
-        value: file.total_nloc || 0,
+        value: file.total_lloc || 0,
         total_complexity: file.total_complexity || 0,
         complexity_max: file.complexity_max || 0,
         function_count: file.function_count || 0,
@@ -118,7 +118,7 @@ function TreemapVisualization({ individualFiles, folderName }) {
           html += `
             <div style="margin: 5px 0; padding: 2px; border-left: 2px solid #ccc;">
               <span style="font-weight: bold;">${fn.name}</span>
-              <span style="margin-left: 10px;">nloc: ${fn.nloc}</span>
+              <span style="margin-left: 10px;">lloc: ${fn.lloc}</span>
               <span style="margin-left: 10px;">CC: ${fn.cyclomatic_complexity}</span>
             </div>
           `

@@ -81,59 +81,54 @@ function calculateMetrics(code) {
             tokens: true
         });
 
-        const countLLOC = (startNode, skipNested = false) => {
-            let count = 0;
-            const visitor = {
-                enter(path) {
-                    if (path.isStatement() || path.isDeclaration()) {
-                        if (skipNested && path.isFunction() && path.node !== startNode) {
-                            path.skip();
-                            return;
-                        }
-                        count++;
-                    }
-                }
-            };
-            if (startNode === ast.program) {
-                traverse(ast, visitor);
-            } else {
-                traverse(ast, visitor, path ? path.scope : undefined, path ? path.state : undefined, path ? path.parentPath : undefined);
-                // but simpler is to use path.traverse if we have a path.
-                // Since we are inside calculateMetrics, we might not have paths for everything.
-            }
-            return count;
-        };
-
-        // Simpler countLLOC using node directly if we don't have paths yet:
-        const countLLOCFromNode = (node, skipNested = false) => {
-            let count = 0;
-            traverse(ast, {
-                enter(path) {
-                    // Check if current path is a descendant of node
-                    let isDescendant = false;
-                    let curr = path;
-                    while (curr) {
-                        if (curr.node === node) {
-                            isDescendant = true;
-                            break;
-                        }
-                        curr = curr.parentPath;
-                    }
-                    if (!isDescendant) return;
-
-                    if (path.isStatement() || path.isDeclaration()) {
-                        if (skipNested && path.isFunction() && path.node !== node) {
-                            path.skip();
-                            return;
-                        }
-                        // Only increment count for non-container declarations/statements
-                        if (!path.isFunctionDeclaration() && !path.isClassDeclaration() && !path.isBlockStatement()) {
-                            count++;
-                        }
+        // Pre-compute comment-masked code once for the whole file
+        let baseCleanCodeChars = code.split('');
+        if (ast.comments) {
+            ast.comments.forEach(c => {
+                for (let i = c.start; i < c.end; i++) {
+                    if (baseCleanCodeChars[i] !== '\n' && baseCleanCodeChars[i] !== '\r') {
+                        baseCleanCodeChars[i] = ' ';
                     }
                 }
             });
-            return count;
+        }
+
+        const countSLOCPath = (path, skipNested = false) => {
+            const node = path.node;
+            if (!node || node.start === undefined || node.end === undefined) return 0;
+            
+            let chars = baseCleanCodeChars.slice(node.start, node.end);
+            
+            if (skipNested) {
+                const innerFuncs = [];
+                path.traverse({
+                    enter(innerPath) {
+                        if (innerPath.isFunction() && innerPath !== path) {
+                            innerFuncs.push(innerPath.node);
+                            innerPath.skip();
+                        }
+                    }
+                });
+                
+                innerFuncs.forEach(fn => {
+                    const fnStart = fn.start - node.start;
+                    const fnEnd = fn.end - node.start;
+                    for (let i = fnStart; i < fnEnd; i++) {
+                        if (chars[i] !== '\n' && chars[i] !== '\r') {
+                            chars[i] = ' ';
+                        }
+                    }
+                });
+            }
+            
+            let sloc = 0;
+            const lines = chars.join('').split('\n');
+            for (const line of lines) {
+                if (line.trim().length > 0) {
+                    sloc++;
+                }
+            }
+            return sloc;
         };
 
         const validTokens = ast.tokens.filter(t => t.type !== 'CommentLine' && t.type !== 'CommentBlock' && t.type !== 'EOF');
@@ -143,8 +138,8 @@ function calculateMetrics(code) {
         const halsteadVolume = n_unique > 0 ? (N_total * Math.log2(n_unique)) : 0;
 
         const metrics = {
-            LOC: code.split('\n').length,
-            LLOC: countLLOCFromNode(ast.program),
+            LOC: (code.match(/\n/g) || []).length,
+            LLOC: countSLOCPath({ node: ast.program, traverse: (v) => traverse(ast, v) }, false),
             NOF: 0,
             halsteadVolume,
             functions: []
@@ -179,7 +174,16 @@ function calculateMetrics(code) {
         const globalHalsteadVolume = globalUniqueTokens.size > 0
             ? globalTokens.length * Math.log2(globalUniqueTokens.size)
             : 0;
-        const globalLLOC = countLLOCFromNode(ast.program, true);
+
+        let globalChars = baseCleanCodeChars.slice();
+        functionRanges.forEach(range => {
+            for (let i = range.start; i < range.end; i++) {
+                if (globalChars[i] !== '\n' && globalChars[i] !== '\r') {
+                    globalChars[i] = ' ';
+                }
+            }
+        });
+        const globalLLOC = globalChars.join('').split('\n').filter(line => line.trim().length > 0).length;
 
         let fileCYC = 1;
         traverse(ast, {
@@ -233,7 +237,6 @@ function calculateMetrics(code) {
                 }
             }
         });
-        const loc = code.split('\n').length;
         const globalMI = calculateMaintainabilityIndex(globalHalsteadVolume, globalCYC, globalLLOC);
 
         const globalFunction = {
@@ -245,7 +248,7 @@ function calculateMetrics(code) {
             halsteadVolume: globalHalsteadVolume,
             maxNesting: globalMaxNesting,
             lineStart: 1,
-            lineEnd: loc,
+            lineEnd: metrics.LOC,
             id: -1, // Special ID for global
             parentId: null
         };
@@ -342,8 +345,8 @@ function calculateMetrics(code) {
                     }
                 });
 
-                const fnLoc = (lineEnd !== null && lineStart !== null) ? (lineEnd - lineStart + 1) : 1;
-                const mi = calculateMaintainabilityIndex(fnHalsteadVolume, cyclomaticComplexity, fnLoc);
+                const fnLloc = countSLOCPath(p, true);
+                const mi = calculateMaintainabilityIndex(fnHalsteadVolume, cyclomaticComplexity, fnLloc);
 
                 // Determine Parent ID
                 // If getFunctionParent returns null, it's a top-level function -> parent is null (sibling of global)
@@ -352,7 +355,7 @@ function calculateMetrics(code) {
 
                 metrics.functions.push({
                     name: functionName,
-                    LLOC: countLLOCFromNode(fnNode, true),
+                    LLOC: fnLloc,
                     CC: complexity,
                     CYC: cyclomaticComplexity,
                     MI: parseFloat(mi.toFixed(2)),
@@ -455,7 +458,7 @@ async function buildFileMetricsResponse(code, filename) {
     const maintainability_index = calculateMaintainabilityIndex(
         babelMetrics.halsteadVolume ?? 0,
         fileCyc,
-        babelMetrics.LOC ?? 0
+        babelMetrics.LLOC ?? 0
     );
 
     const total_cognitive_complexity =
@@ -665,7 +668,7 @@ async function analyzeFileAt(filePath, rootPathForRel) {
             filename: fileName,
             language: /\.(ts|tsx)$/i.test(fileName) ? "typescript" : "javascript",
             total_loc: 0,
-            total_nloc: 0,
+            total_lloc: 0,
             function_count: 0,
             total_complexity: 0,
             complexity_max: 0,
@@ -837,7 +840,7 @@ app.post('/analyze-batch', express.json({ limit: '50mb' }), async (req, res) => 
                 filename,
                 language: /\.(ts|tsx)$/i.test(filename) ? "typescript" : "javascript",
                 total_loc: code.split('\n').length,
-                total_nloc: 0,
+                total_lloc: 0,
                 function_count: 0,
                 total_complexity: 0,
                 complexity_max: 0,
@@ -879,7 +882,7 @@ app.post('/analyze-batch-stream', upload.array('files'), async (req, res) => {
                 filename,
                 language: /\.(ts|tsx)$/i.test(filename) ? "typescript" : "javascript",
                 total_loc: code ? code.split('\n').length : 0,
-                total_nloc: 0,
+                total_lloc: 0,
                 function_count: 0,
                 total_complexity: 0,
                 complexity_max: 0,

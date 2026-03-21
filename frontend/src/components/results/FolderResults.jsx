@@ -35,7 +35,7 @@ function FunctionTreeItem({ fn }) {
     <div className="function-item-container">
       <div className="function-item">
         <span className="function-name" title={fn.long_name || fn.name}>{fn.name}</span>
-        <span className="function-sub">nloc: {fn.nloc}</span>
+        <span className="function-sub">lloc: {fn.lloc}</span>
         <span className="function-sub">{complexityLabel}: {complexity}</span>
       </div>
       {hasChildren && (
@@ -107,7 +107,7 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
   const folderSummaryItems = [
     { label: "Total files", value: folder_metrics?.total_files },
     { label: "Total lines", value: folder_metrics?.total_loc },
-    { label: "Logical LOC", value: folder_metrics?.total_nloc },
+    { label: "Logical LOC", value: folder_metrics?.total_lloc },
     { label: "Total functions", value: folder_metrics?.total_functions },
     { label: "Total complexity", value: folder_metrics?.total_complexity },
     { label: "Max complexity", value: folder_metrics?.complexity_max },
@@ -252,7 +252,7 @@ function FolderResults({ analysisResult, onBack, token, setAnalysisResult }) {
                   <div className="file-metrics">
                     <div className="metric-row">
                       <span>
-                        Logical LOC: {file.total_nloc ?? file.total_loc ?? "—"}
+                        Logical LOC: {file.total_lloc ?? file.total_loc ?? "—"}
                       </span>
                       <span>Functions: {file.function_count}</span>
                     </div>

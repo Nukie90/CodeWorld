@@ -46,7 +46,7 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                 }
 
                 // Ensure numerical comparison for all metric keys
-                if (['nloc', 'start_line', 'cognitive_complexity', 'cyclomatic_complexity', 'total_cognitive_complexity', 'maintainability_index', 'max_nesting_depth', 'halstead_volume'].includes(sortConfig.key)) {
+                if (['lloc', 'start_line', 'cognitive_complexity', 'cyclomatic_complexity', 'total_cognitive_complexity', 'maintainability_index', 'max_nesting_depth', 'halstead_volume'].includes(sortConfig.key)) {
                     aValue = Number(aValue) || 0;
                     bValue = Number(bValue) || 0;
                 }
@@ -135,7 +135,7 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                             </div>
                             <div className="flex flex-col">
                                 <span className="opacity-50 uppercase font-bold text-[10px]">Logical LOC</span>
-                                <span className={`font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{file?.total_nloc || 0}</span>
+                                <span className={`font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{file?.total_lloc || 0}</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="opacity-50 uppercase font-bold text-[10px]">Functions</span>
@@ -236,9 +236,9 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                     </div>
                     <div
                         className="col-span-1 flex items-center gap-1 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
-                        onClick={() => requestSort('nloc')}
+                        onClick={() => requestSort('lloc')}
                     >
-                        LOC {getSortIcon('nloc')}
+                        LOC {getSortIcon('lloc')}
                     </div>
                     <div
                         className="col-span-1 flex items-center gap-1 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
@@ -262,7 +262,7 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                                             filename: file.filename,
                                             functionName: fn.name,
                                             startLine: fn.start_line,
-                                            nloc: fn.nloc
+                                            lloc: fn.lloc
                                         });
                                     }
                                 }}
@@ -296,7 +296,7 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                                     {fn.halstead_volume?.toFixed(0) ?? '—'}
                                 </div>
                                 <div className={`col-span-1 text-right font-mono text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
-                                    {fn.nloc}
+                                    {fn.lloc}
                                 </div>
                                 <div className={`col-span-1 text-right font-mono text-xs ${isDarkMode ? 'text-gray-500' : 'text-gray-500'}`}>
                                     :{fn.start_line}

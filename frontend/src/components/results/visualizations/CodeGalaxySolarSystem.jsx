@@ -50,9 +50,9 @@ function CodeGalaxySolarSystem({ individualFiles, onFunctionClick }) {
     return (red << 16) | (green << 8) | blue;
   };
 
-  const maxNloc = Math.max(
+  const maxLloc = Math.max(
     ...individualFiles.flatMap(file => 
-      (file.functions || []).map(fn => fn.nloc || 0)
+      (file.functions || []).map(fn => fn.lloc || 0)
     ),
     1
   );
@@ -189,8 +189,8 @@ function CodeGalaxySolarSystem({ individualFiles, onFunctionClick }) {
       const avgComplexity = totalComplexity / functions.length;
       
       // Planet size based on total lines of code
-      const totalLoc = functions.reduce((sum, fn) => sum + (fn.nloc || 0), 0);
-      const planetSize = Math.max(2, Math.min(8, (totalLoc / maxNloc) * 8));
+      const totalLoc = functions.reduce((sum, fn) => sum + (fn.lloc || 0), 0);
+      const planetSize = Math.max(2, Math.min(8, (totalLoc / maxLloc) * 8));
       
       // Orbit distance based on file index
       const orbitRadius = 30 + (fileIdx * 15);
@@ -259,7 +259,7 @@ function CodeGalaxySolarSystem({ individualFiles, onFunctionClick }) {
 
       // Create moons (functions) around planet
       functions.forEach((fn, fnIdx) => {
-        const moonSize = Math.max(0.3, Math.min(1.5, (fn.nloc || 1) / maxNloc * 3));
+        const moonSize = Math.max(0.3, Math.min(1.5, (fn.lloc || 1) / maxLloc * 3));
         const moonOrbitRadius = planetSize + 2 + (fnIdx * 1.5);
         const moonSpeed = 0.0001 + (fnIdx * 0.00005);
         const moonAngle = (fnIdx / functions.length) * Math.PI * 2;
@@ -279,7 +279,7 @@ function CodeGalaxySolarSystem({ individualFiles, onFunctionClick }) {
           functionName: fn.name || 'Unknown',
           filename: file.filename,
           startLine: fn.start_line,
-          nloc: fn.nloc,
+          lloc: fn.lloc,
           complexity: fn.cyclomatic_complexity,
           parentPlanet: planet,
           moonOrbitRadius: moonOrbitRadius,
@@ -378,7 +378,7 @@ function CodeGalaxySolarSystem({ individualFiles, onFunctionClick }) {
             filename: clicked.userData.filename,
             functionName: clicked.userData.functionName,
             startLine: clicked.userData.startLine,
-            nloc: clicked.userData.nloc,
+            lloc: clicked.userData.lloc,
             complexity: clicked.userData.complexity
           });
         }
@@ -568,7 +568,7 @@ function CodeGalaxySolarSystem({ individualFiles, onFunctionClick }) {
       rendererRef.current = null;
       cameraRef.current = null;
     };
-  }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, maxNloc, viewMode]);
+  }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, maxLloc, viewMode]);
 
   return (
     <div className="relative w-full h-full">
@@ -602,7 +602,7 @@ function CodeGalaxySolarSystem({ individualFiles, onFunctionClick }) {
                 </div>
                 <div className="text-gray-300 text-xs">
                   <div>CC: <span className="font-medium text-red-300">{hoveredPlanet.complexity !== undefined ? hoveredPlanet.complexity : 'N/A'}</span></div>
-                  <div>nloc: <span className="font-medium text-green-300">{hoveredPlanet.nloc}</span></div>
+                  <div>lloc: <span className="font-medium text-green-300">{hoveredPlanet.lloc}</span></div>
                   <div>Line: <span className="font-medium text-yellow-300">{hoveredPlanet.startLine}</span></div>
                 </div>
               </>
@@ -644,7 +644,7 @@ function CodeGalaxySolarSystem({ individualFiles, onFunctionClick }) {
           <div>WASD - Move (when locked)</div>
           <div>Space/Shift - Up/Down</div>
           <div>Move mouse - Look around</div>
-          <div>ESC - Unlock cursor</div>
+          <div>ESC - Ullock cursor</div>
           <div>Click moon - View function</div>
         </div>
       </div>

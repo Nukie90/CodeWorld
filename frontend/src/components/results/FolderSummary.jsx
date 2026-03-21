@@ -14,7 +14,7 @@ function FolderSummary({ folderMetrics }) {
   const folderSummaryItems = [
     { label: 'Total files', value: folderMetrics?.total_files },
     { label: 'Total lines', value: folderMetrics?.total_loc },
-    { label: 'Logical LOC', value: folderMetrics?.total_nloc },
+    { label: 'Logical LOC', value: folderMetrics?.total_lloc },
     { label: 'Total functions', value: folderMetrics?.total_functions },
     { label: 'Total complexity', value: folderMetrics?.total_complexity },
     { label: 'Max complexity', value: folderMetrics?.complexity_max },

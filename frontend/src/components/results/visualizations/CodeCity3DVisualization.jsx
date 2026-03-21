@@ -50,9 +50,9 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick, onFileClick
     return (red << 16) | (green << 8) | blue;
   };
 
-  const maxNloc = Math.max(
+  const maxLloc = Math.max(
     ...individualFiles.flatMap(file =>
-      (file.functions || []).map(fn => fn.nloc || 0)
+      (file.functions || []).map(fn => fn.lloc || 0)
     ),
     1
   );
@@ -83,14 +83,14 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick, onFileClick
 
       const blocks = functions.map((fn, fnIdx) => {
         const complexity = fn.cyclomatic_complexity;
-        const nloc = fn.nloc || 1;
-        const height = Math.max(5, (nloc / maxNloc) * 50);
+        const lloc = fn.lloc || 1;
+        const height = Math.max(5, (lloc / maxLloc) * 50);
 
         return {
           functionName: fn.name || 'Unknown',
           filename: file.filename,
           startLine: fn.start_line,
-          nloc: nloc,
+          lloc: lloc,
           complexity: complexity,
           height: height,
           color: getComplexityColor(complexity),
@@ -626,7 +626,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick, onFileClick
               filename: blockData.filename,
               functionName: blockData.functionName,
               startLine: blockData.startLine,
-              nloc: blockData.nloc,
+              lloc: blockData.lloc,
               complexity: blockData.complexity
             });
           }
@@ -807,7 +807,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick, onFileClick
       rendererRef.current = null;
       cameraRef.current = null;
     };
-  }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, maxNloc, timeOfDay]);
+  }, [individualFiles, onFunctionClick, minComplexity, maxComplexity, maxLloc, timeOfDay]);
 
   return (
     <div className="relative w-full h-full">
@@ -829,7 +829,7 @@ function CodeCity3DVisualization({ individualFiles, onFunctionClick, onFileClick
             <div className="text-gray-600">
               <div>File: <span className="font-medium">{hoveredBlock.buildingName}</span></div>
               <div>CC: <span className="font-medium">{hoveredBlock.complexity !== undefined && hoveredBlock.complexity !== null ? hoveredBlock.complexity : 'N/A'}</span></div>
-              <div>nloc: <span className="font-medium">{hoveredBlock.nloc}</span></div>
+              <div>lloc: <span className="font-medium">{hoveredBlock.lloc}</span></div>
               <div>Block: <span className="font-medium">{hoveredBlock.blockIndex + 1}/{hoveredBlock.totalBlocks}</span></div>
             </div>
           </div>

@@ -44,7 +44,7 @@ function CirclePackingVisualization({ individualFiles, folderName }) {
       name: folderName,
       children: individualFiles.map(file => ({
         name: file.filename.split('/').pop(),
-        total_nloc: file.total_nloc || 0,
+        total_lloc: file.total_lloc || 0,
         total_complexity: file.total_complexity || 0,
         complexity_max: file.complexity_max || 0,
         function_count: file.function_count || 0,
@@ -53,7 +53,7 @@ function CirclePackingVisualization({ individualFiles, folderName }) {
     }
 
     const hierarchy = d3.hierarchy(data)
-      .sum(d => d.total_nloc)
+      .sum(d => d.total_lloc)
 
     const pack = d3.pack()
       .size([width - margin * 2, height - margin * 2])
@@ -98,7 +98,7 @@ function CirclePackingVisualization({ individualFiles, folderName }) {
     function generateTooltipHtml(d) {
       let html = `
         <h4 style="margin: 0 0 10px 0;">${d.name}</h4>
-        <p><strong>Logical LOC:</strong> ${d.total_nloc}</p>
+        <p><strong>Logical LOC:</strong> ${d.total_lloc}</p>
         <p><strong>Functions:</strong> ${d.function_count}</p>
         <p><strong>Avg. Complexity:</strong> ${d.total_complexity}</p>
         <p><strong>Max. Complexity:</strong> ${d.complexity_max}</p>
@@ -109,7 +109,7 @@ function CirclePackingVisualization({ individualFiles, folderName }) {
           html += `
             <div style="margin: 5px 0; padding: 2px; border-left: 2px solid #ccc;">
               <span style="font-weight: bold;">${fn.name}</span>
-              <span style="margin-left: 10px;">nloc: ${fn.nloc}</span>
+              <span style="margin-left: 10px;">lloc: ${fn.lloc}</span>
               <span style="margin-left: 10px;">CC: ${fn.cyclomatic_complexity}</span>
             </div>
           `

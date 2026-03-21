@@ -56,12 +56,12 @@ function InteractiveCircleVisualization({ individualFiles, folderName }) {
         currentNode.children.push({
           name: pathParts[pathParts.length - 1],
           type: 'file',
-          size: file.total_nloc || 0,
+          size: file.total_lloc || 0,
           complexity: file.total_complexity || 0,
           children: (file.functions || []).map(fn => ({
             name: fn.name,
             type: 'function',
-            size: fn.nloc || 1,
+            size: fn.lloc || 1,
             complexity: fn.cyclomatic_complexity
           }))
         })

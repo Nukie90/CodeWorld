@@ -7,7 +7,7 @@ import InfoTip from '../common/InfoTip'
 import './FolderVisualization.css'
 
 const VISUALIZATION_HELP = {
-  circle: "Circle packing visualization: The large hollow circle represents the folder. Inner circles represent files, sized by logical LOC (nloc) and colored by average complexity (green: low, red: high). Hover for details.",
+  circle: "Circle packing visualization: The large hollow circle represents the folder. Inner circles represent files, sized by logical LOC (lloc) and colored by average complexity (green: low, red: high). Hover for details.",
   treemap: "Treemap visualization: Each rectangle represents a file, where the size shows the logical LOC and the color indicates average complexity (green: low, red: high). Hover for details.",
   tree: "Interactive tree visualization: Shows folder structure with files and functions. Nodes can be dragged, zoomed, and expanded/collapsed. Icons indicate type (📁 folder, 📄 file, ƒ function). Colors show complexity."
 }
@@ -48,7 +48,7 @@ function FolderVisualization({ individualFiles, folderName }) {
   return (
     <section className="results-card">
       <h2>Complexity Visualization</h2>
-      <InfoTip text="Circle packing visualization: The large hollow circle represents the folder. Inner circles represent files, sized by logical LOC (nloc) and colored by average complexity (green: low, red: high). Hover for details." ariaLabel="Help: Complexity Visualization" />
+      <InfoTip text="Circle packing visualization: The large hollow circle represents the folder. Inner circles represent files, sized by logical LOC (lloc) and colored by average complexity (green: low, red: high). Hover for details." ariaLabel="Help: Complexity Visualization" />
         <section className="results-card">
         <div className="visualization-header">
             <h2>Complexity Visualization</h2>
