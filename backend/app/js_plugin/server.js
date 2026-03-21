@@ -811,55 +811,6 @@ app.post('/lint-code', express.json(), async (req, res) => {
     }
 });
 
-app.post('/lint-file', upload.single('file'), async (req, res) => {
-    if (!req.file) {
-        return res.status(400).json({ error: 'No file uploaded' });
-    }
-
-    // Body also contains filename
-    const filename = req.body.filename || req.file.originalname;
-
-    try {
-        // Run ESLint directly on the temp file on disk!
-        const results = await eslint.lintFiles([req.file.path]);
-        
-        let lint_score = null;
-        let lint_errors = [];
-
-        if (results && results.length > 0) {
-            const result = results[0];
-            const messages = result.messages || [];
-
-            lint_errors = messages.map(msg => ({
-                type: msg.severity === 2 ? "error" : "warning",
-                module: path.parse(filename).name || "",
-                obj: "",
-                line: msg.line || 0,
-                column: msg.column || 0,
-                endLine: msg.endLine ?? null,
-                endColumn: msg.endColumn ?? null,
-                path: filename,
-                symbol: msg.ruleId || "",
-                message: msg.message || "",
-                message_id: msg.ruleId || ""
-            }));
-
-            const errorCount = result.errorCount || 0;
-            const warningCount = result.warningCount || 0;
-            const rawScore = 10 - (errorCount * 1.0) - (warningCount * 0.5);
-            lint_score = Math.max(0, Number(rawScore.toFixed(2)));
-        }
-
-        res.json({ lint_score, lint_errors });
-
-    } catch (error) {
-        console.error(`Error streaming lint for ${filename}:`, error);
-        res.status(500).json({ error: `Failed to stream lint: ${error.message}` });
-    } finally {
-        // Cleanup temp file
-        fs.unlink(req.file.path, () => {});
-    }
-});
 // Batch endpoint: analyze multiple files in a single HTTP request (eliminates N sequential calls per commit)
 // Body: { files: [{ code: string, filename: string }, ...] }
 // Returns: array of analysis results (same schema as /analyze-code per item)
