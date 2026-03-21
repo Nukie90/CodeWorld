@@ -1,7 +1,7 @@
 import os
 import httpx
 from urllib.parse import quote
-from fastapi import APIRouter, Request, HTTPException, Body
+from fastapi import APIRouter, Request, HTTPException, Body, BackgroundTasks
 from pydantic import BaseModel
 from typing import Optional
 from app.services import repo_manager
@@ -244,7 +244,7 @@ def analyze_repo(payload: RepoAnalyzeRequest):
 
 
 @router.get("/repo/branches")
-async def repo_branches(repo_url: str, token: Optional[str] = None):
+def repo_branches(repo_url: str, token: Optional[str] = None):
     try:
         branches = repo_manager.list_branches(repo_url, token=token)
         return branches
@@ -279,7 +279,7 @@ def _read_files_at_commit(local_path: str, commit_hash: str, file_list: list[str
 
 
 @router.post("/repo/checkout")
-async def repo_checkout(payload: RepoCheckoutRequest):
+def repo_checkout(payload: RepoCheckoutRequest):
     # ---- Fast path: when branch is a commit hash, skip git checkout entirely ----
     # git checkout rewrites all tracked files to disk (~200-400ms).
     # For timeline playback we only need file contents, which we can read
@@ -408,7 +408,7 @@ async def repo_checkout(payload: RepoCheckoutRequest):
 
 
 @router.post("/repo/function-code")
-async def get_function_code(payload: FunctionCodeRequest):
+def get_function_code(payload: FunctionCodeRequest):
     """Retrieve the code for a specific function from a repository."""
     try:
         if not payload.start_line:
@@ -591,7 +591,7 @@ async def get_function_code(payload: FunctionCodeRequest):
 
 
 @router.post("/repo/commits")
-async def get_commit_history(payload: CommitHistoryRequest):
+def get_commit_history(payload: CommitHistoryRequest):
     """Get commit history for a repository."""
     try:
         commits = repo_manager.get_commit_history(
@@ -607,7 +607,7 @@ async def get_commit_history(payload: CommitHistoryRequest):
 
 
 @router.post("/repo/commit-details")
-async def get_commit_details(payload: CommitDetailsRequest):
+def get_commit_details(payload: CommitDetailsRequest):
     """Get detailed information about a specific commit."""
     try:
         commit_details = repo_manager.get_commit_details(
@@ -629,7 +629,7 @@ class PrefetchCommitRequest(BaseModel):
 
 
 @router.post("/repo/prefetch-commit")
-async def prefetch_commit(payload: PrefetchCommitRequest):
+def prefetch_commit(payload: PrefetchCommitRequest, background_tasks: BackgroundTasks):
     """
     Non-blocking endpoint to warm the analysis cache for a future commit.
     Called by the frontend during each delay window so the next commit's
@@ -641,7 +641,7 @@ async def prefetch_commit(payload: PrefetchCommitRequest):
         return {"status": "cached", "commit_hash": payload.commit_hash}
 
     # Queue analysis in background (non-blocking)
-    async def _warm_cache():
+    def _warm_cache():
         try:
             local_path = repo_manager.checkout_branch(payload.repo_url, payload.commit_hash, token=payload.token)
             current_head = repo_manager._run_git(local_path, ["rev-parse", "HEAD"]).strip()
@@ -663,7 +663,7 @@ async def prefetch_commit(payload: PrefetchCommitRequest):
         except Exception:
             pass  # Silently fail — prefetch is best-effort
 
-    asyncio.create_task(_warm_cache())
+    background_tasks.add_task(_warm_cache)
     return {"status": "queued", "commit_hash": payload.commit_hash}
 
 
@@ -675,7 +675,7 @@ class FileContentRequest(BaseModel):
 
 
 @router.post("/repo/file-content")
-async def get_file_content(payload: FileContentRequest):
+def get_file_content(payload: FileContentRequest):
     """Get the full content of a file at a specific commit."""
     try:
         content = repo_manager.get_file_content(

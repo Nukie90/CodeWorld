@@ -221,6 +221,9 @@ def analyze_local_folder(
     if progress_callback:
         progress_callback(45, f"Batch analyzing {len(js_to_analyze)} JS/TS files")
 
+    print(js_to_analyze)
+    print("====")
+    print(non_js)
     # Batch all JS files in one HTTP call
     if js_to_analyze:
         results = get_file_matrix_js_batch(js_to_analyze)
