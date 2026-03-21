@@ -7,8 +7,10 @@ const path = require('node:path');
 const os = require('node:os');
 const AdmZip = require('adm-zip');
 const { ESLint } = require("eslint");
+const multer = require('multer');
 
 const app = express();
+const upload = multer({ dest: os.tmpdir() });
 
 const eslint = new ESLint({ cwd: __dirname });
 
@@ -677,7 +679,7 @@ async function analyzeFileAt(filePath, rootPathForRel) {
     }
 }
 
-app.post('/analyze-zip', async (req, res) => {
+app.post('/analyze-zip', upload.single('file'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
     }
@@ -744,7 +746,7 @@ app.post('/analyze-zip', async (req, res) => {
 });
 
 // Keep the original single file endpoint
-app.post('/analyze', async (req, res) => {
+app.post('/analyze', upload.single('file'), async (req, res) => {
     if (!req.file) {
         return res.status(400).json({ error: 'No file uploaded' });
     }
@@ -774,6 +776,25 @@ app.post('/analyze-code', express.json(), async (req, res) => {
     }
 });
 
+app.post('/analyze-code-stream', upload.single('file'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    const filename = req.body.path || req.file.originalname || "unknown.js";
+
+    try {
+        const code = fs.readFileSync(req.file.path, 'utf8');
+        const responseMetrics = await buildFileMetricsResponse(code, filename);
+        res.json(responseMetrics);
+    } catch (error) {
+        console.error(`Error analyzing streamed code for ${filename}:`, error);
+        res.status(500).json({ error: `Failed to analyze code: ${error.message}` });
+    } finally {
+        fs.unlink(req.file.path, () => {});
+    }
+});
+
 app.post('/lint-code', express.json(), async (req, res) => {
     const { code, filename } = req.body;
 
@@ -790,6 +811,55 @@ app.post('/lint-code', express.json(), async (req, res) => {
     }
 });
 
+app.post('/lint-file', upload.single('file'), async (req, res) => {
+    if (!req.file) {
+        return res.status(400).json({ error: 'No file uploaded' });
+    }
+
+    // Body also contains filename
+    const filename = req.body.filename || req.file.originalname;
+
+    try {
+        // Run ESLint directly on the temp file on disk!
+        const results = await eslint.lintFiles([req.file.path]);
+        
+        let lint_score = null;
+        let lint_errors = [];
+
+        if (results && results.length > 0) {
+            const result = results[0];
+            const messages = result.messages || [];
+
+            lint_errors = messages.map(msg => ({
+                type: msg.severity === 2 ? "error" : "warning",
+                module: path.parse(filename).name || "",
+                obj: "",
+                line: msg.line || 0,
+                column: msg.column || 0,
+                endLine: msg.endLine ?? null,
+                endColumn: msg.endColumn ?? null,
+                path: filename,
+                symbol: msg.ruleId || "",
+                message: msg.message || "",
+                message_id: msg.ruleId || ""
+            }));
+
+            const errorCount = result.errorCount || 0;
+            const warningCount = result.warningCount || 0;
+            const rawScore = 10 - (errorCount * 1.0) - (warningCount * 0.5);
+            lint_score = Math.max(0, Number(rawScore.toFixed(2)));
+        }
+
+        res.json({ lint_score, lint_errors });
+
+    } catch (error) {
+        console.error(`Error streaming lint for ${filename}:`, error);
+        res.status(500).json({ error: `Failed to stream lint: ${error.message}` });
+    } finally {
+        // Cleanup temp file
+        fs.unlink(req.file.path, () => {});
+    }
+});
 // Batch endpoint: analyze multiple files in a single HTTP request (eliminates N sequential calls per commit)
 // Body: { files: [{ code: string, filename: string }, ...] }
 // Returns: array of analysis results (same schema as /analyze-code per item)
@@ -799,28 +869,83 @@ app.post('/analyze-batch', express.json({ limit: '50mb' }), async (req, res) => 
         return res.status(400).json({ error: 'Request must include a non-empty "files" array' });
     }
 
-    try {
-    return await buildFileMetricsResponse(code, filename);
-} catch (error) {
-    console.error(`Batch: error analyzing ${filename}:`, error.message);
-    return {
-        filename,
-        language: /\.(ts|tsx)$/i.test(filename) ? "typescript" : "javascript",
-        total_loc: code.split('\n').length,
-        total_nloc: 0,
-        function_count: 0,
-        total_complexity: 0,
-        complexity_max: 0,
-        total_cognitive_complexity: 0,
-        halstead_volume: 0.0,
-        maintainability_index: 0.0,
-        is_unsupported: false,
-        lint_score: null,
-        lint_errors: [],
-        functions: [],
-        error: error.message
-    };
-}
+    const results = [];
+    for (const fileObj of files) {
+        const { code, filename } = fileObj;
+        if (!code || !filename) {
+            results.push({ error: 'Missing code or filename' });
+            continue;
+        }
+
+        try {
+            const resData = await buildFileMetricsResponse(code, filename);
+            results.push(resData);
+        } catch (error) {
+            console.error(`Batch: error analyzing ${filename}:`, error.message);
+            results.push({
+                filename,
+                language: /\.(ts|tsx)$/i.test(filename) ? "typescript" : "javascript",
+                total_loc: code.split('\n').length,
+                total_nloc: 0,
+                function_count: 0,
+                total_complexity: 0,
+                complexity_max: 0,
+                total_cognitive_complexity: 0,
+                halstead_volume: 0.0,
+                maintainability_index: 0.0,
+                is_unsupported: false,
+                lint_score: null,
+                lint_errors: [],
+                functions: [],
+                error: error.message
+            });
+        }
+    }
+    res.json(results);
+});
+
+// Multipart streaming batch endpoint to avoid JSON payload limits completely
+app.post('/analyze-batch-stream', upload.array('files'), async (req, res) => {
+    if (!req.files || req.files.length === 0) {
+        return res.status(400).json({ error: 'No files uploaded' });
+    }
+
+    const pathsData = req.body.paths;
+    const paths = Array.isArray(pathsData) ? pathsData : (pathsData ? [pathsData] : []);
+
+    const results = [];
+    for (let i = 0; i < req.files.length; i++) {
+        const file = req.files[i];
+        const filename = paths[i] || file.originalname || "unknown.js";
+        let code = "";
+        try {
+            code = fs.readFileSync(file.path, 'utf8');
+            const resData = await buildFileMetricsResponse(code, filename);
+            results.push(resData);
+        } catch (error) {
+            console.error(`Batch stream error analyzing ${filename}:`, error.message);
+            results.push({
+                filename,
+                language: /\.(ts|tsx)$/i.test(filename) ? "typescript" : "javascript",
+                total_loc: code ? code.split('\n').length : 0,
+                total_nloc: 0,
+                function_count: 0,
+                total_complexity: 0,
+                complexity_max: 0,
+                total_cognitive_complexity: 0,
+                halstead_volume: 0.0,
+                maintainability_index: 0.0,
+                is_unsupported: false,
+                lint_score: null,
+                lint_errors: [],
+                functions: [],
+                error: error.message
+            });
+        } finally {
+            fs.unlink(file.path, () => {});
+        }
+    }
+    res.json(results);
 });
 
 

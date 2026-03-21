@@ -3,8 +3,8 @@ from typing import Optional, List, Tuple
 from app.model.analyzer_model import FileMetrics, FunctionMetric
 
 # Define the URL of the Node.js service
-ANALYZER_URL = "http://localhost:3001/analyze-code"
-ANALYZER_BATCH_URL = "http://localhost:3001/analyze-batch"
+ANALYZER_URL = "http://localhost:3001/analyze-code-stream"
+ANALYZER_BATCH_URL = "http://localhost:3001/analyze-batch-stream"
 
 # Shared persistent HTTP client to avoid connection setup overhead on every call
 _CLIENT = httpx.Client(timeout=60.0)
@@ -18,34 +18,41 @@ def get_file_matrix_js(code: str, filename: str) -> Optional[FileMetrics]:
     try:
         response = _CLIENT.post(
             ANALYZER_URL,
-            json={"code": code, "filename": filename},
+            data={"path": filename},
+            files={"file": (filename, code.encode('utf-8'))},
         )
         response.raise_for_status()
         return _parse_response(response.json())
     except (httpx.RequestError, httpx.HTTPStatusError, KeyError) as e:
         print(f"Could not analyze JS file '{filename}' via Node.js service: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+             print(e.response.text)
         return None
 
 
 def get_file_matrix_js_batch(files: List[Tuple[str, str]]) -> List[Optional[FileMetrics]]:
     """
-    Analyze multiple JS/JSX files in a single HTTP request to /analyze-batch.
+    Analyze multiple JS/JSX files in a single HTTP request to /analyze-batch-stream.
     files: list of (code, filename) tuples
     Returns a list of FileMetrics (or None on per-file error) in the same order.
     """
     if not files:
         return []
     try:
-        payload = [{"code": code, "filename": filename} for code, filename in files]
+        payload = [("files", (filename, code.encode('utf-8'))) for code, filename in files]
+        data_payload = {"paths": [filename for code, filename in files]}
         response = _CLIENT.post(
             ANALYZER_BATCH_URL,
-            json={"files": payload},
+            data=data_payload,
+            files=payload,
         )
         response.raise_for_status()
         results = response.json()
         return [_parse_response(r) if "error" not in r else None for r in results]
     except (httpx.RequestError, httpx.HTTPStatusError) as e:
         print(f"Batch JS analysis failed: {e}. Falling back to individual calls.")
+        if hasattr(e, 'response') and e.response is not None:
+             print(e.response.text)
         # Graceful fallback: call one-by-one
         return [get_file_matrix_js(code, fname) for code, fname in files]
 
