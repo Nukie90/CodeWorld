@@ -136,12 +136,32 @@ def _incremental_analysis(
     # 3. Aggregate metrics
     total_loc = total_lloc = total_functions = total_complexity = complexity_max = 0
     halstead_volume = 0.0
+    total_mi = 0.0
+    valid_mi_files = 0
+
+    for fm in file_metrics_list:
+        total_loc += fm.total_loc or 0
+        total_lloc += fm.total_lloc or 0
+        total_functions += fm.function_count or 0
+        total_complexity += fm.total_complexity or 0
+        if (fm.complexity_max or 0) > complexity_max:
+            complexity_max = fm.complexity_max or 0
+        if getattr(fm, 'halstead_volume', None) is not None:
+            halstead_volume += fm.halstead_volume
+        if getattr(fm, 'maintainability_index', None) is not None:
+            total_mi += fm.maintainability_index
+            valid_mi_files += 1
+
     folder_metrics = FolderMetrics(
         folder_name=os.path.basename(local_path),
         total_files=len(file_metrics_list),
-        total_loc=total_loc, total_lloc=total_lloc,
-        total_functions=total_functions, total_complexity=total_complexity,
-        complexity_max=complexity_max, halstead_volume=halstead_volume,
+        total_loc=total_loc,
+        total_lloc=total_lloc,
+        total_functions=total_functions,
+        total_complexity=total_complexity,
+        complexity_max=complexity_max,
+        halstead_volume=halstead_volume,
+        maintainability_index=round(total_mi / valid_mi_files, 2) if valid_mi_files > 0 else None,
         files=file_metrics_list,
     )
     return FolderAnalysisResult(folder_metrics=folder_metrics, individual_files=file_metrics_list)
@@ -221,9 +241,6 @@ def analyze_local_folder(
     if progress_callback:
         progress_callback(45, f"Batch analyzing {len(js_to_analyze)} JS/TS files")
 
-    print(js_to_analyze)
-    print("====")
-    print(non_js)
     # Batch all JS files in one HTTP call
     if js_to_analyze:
         results = get_file_matrix_js_batch(js_to_analyze)

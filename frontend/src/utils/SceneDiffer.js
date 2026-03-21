@@ -52,7 +52,7 @@ export class SceneDiffer {
      */
     static hasChanged(oldFile, newFile) {
         // Check if LOC changed
-        if ((oldFile.nloc || oldFile.loc) !== (newFile.nloc || newFile.loc)) {
+        if ((oldFile.lloc || oldFile.loc) !== (newFile.lloc || newFile.loc)) {
             return true;
         }
 

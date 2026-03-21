@@ -13,17 +13,17 @@ def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, fu
     max_nesting = 0
 
     def check_nesting():
-        nonlocal max_nesting
+        nollocal max_nesting
         depth = nesting - base_nesting
         if depth > max_nesting:
             max_nesting = depth
 
     def add_structural():
-        nonlocal complexity
+        nollocal complexity
         complexity += 1 + nesting
 
     def add_fundamental():
-        nonlocal complexity
+        nollocal complexity
         complexity += 1
 
     class ComplexityVisitor(ast.NodeVisitor):
@@ -51,7 +51,7 @@ def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, fu
             # Wait, JS version says: `else if` -> complexity += 1 + (nesting-1)
             
             # Let's start with basic structural
-            nonlocal nesting
+            nollocal nesting
             
             # If this node is the single child of a parent's `orelse`, it might be an `elif`
             # For simplicity in this port, we will treat it as standard structural for now,
@@ -75,7 +75,7 @@ def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, fu
 
 
         def visit_For(self, node):
-            nonlocal nesting
+            nollocal nesting
             add_structural()
             nesting += 1
             check_nesting()
@@ -89,7 +89,7 @@ def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, fu
             self.visit_For(node) # Same logic
 
         def visit_While(self, node):
-            nonlocal nesting
+            nollocal nesting
             add_structural()
             nesting += 1
             check_nesting()
@@ -100,7 +100,7 @@ def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, fu
                 add_fundamental()
 
         def visit_Try(self, node):
-            nonlocal nesting
+            nollocal nesting
             # catch (except) is structural
             for handler in node.handlers:
                 add_structural()
@@ -143,7 +143,7 @@ def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, fu
             
         def visit_IfExp(self, node):
              # Ternary: a if b else c
-            nonlocal nesting
+            nollocal nesting
             add_structural()
             nesting += 1
             check_nesting()
@@ -181,16 +181,16 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
              filename=filename,
              language="python",
              total_loc=len(code.splitlines()),
-             total_nloc=0,
+             total_lloc=0,
              function_count=0,
              complexity_avg=0,
              complexity_max=0,
              functions=[]
         )
 
-    # Count NLOC (Non-Comment Lines of Code)
+    # Count LLOC (Non-Comment Lines of Code)
     # Using tokenize to skip comments and empty lines
-    nloc = 0
+    lloc = 0
     try:
         tokens = list(tokenize.tokenize(BytesIO(code.encode('utf-8')).readline))
         lines_with_code = set()
@@ -199,9 +199,9 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
                 # Strings (docstrings) are technically code in Python if they are expressions.
                 # Use start line
                 lines_with_code.add(tok.start[0])
-        nloc = len(lines_with_code)
+        lloc = len(lines_with_code)
     except tokenize.TokenError:
-        nloc = len([l for l in code.splitlines() if l.strip() and not l.strip().startswith('#')])
+        lloc = len([l for l in code.splitlines() if l.strip() and not l.strip().startswith('#')])
 
     functions = []
 
@@ -218,14 +218,14 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
     
     global_res = calculate_cognitive_complexity(tree, base_nesting=0, function_name=GLOBAL_FUNC_NAME)
     
-    # Global NLOC will be calculated later or we can estimate it.
+    # Global LLOC will be calculated later or we can estimate it.
     # Let's set it to 0 initially and correct it like in JS.
     
     global_metric = FunctionMetric(
         name=GLOBAL_FUNC_NAME,
         long_name=GLOBAL_FUNC_NAME,
         cyclomatic_complexity=global_res["complexity"],
-        nloc=0, # To be updated
+        lloc=0, # To be updated
         token_count=0,
         start_line=1,
         end_line=len(code.splitlines()),
@@ -300,14 +300,14 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
             # Calculate metrics
             res = calculate_cognitive_complexity(node, base_nesting=base_nesting, function_name=name)
             
-            # NLOC calculation
-            func_nloc = len([l for l in lines_with_code if start_line <= l <= end_line])
+            # LLOC calculation
+            func_lloc = len([l for l in lines_with_code if start_line <= l <= end_line])
 
             functions.append(FunctionMetric(
                 name=name,
                 long_name=name,
                 cyclomatic_complexity=res["complexity"],
-                nloc=func_nloc,
+                lloc=func_lloc,
                 token_count=0,
                 start_line=start_line,
                 end_line=end_line,
@@ -331,11 +331,11 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
 
     FunctionVisitor().visit(tree)
     
-    # Finalize Global NLOC
-    # Global NLOC = Total NLOC - Sum(Top-Level Functions NLOC)
+    # Finalize Global LLOC
+    # Global LLOC = Total LLOC - Sum(Top-Level Functions LLOC)
     # Top-level functions are those with parentId is None
-    top_level_nloc = sum(f.nloc for f in functions if f.parentId is None and f.id != -1)
-    global_metric.nloc = max(0, nloc - top_level_nloc)
+    top_level_lloc = sum(f.lloc for f in functions if f.parentId is None and f.id != -1)
+    global_metric.lloc = max(0, lloc - top_level_lloc)
     
     # Stats
     complexity_sum = sum(f.cyclomatic_complexity for f in functions)
@@ -377,7 +377,7 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         filename=filename,
         language="python",
         total_loc=len(code.splitlines()),
-        total_nloc=nloc,
+        total_lloc=lloc,
         function_count=len(functions),
         total_complexity=complexity_sum,
         complexity_max=complexity_max,

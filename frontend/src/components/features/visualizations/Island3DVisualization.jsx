@@ -91,7 +91,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     // --- Data Processing Helpers ---
 
     const calculateFileMetrics = (file) => {
-        const totalLoc = file.total_nloc || file.total_loc || 1;
+        const totalLoc = file.total_lloc || file.total_loc || 1;
         const totalComplexity = file.total_complexity || 0;
         const maintainabilityIndex = file.maintainability_index ?? 100;
 
@@ -1286,7 +1286,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 const radius = orbitRadiusBase + (layer * 15);
                 const angle = (index % 8) * (Math.PI * 2 / 8) + (layer * 0.5);
 
-                const size = Math.max(2, Math.min(8, Math.sqrt(fn.nloc || 1)));
+                const size = Math.max(2, Math.min(8, Math.sqrt(fn.lloc || 1)));
                 const fnGeo = new THREE.SphereGeometry(size, 32, 32);
                 const fnColor = getComplexityColor(fn.cyclomatic_complexity);
                 const fnMat = new THREE.MeshStandardMaterial({
@@ -1309,7 +1309,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 satellite.userData = {
                     type: 'function',
                     name: fn.name,
-                    nloc: fn.nloc,
+                    lloc: fn.lloc,
                     complexity: fn.cyclomatic_complexity,
                     fileData: focusedFile
                 };
@@ -1445,7 +1445,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 mouse.x = 0;
                 mouse.y = 0;
             } else {
-                // If unlocked, use mouse coordinates
+                // If ullocked, use mouse coordinates
                 const rect = mountRef.current.getBoundingClientRect();
                 mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
                 mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1463,7 +1463,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         setActiveFileForMenu(obj.userData);
 
                         // Interaction handling:
-                        // If locked, we MUST unlock to let the user use the menu.
+                        // If locked, we MUST ullock to let the user use the menu.
                         // We also place the menu in the center of the screen since that's where they were looking.
                         if (isMouseLocked) {
                             setMenuPosition({
@@ -1472,7 +1472,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                             });
                             document.exitPointerLock();
                         } else {
-                            // If unlocked, place menu at mouse cursor
+                            // If ullocked, place menu at mouse cursor
                             setMenuPosition({
                                 x: event.clientX,
                                 y: event.clientY
@@ -1485,7 +1485,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             } else {
                 // If clicked on nothing:
                 // If locked, do nothing (or remain locked)
-                // If unlocked, and we clicked background, capture mouse
+                // If ullocked, and we clicked background, capture mouse
                 if (!isMouseLocked) mountRef.current.requestPointerLock();
             }
         };
@@ -1810,7 +1810,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                                 </div>
                                 <div className="flex justify-between gap-4">
                                     <span>LLOC:</span>
-                                    <span className="font-medium text-gray-900">{hoveredObject.nloc}</span>
+                                    <span className="font-medium text-gray-900">{hoveredObject.lloc}</span>
                                 </div>
                             </div>
                         )}

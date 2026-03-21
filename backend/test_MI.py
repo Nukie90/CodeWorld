@@ -49,7 +49,7 @@ try:
     if js_m:
         fn = js_m.functions[1]
         print(f"[JS] name: {fn.name}")
-        print(f"[JS] nloc: {fn.nloc}")
+        print(f"[JS] lloc: {fn.lloc}")
         print(f"[JS] CYC: {fn.cyclomatic_complexity}")
         print(f"[JS] Expected MI structure generated: {fn.maintainability_index}")
         
@@ -64,7 +64,7 @@ try:
     py_m = python_metrics(py_code, "test.py")
     fn = py_m.functions[1]
     print(f"[PY] name: {fn.name}")
-    print(f"[PY] nloc: {fn.nloc}")
+    print(f"[PY] lloc: {fn.lloc}")
     print(f"[PY] CYC: {fn.cyclomatic_complexity}")
     print(f"[PY] Expected MI structure generated: {fn.maintainability_index}")
 
