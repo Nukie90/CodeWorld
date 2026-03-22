@@ -135,7 +135,7 @@ function ResultsDetailsPanel({
                         ) : selectedCode ? (
                             <div className="h-full flex flex-col">
                                 {codeDisplayMode !== 'aiSuggest' && (
-                                    <div className={`mb-4 pb-3 border-b ${borderColor}`}>
+                                    <div className={`mb-4 pb-3 border-b ${borderColor} ${codeDisplayMode === 'linterSuggest' ? 'px-6 pt-6' : ''}`}>
                                         <h4 className={`font-bold text-base ${textColor}`}>
                                             {selectedCode.functionName}
                                         </h4>
@@ -151,7 +151,7 @@ function ResultsDetailsPanel({
                                     </h4>
                                 )}
                                 {codeDisplayMode === 'linterSuggest' && (
-                                    <div className="flex items-center justify-between px-6 pt-6 mb-2">
+                                    <div className="flex items-center justify-between px-6 pt-1 mb-2">
                                         <h4 className={`text-xl font-black bg-gradient-to-r from-teal-400 to-emerald-500 bg-clip-text text-transparent`}>
                                             Linter Insights
                                         </h4>
