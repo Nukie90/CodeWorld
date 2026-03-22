@@ -1,5 +1,7 @@
-// Side/Bottom Panels: Code Viewer & Metrics Tables
-import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp, AlertTriangle, Info, CheckCircle } from 'lucide-react';
+import React, { useRef } from 'react';
+import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp, AlertTriangle, Info, CheckCircle, ExternalLink } from 'lucide-react';
+import LintScoreGauge from './visualizations/LintScoreGauge';
+import LintErrorDistribution from './visualizations/LintErrorDistribution';
 
 function ResultsDetailsPanel({
     isDarkMode,
@@ -150,19 +152,6 @@ function ResultsDetailsPanel({
                                         Let's spice up that code a bit!
                                     </h4>
                                 )}
-                                {codeDisplayMode === 'linterSuggest' && (
-                                    <div className="flex items-center justify-between px-6 pt-1 mb-2">
-                                        <h4 className={`text-xl font-black bg-gradient-to-r from-teal-400 to-emerald-500 bg-clip-text text-transparent`}>
-                                            Linter Insights
-                                        </h4>
-                                        {lintResults?.lint_score != null && (
-                                            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
-                                                <span className="text-xs font-bold text-emerald-500 uppercase tracking-tighter">Lint Score</span>
-                                                <span className="text-lg font-black text-emerald-500">{(lintResults.lint_score).toFixed(1)}/10</span>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
                                 <div className="flex-1 overflow-auto relative">
                                     {codeDisplayMode === 'aiSuggest' ? (
                                         <div className={`h-full flex flex-col overflow-y-auto rounded-xl p-4`} style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -211,7 +200,36 @@ function ResultsDetailsPanel({
                                                     <p className="text-sm font-bold text-gray-500 animate-pulse uppercase tracking-widest">Running Linter...</p>
                                                 </div>
                                             ) : lintResults ? (
-                                                <div className="space-y-4">
+                                                <div className="space-y-4 px-2">
+                                                    {/* Scrolling Header inside the content area */}
+                                                    <div className="flex items-center justify-between mb-2 animate-in fade-in slide-in-from-bottom-2 duration-700">
+                                                        <h4 className="text-2xl font-black bg-gradient-to-r from-teal-400 to-emerald-500 bg-clip-text text-transparent tracking-tighter">
+                                                            Linter Insights
+                                                        </h4>
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${isDarkMode ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
+                                                                Quality Analysis
+                                                            </span>
+                                                        </div>
+                                                    </div>
+
+                                                    {lintResults.lint_score != null && (
+                                                        <div className={`p-6 mb-4 rounded-[2.5rem] border shadow-2xl relative overflow-hidden transition-all hover:scale-[1.02] duration-500 ${isDarkMode ? 'bg-gray-800/40 border-white/5' : 'bg-white border-gray-100'}`}>
+                                                            {/* Background Glow */}
+                                                            <div className="absolute -right-20 -top-20 w-64 h-64 bg-emerald-500/10 blur-[100px] pointer-events-none" />
+
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-8 relative z-10">
+                                                                <LintScoreGauge score={lintResults.lint_score} isDarkMode={isDarkMode} />
+                                                                <div className="space-y-6">
+                                                                    <LintErrorDistribution errors={lintResults.lint_errors} isDarkMode={isDarkMode} />
+
+                                                                    <div className={`p-4 rounded-3xl text-[11px] leading-relaxed italic opacity-80 border ${isDarkMode ? 'bg-gray-900/50 border-white/5 text-gray-400' : 'bg-gray-50 border-black/5 text-gray-500'}`}>
+                                                                        "Maintaining high code quality scores ensures long-term project health and reduces technical debt accumulation."
+                                                                    </div>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                     {lintResults.lint_errors.length === 0 ? (
                                                         <div className={`p-8 rounded-[2rem] flex flex-col items-center justify-center text-center gap-4 ${isDarkMode ? 'bg-gray-800/40' : 'bg-emerald-50/30'}`}>
                                                             <CheckCircle size={48} className="text-emerald-500" />
@@ -222,8 +240,22 @@ function ResultsDetailsPanel({
                                                         </div>
                                                     ) : (
                                                         lintResults.lint_errors.map((error, idx) => (
-                                                            <div key={idx} className={`group p-5 rounded-[2rem] shadow-sm transform transition-all hover:scale-[1.01] flex gap-4 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-100 shadow-md'}`}>
-                                                                <div className={`mt-1 h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center ${error.type === 'error' ? 'bg-red-500/10 text-red-500' :
+                                                            <div
+                                                                key={idx}
+                                                                onClick={() => {
+                                                                    setCodeDisplayMode('highlighted');
+                                                                    setTimeout(() => {
+                                                                        const element = document.getElementById(`line-${error.line}`);
+                                                                        if (element) {
+                                                                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                                            element.style.backgroundColor = isDarkMode ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.1)';
+                                                                            setTimeout(() => { element.style.backgroundColor = 'transparent'; }, 2000);
+                                                                        }
+                                                                    }, 300);
+                                                                }}
+                                                                className={`group p-5 rounded-[2rem] shadow-sm transform transition-all hover:scale-[1.01] hover:shadow-xl cursor-pointer flex gap-4 border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:border-blue-500/50' : 'bg-white border-gray-100 hover:border-blue-300'}`}
+                                                            >
+                                                                <div className={`mt-1 h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-12 ${error.type === 'error' ? 'bg-red-500/10 text-red-500' :
                                                                     error.type === 'warning' ? 'bg-amber-500/10 text-amber-500' :
                                                                         'bg-blue-500/10 text-blue-500'
                                                                     }`}>
@@ -237,12 +269,14 @@ function ResultsDetailsPanel({
                                                                             }`}>
                                                                             {error.symbol || error.type}
                                                                         </span>
-                                                                        <span className="text-[10px] font-bold opacity-40">Line {error.line}:{error.column}</span>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="text-[10px] font-bold opacity-40">Line {error.line}:{error.column}</span>
+                                                                            <ExternalLink size={10} className="opacity-0 group-hover:opacity-40 transition-opacity" />
+                                                                        </div>
                                                                     </div>
-                                                                    <p className={`text-sm font-semibold leading-relaxed mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                                                                    <p className={`text-sm font-semibold leading-relaxed mb-1 transition-colors group-hover:text-blue-500 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
                                                                         {error.message}
                                                                     </p>
-                                                                    <span className="text-[10px] opacity-40 font-mono tracking-tighter">ID: {error.message_id}</span>
                                                                 </div>
                                                             </div>
                                                         ))
@@ -277,11 +311,17 @@ function ResultsDetailsPanel({
                                                             .replace(/\b(\d+\.?\d*)\b/g, '<span style="color: #b5cea8">$&</span>')
                                                             .replace(/(\/\/.*$|\/\*[\s\S]*?\*\/)/gm, '<span style="color: #6a9955">$&</span>')
                                                         return (
-                                                            <div key={idx} dangerouslySetInnerHTML={{ __html: highlighted || ' ' }} />
+                                                            <div
+                                                                key={idx}
+                                                                id={`line-${idx + 1}`}
+                                                                className="transition-colors duration-500"
+                                                                dangerouslySetInnerHTML={{ __html: highlighted || ' ' }}
+                                                            />
                                                         )
                                                     })}
                                                 </code>
                                             </pre>
+                                            {/* Scroll Observer/Utility to detect line from scroll? (Optional future feature) */}
                                         </div>
                                     ) : (
                                         <div className="relative">
