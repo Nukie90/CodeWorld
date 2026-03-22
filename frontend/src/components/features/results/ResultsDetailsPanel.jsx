@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp, AlertTriangle, Info, CheckCircle, ExternalLink } from 'lucide-react';
+import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp, AlertTriangle, Info, CheckCircle, ExternalLink, RotateCw } from 'lucide-react';
 import LintScoreGauge from './visualizations/LintScoreGauge';
 import LintErrorDistribution from './visualizations/LintErrorDistribution';
 
@@ -214,6 +214,14 @@ function ResultsDetailsPanel({
                                                             Linter Insights
                                                         </h4>
                                                         <div className="flex items-center gap-2">
+                                                            <button
+                                                                onClick={() => handleLintFile(selectedCode.filename, true)}
+                                                                disabled={isLinting}
+                                                                className={`p-2 rounded-xl transition-all ${isDarkMode ? 'hover:bg-gray-700 text-gray-400 hover:text-teal-400' : 'hover:bg-gray-100 text-gray-500 hover:text-teal-600'} ${isLinting ? 'opacity-50' : 'hover:rotate-180 duration-500'}`}
+                                                                title="Recompute Linter"
+                                                            >
+                                                                <RotateCw size={18} strokeWidth={2.5} className={isLinting ? 'animate-spin' : ''} />
+                                                            </button>
                                                             <span className={`px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border ${isDarkMode ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
                                                                 Quality Analysis
                                                             </span>

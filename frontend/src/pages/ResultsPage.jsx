@@ -44,6 +44,7 @@ function ResultsPage() {
   const isResizingRight = useRef(false);
   const startX = useRef(0);
   const startWidth = useRef(0);
+  const lintCache = useRef({});
 
   const [selectedCode, setSelectedCode] = useState(null);
   const [codeLoading, setCodeLoading] = useState(false);
@@ -158,18 +159,28 @@ function ResultsPage() {
     }
   }, [analysisResult?.repo_url, token]);
 
-  const handleLintFile = useCallback(async (filename) => {
+  const handleLintFile = useCallback(async (filename, force = false) => {
     if (!filename || !analysisResult?.repo_url) return;
+
+    const commitHash = animatingCommit?.hash || currentBranch || 'HEAD';
+    const cacheKey = `${filename}-${commitHash}`;
+
+    if (!force && lintCache.current[cacheKey]) {
+      setLintResults(lintCache.current[cacheKey]);
+      return;
+    }
+
     setIsLinting(true);
     setLintResults(null);
     try {
       const resp = await repoService.lintFile(filename, {
         repo_url: analysisResult.repo_url,
-        commit_hash: animatingCommit?.hash || currentBranch || 'HEAD',
+        commit_hash: commitHash,
         token: token
       });
       if (resp.data) {
         setLintResults(resp.data);
+        lintCache.current[cacheKey] = resp.data;
       }
     } catch (err) {
       console.error('Failed to lint file', err);
