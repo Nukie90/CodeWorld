@@ -259,10 +259,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
     // --- Animation Helper Functions ---
 
-    const animateBuildingHeight = (mesh, cap, targetHeight, currentHeight, duration = 0.5) => {
+    const animateBuildingHeight = (mesh, cap, targetHeight, originalHeight, duration = 0.5) => {
         // Skip animations during timeline playback for performance
-        const animDuration = isTimelinePlaying ? 0 : duration;
-        const scale = targetHeight / currentHeight;
+        const animDuration = isTimelinePlayingRef.current ? 0 : duration;
+        const scale = targetHeight / originalHeight;
 
         gsap.to(mesh.scale, {
             y: scale,
@@ -270,9 +270,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             ease: "power2.inOut"
         });
 
-        // Adjust position to keep bottom fixed
-        const currentY = mesh.position.y;
-        const targetY = currentY + (targetHeight - currentHeight) / 2;
+        const depth = mesh.userData.depth || 1;
+        const platformHeight = 3;
+        const parentTopY = (depth - 1) * platformHeight;
+
+        const targetY = parentTopY + (targetHeight / 2);
 
         gsap.to(mesh.position, {
             y: targetY,
@@ -280,10 +282,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             ease: "power2.inOut"
         });
 
-        // Move cap to new top
+        // Move cap to absolute new top with micro-gap to prevent Z-fighting at far clip planes
         if (cap) {
             gsap.to(cap.position, {
-                y: cap.position.y + (targetHeight - currentHeight),
+                y: parentTopY + targetHeight + 0.12,
                 duration: animDuration,
                 ease: "power2.inOut"
             });
@@ -569,17 +571,6 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 });
 
             // 3. Impact Effects on Tower
-            // Growth Spurt
-            const currentHeight = building.height;
-            gsap.fromTo(building.mesh.scale,
-                { y: building.mesh.scale.y * 1.2 },
-                { y: building.mesh.scale.y, duration: 0.6, ease: "elastic.out(1, 0.3)" }
-            );
-            gsap.fromTo(building.cap.position,
-                { y: building.cap.position.y + 5 },
-                { y: building.cap.position.y, duration: 0.6, ease: "elastic.out(1, 0.3)" }
-            );
-
             // Pulse Shockwave
             const ringGeo = new THREE.TorusGeometry(building.mesh.geometry.parameters.radiusTop + 2, 0.2, 8, 32);
             const ringMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 1 });
@@ -636,9 +627,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
                 // Animate height change if complexity changed
                 if (oldMetrics.totalComplexity !== newMetrics.totalComplexity) {
-                    const oldHeight = 10 + (Math.sqrt(oldMetrics.totalComplexity || 1) * 15);
                     const newHeight = 10 + (Math.sqrt(newMetrics.totalComplexity || 1) * 15);
-                    animateBuildingHeight(buildingData.mesh, buildingData.cap, newHeight, oldHeight, 0.5);
+                    // buildingData.height stores the immutable original geometry height
+                    animateBuildingHeight(buildingData.mesh, buildingData.cap, newHeight, buildingData.height, 0.5);
                 }
 
                 // Animate color change if maintainability index changed
@@ -672,6 +663,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             const packLayout = d3.pack().size([islandSize, islandSize]).padding(d => d.depth === 0 ? 30 : 20);
             packLayout(hierarchy);
 
+            const validDirectories = new Set();
+
             hierarchy.each(node => {
                 const x = node.x;
                 const z = node.y;
@@ -681,6 +674,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
                 if (node.children) {
                     const dirPath = node.ancestors().map(n => n.data.name).reverse().join('/');
+                    validDirectories.add(dirPath);
                     const existing = directoryMeshesRef.current.get(dirPath);
                     if (existing && existing.mesh && existing.ring) {
                         // Animate platform to new position/size
@@ -691,25 +685,103 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         if (existing.mesh.userData.originalRadius) {
                             const scale = r / existing.mesh.userData.originalRadius;
                             gsap.to(existing.mesh.scale, { x: scale, z: scale, duration: 0.8, ease: "power2.inOut" });
-                            gsap.to(existing.ring.scale, { x: scale, z: scale, duration: 0.8, ease: "power2.inOut" });
+                            // The ring is a Torus on the local XY plane rotated by 90deg on X to lay flat. 
+                            // This means world Z is local Y, and world Y is local Z!
+                            gsap.to(existing.ring.scale, { x: scale, y: scale, duration: 0.8, ease: "power2.inOut" });
                         }
-                    } else if (diff.added.length > 0) {
-                        // Node is added, trigger full rebuild silently via timeout to allow current animations to finish
-                        // Fallback: If soft addition of completely new directories isn't fully implemented in this block, 
-                        // we fallback to full rebuild to ensure structural integrity
-                        sceneInitializedRef.current = false;
-                        setRebuildTrigger(c => c + 1);
+                    } else {
+                        // Create brand new directory mesh seamlessly
+                        const color = getDirectoryColor(node.depth);
+                        const geometry = new THREE.CylinderGeometry(r, r + 2, platformHeight, 64);
+                        const material = new THREE.MeshStandardMaterial({
+                            color: color, roughness: isDarkMode ? 0.6 : 0.9, metalness: isDarkMode ? 0.3 : 0.1, emissive: color, emissiveIntensity: 0,
+                            transparent: true, opacity: 0
+                        });
+                        const mesh = new THREE.Mesh(geometry, material);
+                        mesh.position.set(x, y - (platformHeight / 2), z);
+                        mesh.receiveShadow = true; mesh.castShadow = true;
+                        mesh.userData = { type: 'directory', name: node.data.name, depth: node.depth, originalRadius: r, path: dirPath };
+                        sceneRef.current.add(mesh);
+                        interactableMeshesRef.current.push(mesh);
+                        geometriesToDisposeRef.current.push(geometry); materialsToDisposeRef.current.push(material);
+
+                        const ringGeo = new THREE.TorusGeometry(r + 0.2, 0.3, 8, 64);
+                        const ringMat = new THREE.MeshStandardMaterial({ color: isDarkMode ? 0x38bdf8 : 0xffffff, transparent: true, opacity: 0, emissive: isDarkMode ? 0x0ea5e9 : 0x000000, emissiveIntensity: isDarkMode ? 0.5 : 0 });
+                        const ring = new THREE.Mesh(ringGeo, ringMat);
+                        ring.rotation.x = Math.PI / 2; ring.position.set(x, y, z);
+                        sceneRef.current.add(ring);
+                        geometriesToDisposeRef.current.push(ringGeo); materialsToDisposeRef.current.push(ringMat);
+
+                        directoryMeshesRef.current.set(dirPath, { mesh, ring, r });
+
+                        gsap.to(mesh.material, { opacity: 1, duration: 0.8 });
+                        gsap.to(ring.material, { opacity: isDarkMode ? 0.4 : 0.1, duration: 0.8 });
                     }
                 } else {
                     const filename = node.data.fileData.filename;
                     const existing = buildingMeshesRef.current.get(filename);
+                    const parentTopY = (node.depth - 1) * platformHeight;
                     if (existing && existing.mesh && existing.cap) {
-                        const parentTopY = (node.depth - 1) * platformHeight;
                         gsap.to(existing.mesh.position, { x, z, duration: 0.8, ease: "power2.inOut" });
                         gsap.to(existing.cap.position, { x, z, duration: 0.8, ease: "power2.inOut" });
+                    } else {
+                        // Create brand new file building seamlessly
+                        const complexity = node.data.totalComplexity || 1;
+                        const towerHeight = 10 + (Math.sqrt(complexity) * 15);
+                        const towerRadius = 1.8 + (r * 0.9);
+                        const geometry = new THREE.CylinderGeometry(towerRadius, towerRadius, towerHeight, 32);
+                        const maintainabilityIndex = node.data.maintainabilityIndex ?? 100;
+                        const isUnsupported = node.data.fileData?.is_unsupported;
+                        const color = isUnsupported ? (isDarkMode ? 0xcfcfcf : 0x9ca3af) : getMaintainabilityColor(maintainabilityIndex);
+
+                        const material = new THREE.MeshStandardMaterial({
+                            color: color, roughness: 0.3, metalness: 0.6, emissive: color, emissiveIntensity: isDarkMode ? 0.6 : 0, transparent: true, opacity: 0
+                        });
+                        const mesh = new THREE.Mesh(geometry, material);
+                        mesh.position.set(x, parentTopY + towerHeight / 2, z);
+                        mesh.castShadow = true; mesh.receiveShadow = true;
+                        mesh.userData = {
+                            type: 'file', name: node.data.name, ...node.data.fileData, depth: node.depth,
+                            totalComplexity: complexity.toFixed(2), maintainabilityIndex: node.data.maintainabilityIndex, totalLoc: node.data.totalLoc, numFunctions: node.data.numFunctions
+                        };
+                        sceneRef.current.add(mesh);
+                        interactableMeshesRef.current.push(mesh);
+                        geometriesToDisposeRef.current.push(geometry); materialsToDisposeRef.current.push(material);
+
+                        const capGeo = new THREE.CylinderGeometry(towerRadius, towerRadius, 0.2, 32);
+                        const capMat = new THREE.MeshStandardMaterial({
+                            color: 0xffffff, emissive: color, emissiveIntensity: isDarkMode ? 0.9 : 0.4, transparent: true, opacity: 0,
+                            polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1
+                        });
+                        const cap = new THREE.Mesh(capGeo, capMat);
+                        cap.position.set(x, parentTopY + towerHeight + 0.12, z);
+                        sceneRef.current.add(cap);
+                        geometriesToDisposeRef.current.push(capGeo); materialsToDisposeRef.current.push(capMat);
+
+                        buildingMeshesRef.current.set(filename, { mesh, cap, data: node.data.fileData, height: towerHeight });
+
+                        gsap.to(mesh.material, { opacity: towerOpacity, duration: 0.8 });
+                        gsap.to(cap.material, { opacity: towerOpacity, duration: 0.8 });
                     }
                 }
             });
+
+            // Clean up orphaned empty directories
+            for (const [dirPath, existing] of directoryMeshesRef.current.entries()) {
+                if (!validDirectories.has(dirPath)) {
+                    animateBuildingFadeOut(existing.mesh, existing.ring, 0.3, () => {
+                        if (sceneRef.current) {
+                            sceneRef.current.remove(existing.mesh);
+                            sceneRef.current.remove(existing.ring);
+                        }
+                        if (existing.mesh.geometry) existing.mesh.geometry.dispose();
+                        if (existing.mesh.material) existing.mesh.material.dispose();
+                        if (existing.ring.geometry) existing.ring.geometry.dispose();
+                        if (existing.ring.material) existing.ring.material.dispose();
+                        directoryMeshesRef.current.delete(dirPath);
+                    });
+                }
+            }
         }
 
         // Collect files changed in this step for laser strikes
@@ -732,21 +804,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             }, 150);
         }
 
-        // Handle added files - fallback
-        if (diff.added.length > 0) {
-            // We handled positions above, but if brand new geometries are needed, we still trigger rebuild for now.
-            // But we debounce it if timeline is playing to prevent freezing
-            if (!isTimelinePlayingRef.current) {
-                sceneInitializedRef.current = false;
-                buildingMeshesRef.current.clear();
-                directoryMeshesRef.current.clear();
-                setRebuildTrigger(c => c + 1);
-            } else {
-                previousFilesRef.current = individualFiles;
-            }
-        } else {
-            previousFilesRef.current = individualFiles;
-        }
+        // Since we flawlessly handle geometry instantiation inline now, we no longer need the fallback rebuild at all
+        previousFilesRef.current = individualFiles;
 
     }, [individualFiles]); // Only run on data changes
 
@@ -1252,10 +1311,15 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     emissive: color,
                     emissiveIntensity: isDarkMode ? 0.9 : 0.4,
                     transparent: towerOpacity < 1.0,
-                    opacity: towerOpacity
+                    opacity: towerOpacity,
+                    polygonOffset: true,
+                    polygonOffsetFactor: -1,
+                    polygonOffsetUnits: -1
                 });
                 const cap = new THREE.Mesh(capGeo, capMat);
-                cap.position.set(x, parentTopY + towerHeight + 0.1, z);
+                // 0.2 height means center is at +0.1 to be exactly flush.
+                // We use +0.12 so it's lifted by 0.02 mathematically to prevent Z-fighting alongside the polygonOffset
+                cap.position.set(x, parentTopY + towerHeight + 0.12, z);
                 scene.add(cap);
                 geometriesToDisposeRef.current.push(capGeo);
                 materialsToDisposeRef.current.push(capMat);
