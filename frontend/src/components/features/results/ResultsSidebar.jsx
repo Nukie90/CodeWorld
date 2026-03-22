@@ -1,5 +1,5 @@
-// Control Sidebar: Branch & Filter Management
-import { ChevronLeft, ChevronRight, GitCommit, Play, Square } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, GitCommit, Play, Square, Minimize2, Maximize2 } from 'lucide-react';
 import GitGraph from '../git_graph/GitGraph';
 
 function ResultsSidebar({
@@ -42,6 +42,7 @@ function ResultsSidebar({
     setIsBottomPanelOpen,
     currentCommitIndex
 }) {
+    const [isMinimized, setIsMinimized] = useState(false);
     const textColor = isDarkMode ? 'text-white' : 'text-gray-900';
     const panelBg = isDarkMode ? 'bg-gray-800' : 'bg-white';
     const borderColor = isDarkMode ? 'border-gray-700' : 'border-gray-200';
@@ -225,36 +226,54 @@ function ResultsSidebar({
                 </div>
 
                 {animatingCommit && (
-                    <button
-                        onClick={() => setSelectedCommitForModal(animatingCommit)}
-                        className={`mb-4 p-4 rounded-xl border ${borderColor} ${isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600' : 'bg-gradient-to-br from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100'} w-full text-left transition-all shadow-lg hover:shadow-xl`}
-                    >
-                        <div className="flex items-start gap-3">
-                            <div className="p-2 rounded-lg bg-blue-500/20 backdrop-blur-sm">
-                                <GitCommit size={18} className="text-blue-600 dark:text-blue-400" />
-                            </div>
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold text-blue-900 dark:text-blue-200 truncate mb-1">
-                                    {animatingCommit.message}
-                                </p>
-                                {animationProgress > 0 && (
-                                    <div className="mt-3">
-                                        <div className="flex items-center justify-between text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                                            <span>Progress</span>
-                                            <span className="font-bold text-blue-600 dark:text-blue-400">{animationProgress}%</span>
-                                        </div>
-                                        <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden">
-                                            <div
-                                                className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
-                                                style={{ width: `${animationProgress}%` }}
-                                            ></div>
-                                        </div>
+                    <div className="relative group/card">
+                        <button
+                            onClick={() => setSelectedCommitForModal(animatingCommit)}
+                            className={`mb-4 p-4 rounded-xl border ${borderColor} ${isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-700 hover:from-gray-700 hover:to-gray-600' : 'bg-gradient-to-br from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100'} w-full text-left transition-all shadow-lg hover:shadow-xl relative overflow-hidden`}
+                        >
+                            <div className={`flex items-start gap-3 ${isMinimized ? 'items-center' : ''}`}>
+                                <div className={`p-2 rounded-lg bg-blue-500/20 backdrop-blur-sm transition-all ${isMinimized ? 'p-1.5' : ''}`}>
+                                    <GitCommit size={isMinimized ? 14 : 18} className="text-blue-600 dark:text-blue-400" />
+                                </div>
+                                <div className="flex-1 min-w-0 pr-6">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className={`font-bold text-blue-900 dark:text-blue-200 truncate ${isMinimized ? 'text-xs' : 'text-sm mb-1'}`}>
+                                            {isMinimized ? `Animating: ${animatingCommit.message}` : animatingCommit.message}
+                                        </p>
                                     </div>
-                                )}
-                                <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">Click for details →</p>
+                                    {!isMinimized && (
+                                        <>
+                                            {animationProgress > 0 && (
+                                                <div className="mt-3">
+                                                    <div className="flex items-center justify-between text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
+                                                        <span>Progress</span>
+                                                        <span className="font-bold text-blue-600 dark:text-blue-400">{animationProgress}%</span>
+                                                    </div>
+                                                    <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden">
+                                                        <div
+                                                            className="bg-gradient-to-r from-blue-500 to-purple-600 h-2 rounded-full transition-all duration-300"
+                                                            style={{ width: `${animationProgress}%` }}
+                                                        ></div>
+                                                    </div>
+                                                </div>
+                                            )}
+                                            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">Click for details →</p>
+                                        </>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </button>
+                        </button>
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setIsMinimized(!isMinimized);
+                            }}
+                            className={`absolute right-2 top-2 p-1.5 rounded-lg bg-white/50 dark:bg-gray-800/50 hover:bg-white dark:hover:bg-gray-700 transition-all z-10 opacity-0 group-hover/card:opacity-100 shadow-sm border ${borderColor}`}
+                            title={isMinimized ? "Expand" : "Minimize"}
+                        >
+                            {isMinimized ? <Maximize2 size={12} className="text-gray-500" /> : <Minimize2 size={12} className="text-gray-500" />}
+                        </button>
+                    </div>
                 )}
 
                 {analysisResult?.repo_url && currentBranch ? (
