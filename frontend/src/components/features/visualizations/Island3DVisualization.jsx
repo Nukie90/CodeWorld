@@ -13,6 +13,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const rendererRef = useRef(null);
     const animationIdRef = useRef(null);
     const cameraRef = useRef(null);
+    const interactableMeshesRef = useRef([]);
+    const geometriesToDisposeRef = useRef([]);
+    const materialsToDisposeRef = useRef([]);
+    const dolphinsRef = useRef([]);
+    const palmTreesRef = useRef([]);
 
     const [hoveredObject, setHoveredObject] = useState(null);
     const [hoverInfoPosition, setHoverInfoPosition] = useState({ x: 0, y: 0 });
@@ -659,6 +664,54 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             }
         });
 
+        // Soft Layout Diff for Added Files (avoids WebGL context destruction)
+        if (diff.added.length > 0 || diff.removed.length > 0) {
+            console.log('[Island3D] Files added/removed. Calculating soft layout transition.');
+            const rootData = buildHierarchy(individualFiles);
+            const hierarchy = d3.hierarchy(rootData).sum(d => d.value ? d.value : 0).sort((a, b) => b.value - a.value);
+            const packLayout = d3.pack().size([islandSize, islandSize]).padding(d => d.depth === 0 ? 30 : 20);
+            packLayout(hierarchy);
+
+            hierarchy.each(node => {
+                const x = node.x;
+                const z = node.y;
+                const r = node.r;
+                const platformHeight = 3;
+                const y = (node.depth * platformHeight);
+
+                if (node.children) {
+                    const dirPath = node.ancestors().map(n => n.data.name).reverse().join('/');
+                    const existing = directoryMeshesRef.current.get(dirPath);
+                    if (existing && existing.mesh && existing.ring) {
+                        // Animate platform to new position/size
+                        gsap.to(existing.mesh.position, { x, z, y: y - (platformHeight / 2), duration: 0.8, ease: "power2.inOut" });
+                        gsap.to(existing.ring.position, { x, z, y, duration: 0.8, ease: "power2.inOut" });
+
+                        // We scale relative to initial geometry r (we don't easily know initial r, but we stored it in userData)
+                        if (existing.mesh.userData.originalRadius) {
+                            const scale = r / existing.mesh.userData.originalRadius;
+                            gsap.to(existing.mesh.scale, { x: scale, z: scale, duration: 0.8, ease: "power2.inOut" });
+                            gsap.to(existing.ring.scale, { x: scale, z: scale, duration: 0.8, ease: "power2.inOut" });
+                        }
+                    } else if (diff.added.length > 0) {
+                        // Node is added, trigger full rebuild silently via timeout to allow current animations to finish
+                        // Fallback: If soft addition of completely new directories isn't fully implemented in this block, 
+                        // we fallback to full rebuild to ensure structural integrity
+                        sceneInitializedRef.current = false;
+                        setRebuildTrigger(c => c + 1);
+                    }
+                } else {
+                    const filename = node.data.fileData.filename;
+                    const existing = buildingMeshesRef.current.get(filename);
+                    if (existing && existing.mesh && existing.cap) {
+                        const parentTopY = (node.depth - 1) * platformHeight;
+                        gsap.to(existing.mesh.position, { x, z, duration: 0.8, ease: "power2.inOut" });
+                        gsap.to(existing.cap.position, { x, z, duration: 0.8, ease: "power2.inOut" });
+                    }
+                }
+            });
+        }
+
         // Collect files changed in this step for laser strikes
         const changedFilenames = [
             ...diff.modified.map(f => f.filename),
@@ -679,15 +732,19 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             }, 150);
         }
 
-        // Handle added files - need full rebuild for layout recalculation
+        // Handle added files - fallback
         if (diff.added.length > 0) {
-            console.log('[Island3D] New files added, doing full rebuild for layout recalculation');
-            sceneInitializedRef.current = false; // Force full rebuild
-            buildingMeshesRef.current.clear();
-            directoryMeshesRef.current.clear();
-            setRebuildTrigger(c => c + 1);
+            // We handled positions above, but if brand new geometries are needed, we still trigger rebuild for now.
+            // But we debounce it if timeline is playing to prevent freezing
+            if (!isTimelinePlayingRef.current) {
+                sceneInitializedRef.current = false;
+                buildingMeshesRef.current.clear();
+                directoryMeshesRef.current.clear();
+                setRebuildTrigger(c => c + 1);
+            } else {
+                previousFilesRef.current = individualFiles;
+            }
         } else {
-            // No new files, incremental update complete
             previousFilesRef.current = individualFiles;
         }
 
@@ -907,13 +964,22 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         // Store pointer lock state before cleanup
         const wasPointerLocked = document.pointerLockElement === mountRef.current;
-        searchBeaconRef.current = null; // Reset beacon ref to ensure it's recreated in the new scene
+        searchBeaconRef.current = null;
 
-        // Cleanup previous
-        if (mountRef.current.hasChildNodes()) {
-            while (mountRef.current.firstChild) {
-                mountRef.current.removeChild(mountRef.current.firstChild);
-            }
+        // Ensure renderer exists (Created ONCE)
+        let renderer = rendererRef.current;
+        if (!renderer) {
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+            renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            rendererRef.current = renderer;
+        }
+
+        // Always ensure renderer's canvas is attached to DOM
+        if (mountRef.current && !mountRef.current.contains(renderer.domElement)) {
+            mountRef.current.appendChild(renderer.domElement);
         }
 
         const scene = new THREE.Scene();
@@ -943,7 +1009,6 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         // Initial position
         if (cameraRef.current) {
-            // Restore previous position
             camera.position.copy(cameraRef.current.position);
             camera.quaternion.copy(cameraRef.current.quaternion);
         } else {
@@ -951,13 +1016,6 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             camera.lookAt(islandCenterX, 0, islandCenterZ);
         }
         cameraRef.current = camera;
-
-        const renderer = new THREE.WebGLRenderer({ antialias: !isTimelinePlaying, powerPreference: 'high-performance' });
-        renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        mountRef.current.appendChild(renderer.domElement);
 
         // Restore pointer lock if it was active before rebuild
         if (wasPointerLocked) {
@@ -976,8 +1034,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         const sunLight = new THREE.DirectionalLight(isDarkMode ? 0xa5b4fc : 0xfff5e6, isDarkMode ? 0.8 : 1.5); // Moon/Sun
         sunLight.position.set(islandCenterX + islandSize * 0.25, 300 + islandSize * 0.25, islandCenterZ + islandSize * 0.25);
         sunLight.castShadow = true;
-        // Reduce shadow map resolution during timeline playback for faster rendering
-        const shadowMapSize = isTimelinePlaying ? 512 : 4096;
+        const shadowMapSize = isTimelinePlayingRef.current ? 1024 : 2048;
         sunLight.shadow.mapSize.width = shadowMapSize;
         sunLight.shadow.mapSize.height = shadowMapSize;
         sunLight.shadow.camera.near = 10;
@@ -1000,12 +1057,12 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         );
         scene.add(hemiLight);
 
-        // Interaction arrays
-        const interactableMeshes = [];
-        const geometriesToDispose = [];
-        const materialsToDispose = [];
-        const dolphins = [];
-        const palmTrees = [];
+        // Interaction arrays - stored in refs
+        interactableMeshesRef.current = [];
+        geometriesToDisposeRef.current = [];
+        materialsToDisposeRef.current = [];
+        dolphinsRef.current = [];
+        palmTreesRef.current = [];
 
         // --- Scene Construction ---
 
@@ -1069,13 +1126,14 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     type: 'directory',
                     name: node.data.name,
                     depth: node.depth,
+                    originalRadius: r,
                     path: node.ancestors().map(n => n.data.name).reverse().join('/')
                 };
 
                 scene.add(mesh);
-                interactableMeshes.push(mesh);
-                geometriesToDispose.push(geometry);
-                materialsToDispose.push(material);
+                interactableMeshesRef.current.push(mesh);
+                geometriesToDisposeRef.current.push(geometry);
+                materialsToDisposeRef.current.push(material);
 
                 // Add border ring for definition
                 const ringGeo = new THREE.TorusGeometry(r + 0.2, 0.3, 8, 64);
@@ -1090,8 +1148,12 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 ring.rotation.x = Math.PI / 2;
                 ring.position.set(x, y, z);
                 scene.add(ring);
-                geometriesToDispose.push(ringGeo);
-                materialsToDispose.push(ringMat);
+                geometriesToDisposeRef.current.push(ringGeo);
+                materialsToDisposeRef.current.push(ringMat);
+
+                // Track directory mesh
+                const dirPath = mesh.userData.path;
+                directoryMeshesRef.current.set(dirPath, { mesh, ring, r });
 
                 // Add Palm Trees to the root island (shoreline)
                 if (node.depth === 0 && showDecorations) {
@@ -1109,9 +1171,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         const trunk = new THREE.Mesh(trunkGeo, trunkMat);
                         trunk.position.set(treeX, y + trunkH / 2, treeZ);
                         scene.add(trunk);
-                        palmTrees.push(trunk);
-                        geometriesToDispose.push(trunkGeo);
-                        materialsToDispose.push(trunkMat);
+                        palmTreesRef.current.push(trunk);
+                        geometriesToDisposeRef.current.push(trunkGeo);
+                        materialsToDisposeRef.current.push(trunkMat);
 
                         const leafGeo = new THREE.ConeGeometry(1.5, 3, 5);
                         const leafMat = new THREE.MeshStandardMaterial({
@@ -1122,8 +1184,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         const foliage = new THREE.Mesh(leafGeo, leafMat);
                         foliage.position.set(treeX, y + trunkH + 1, treeZ);
                         scene.add(foliage);
-                        geometriesToDispose.push(leafGeo);
-                        materialsToDispose.push(leafMat);
+                        geometriesToDisposeRef.current.push(leafGeo);
+                        materialsToDisposeRef.current.push(leafMat);
                     }
                 }
 
@@ -1179,9 +1241,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 };
 
                 scene.add(mesh);
-                interactableMeshes.push(mesh);
-                geometriesToDispose.push(geometry);
-                materialsToDispose.push(material);
+                interactableMeshesRef.current.push(mesh);
+                geometriesToDisposeRef.current.push(geometry);
+                materialsToDisposeRef.current.push(material);
 
                 // Cap
                 const capGeo = new THREE.CylinderGeometry(towerRadius, towerRadius, 0.2, 32);
@@ -1195,8 +1257,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 const cap = new THREE.Mesh(capGeo, capMat);
                 cap.position.set(x, parentTopY + towerHeight + 0.1, z);
                 scene.add(cap);
-                geometriesToDispose.push(capGeo);
-                materialsToDispose.push(capMat);
+                geometriesToDisposeRef.current.push(capGeo);
+                materialsToDisposeRef.current.push(capMat);
 
                 // Store building reference for incremental updates
                 buildingMeshesRef.current.set(node.data.fileData.filename, {
@@ -1246,10 +1308,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
                     dolphinGroup.position.set(islandCenterX + Math.cos(angle) * radius, -3, islandCenterZ + Math.sin(angle) * radius);
                     scene.add(dolphinGroup);
-                    dolphins.push({ group: dolphinGroup, angle, radius, phase: Math.random() * Math.PI });
+                    dolphinsRef.current.push({ group: dolphinGroup, angle, radius, phase: Math.random() * Math.PI });
 
-                    geometriesToDispose.push(bodyGeometry);
-                    materialsToDispose.push(dolphinMaterial);
+                    geometriesToDisposeRef.current.push(bodyGeometry);
+                    materialsToDisposeRef.current.push(dolphinMaterial);
                 }
             }
 
@@ -1274,8 +1336,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             const core = new THREE.Mesh(coreGeo, coreMat);
             core.position.set(islandCenterX, 50, islandCenterZ);
             scene.add(core);
-            geometriesToDispose.push(coreGeo);
-            materialsToDispose.push(coreMat);
+            geometriesToDisposeRef.current.push(coreGeo);
+            materialsToDisposeRef.current.push(coreMat);
 
             // Orbiting Functions
             const functionData = focusedFile.functions || [];
@@ -1315,9 +1377,9 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 };
 
                 scene.add(satellite);
-                interactableMeshes.push(satellite);
-                geometriesToDispose.push(fnGeo);
-                materialsToDispose.push(fnMat);
+                interactableMeshesRef.current.push(satellite);
+                geometriesToDisposeRef.current.push(fnGeo);
+                materialsToDisposeRef.current.push(fnMat);
 
                 // Orbit visual ring
                 const orbitGeo = new THREE.TorusGeometry(radius, 0.1, 16, 100);
@@ -1330,11 +1392,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 orbit.position.set(islandCenterX, 50, islandCenterZ);
                 orbit.rotation.x = Math.PI / 2;
                 scene.add(orbit);
-                geometriesToDispose.push(orbitGeo);
-                materialsToDispose.push(orbitMat);
+                geometriesToDisposeRef.current.push(orbitGeo);
+                materialsToDisposeRef.current.push(orbitMat);
 
                 // Store for animation
-                dolphins.push({ // Reusing dolphins array for generic animatables
+                dolphinsRef.current.push({ // Reusing dolphins array for generic animatables
                     mesh: satellite,
                     radius: radius,
                     angle: angle,
@@ -1366,8 +1428,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             animationIdRef.current = requestAnimationFrame(animate);
             time += 0.01;
 
-            // Ocean animation — skip during timeline playback (10k vertex CPU update per frame)
-            if (!isTimelinePlaying) {
+            if (!isTimelinePlayingRef.current) {
                 for (let i = 0; i < oceanVertices.count; i++) {
                     const z = originalPositions[i];
                     const x = oceanVertices.getX(i);
@@ -1379,7 +1440,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             }
 
             // Dolphins / Satellites Animation
-            dolphins.forEach(d => {
+            dolphinsRef.current.forEach(d => {
                 if (viewMode === 'island') {
                     d.angle += 0.003;
                     d.group.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
@@ -1393,8 +1454,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 } else {
                     // Satellites
                     d.angle += d.speed;
-                    d.mesh.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
-                    d.mesh.position.z = islandCenterZ + Math.sin(d.angle) * d.radius;
+                    if (d.mesh) {
+                        d.mesh.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
+                        d.mesh.position.z = islandCenterZ + Math.sin(d.angle) * d.radius;
+                    }
                 }
             });
 
@@ -1452,7 +1515,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             }
 
             raycaster.setFromCamera(mouse, camera);
-            const intersects = raycaster.intersectObjects(interactableMeshes);
+            const intersects = raycaster.intersectObjects(interactableMeshesRef.current);
 
             if (intersects.length > 0) {
                 const obj = intersects[0].object;
@@ -1505,15 +1568,15 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 setHoverInfoPosition({ x: event.clientX + 15, y: event.clientY });
 
                 raycaster.setFromCamera(mouse, camera);
-                const intersects = raycaster.intersectObjects(interactableMeshes);
+                const intersects = raycaster.intersectObjects(interactableMeshesRef.current);
 
                 // Reset emissions
-                interactableMeshes.forEach(m => {
+                interactableMeshesRef.current.forEach(m => {
                     const defaultIntensity = isDarkMode
                         ? (m.userData.type === 'file' ? 0.6 : 0)
                         : 0; // Light mode default is 0
 
-                    if (m.material.emissive) m.material.emissiveIntensity = defaultIntensity;
+                    if (m.material && m.material.emissive) m.material.emissiveIntensity = defaultIntensity;
                 });
 
                 if (intersects.length > 0) {
@@ -1574,15 +1637,16 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             }
 
             // Disposal
-            geometriesToDispose.forEach(g => g.dispose());
-            materialsToDispose.forEach(m => m.dispose());
+            // Always dispose of geometries and materials when this useEffect unmounts 
+            // otherwise we leak memory on every prop change (e.g., toggling dark mode).
+            geometriesToDisposeRef.current.forEach(g => g.dispose());
+            materialsToDisposeRef.current.forEach(m => m.dispose());
             oceanGeometry.dispose();
             oceanMaterial.dispose();
-            renderer.dispose();
         };
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rebuildTrigger, onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile, towerOpacity, showDecorations, isTimelinePlaying]);
+    }, [rebuildTrigger, onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile, towerOpacity, showDecorations]);
 
     // --- Timeline Animation Side Effect ---
     useEffect(() => {

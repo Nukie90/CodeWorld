@@ -194,6 +194,11 @@ def analyze_local_folder(
     """Analyze a local folder on disk and return folder analysis result."""
 
     if previous_analysis is not None and changed_files is not None:
+        if not changed_files and not deleted_files:
+            if progress_callback:
+                progress_callback(95, "No actionable changes, returning cached analysis")
+            return previous_analysis
+
         if progress_callback:
             progress_callback(50, f"Incremental: re-analyzing {len(changed_files)} changed file(s)")
         result = _incremental_analysis(

@@ -52,19 +52,56 @@ def _is_commit_hash(s: str) -> bool:
     """Return True if the string looks like a git commit hash (7-40 hex chars)."""
     return bool(_COMMIT_RE.match(s.strip()))
 
+import subprocess
+
 def _read_files_at_commit(local_path: str, commit_hash: str, file_list: list[str]) -> dict:
     """
     Read the content of each file at the given commit directly from git objects.
     Returns a dict {relative_path: content_str}. Files that error are silently skipped.
-    This avoids any working-tree checkout — git reads straight from pack files.
+    This avoids any working-tree checkout and uses `git cat-file --batch` for massive speedup.
     """
+    if not file_list:
+        return {}
+
     contents = {}
-    for rel_path in file_list:
-        try:
-            result = repo_manager._run_git(local_path, ["show", f"{commit_hash}:{rel_path}"])
-            contents[rel_path] = result
-        except Exception:
-            pass
+    input_str = "\n".join(f"{commit_hash}:{rel_path}" for rel_path in file_list) + "\n"
+    
+    try:
+        proc = subprocess.Popen(
+            ["git", "-C", local_path, "cat-file", "--batch"],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE
+        )
+        stdout_data, _ = proc.communicate(input=input_str.encode("utf-8"))
+        
+        offset = 0
+        file_idx = 0
+        while offset < len(stdout_data) and file_idx < len(file_list):
+            nl_idx = stdout_data.find(b"\n", offset)
+            if nl_idx == -1:
+                break
+            
+            header = stdout_data[offset:nl_idx].decode("utf-8", errors="replace")
+            offset = nl_idx + 1
+            rel_path = file_list[file_idx]
+            file_idx += 1
+            
+            if header.endswith(" missing"):
+                continue
+                
+            parts = header.split()
+            if len(parts) >= 3 and parts[-2] == "blob":
+                try:
+                    size = int(parts[-1])
+                    content_bytes = stdout_data[offset:offset + size]
+                    contents[rel_path] = content_bytes.decode("utf-8", errors="replace")
+                    offset = offset + size + 1
+                except ValueError:
+                    break
+    except Exception:
+        pass
+
     return contents
 
 @router.post("/repo/checkout")

@@ -75,7 +75,13 @@ export function useRepoAnimation(analysisResult, setAnalysisResult, currentBranc
                     console.error(`Animation step failed at commit ${commit.hash}`, err);
                 }
 
-                animationRef.current = setTimeout(() => runStep(index + 1), animationSpeedRef.current);
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (isAnimatingRef.current) {
+                            animationRef.current = setTimeout(() => runStep(index + 1), animationSpeedRef.current);
+                        }
+                    });
+                });
             };
 
             const startIdx = isOverride ? customStartIndex : (currentCommitIndex === -1 || currentCommitIndex >= commits.length - 1 ? 0 : currentCommitIndex + 1);
