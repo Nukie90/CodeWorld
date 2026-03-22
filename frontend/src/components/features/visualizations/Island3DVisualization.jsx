@@ -293,20 +293,20 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     };
 
     const animateBuildingColor = (mesh, cap, targetColor, duration = 0.5) => {
-        const animDuration = isTimelinePlaying ? 0 : duration;
-        const r = ((targetColor >> 16) & 255) / 255;
-        const g = ((targetColor >> 8) & 255) / 255;
-        const b = (targetColor & 255) / 255;
+        const animDuration = isTimelinePlayingRef.current ? 0 : duration;
+
+        // Use THREE.Color to automatically calculate correct sRGB to Linear space floats
+        const newColor = new THREE.Color(targetColor);
 
         gsap.to(mesh.material.color, {
-            r, g, b,
+            r: newColor.r, g: newColor.g, b: newColor.b,
             duration: animDuration,
             ease: "power2.inOut"
         });
 
         if (mesh.material.emissive) {
             gsap.to(mesh.material.emissive, {
-                r, g, b,
+                r: newColor.r, g: newColor.g, b: newColor.b,
                 duration: animDuration,
                 ease: "power2.inOut"
             });
@@ -314,7 +314,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         if (cap && cap.material.emissive) {
             gsap.to(cap.material.emissive, {
-                r, g, b,
+                r: newColor.r, g: newColor.g, b: newColor.b,
                 duration: animDuration,
                 ease: "power2.inOut"
             });
