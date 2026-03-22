@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routes.github_routes import router as github_router
-from app.routes.ai_routes import router as ai_router
+from app.api.routes.auth_routes import router as auth_router
+from app.api.routes.repo_routes import router as repo_router
+from app.api.routes.analyze_routes import router as analyze_router
+from app.api.routes.lint_routes import router as lint_router
+from app.api.routes.ai_routes import router as ai_router
 
 # Load environment variables from backend/.env when available (development convenience).
 try:
@@ -31,7 +34,10 @@ app.add_middleware(
 )
 
 # app.include_router(analyzer_router, prefix="/api")
-app.include_router(github_router, prefix="/api")
+app.include_router(auth_router, prefix="/api")
+app.include_router(repo_router, prefix="/api")
+app.include_router(analyze_router, prefix="/api")
+app.include_router(lint_router, prefix="/api")
 app.include_router(ai_router, prefix="/api/ai")
 
 @app.get("/")

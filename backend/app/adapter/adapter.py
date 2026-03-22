@@ -1,5 +1,4 @@
 from abc import ABC, abstractmethod
-from fastapi import UploadFile
 from typing import Optional
 from app.model.analyzer_model import FileMetrics, FileLint
 

@@ -10,11 +10,3 @@ def get_adapters() -> List[AnalysisAdapter]:
         JSPluginAdapter(),
         PythonPluginAdapter(),
     ]
-
-def get_analysis_adapter(adapter_type: str) -> AnalysisAdapter:
-    if adapter_type == "js-plugin":
-        return JSPluginAdapter()
-    elif adapter_type == "python-plugin":
-        return PythonPluginAdapter()
-    else:
-        raise ValueError(f"Unknown adapter type: {adapter_type}")
