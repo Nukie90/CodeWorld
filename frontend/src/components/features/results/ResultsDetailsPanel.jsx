@@ -311,7 +311,11 @@ function ResultsDetailsPanel({
                                             >
                                                 <code style={{ color: '#d4d4d4' }}>
                                                     {selectedCode.code.split('\n').map((line, idx) => {
-                                                        const isTargetLine = activeLintError && (idx + 1) === activeLintError.line;
+                                                        const currentLine = idx + 1;
+                                                        const lineErrors = (codeDisplayMode === 'linterSuggest' || activeLintError) ?
+                                                            (lintResults?.lint_errors?.filter(e => e.line === currentLine) || []) : [];
+                                                        const isTargetLine = activeLintError && currentLine === activeLintError.line;
+
                                                         const highlighted = line
                                                             .replace(/(['"`])(?:(?=(\\?))\2.)*?\1/g, '<span style="color: #ce9178">$&</span>')
                                                             .replace(/\b(async|await|function|const|let|var|if|else|for|while|return|class|import|export|from|def|try|except|finally|with|as)\b/g, '<span style="color: #569cd6">$&</span>')
@@ -321,55 +325,60 @@ function ResultsDetailsPanel({
                                                         return (
                                                             <div
                                                                 key={idx}
-                                                                id={`line-${idx + 1}`}
-                                                                className={`relative group transition-all duration-500 ${isTargetLine ? (isDarkMode ? 'bg-red-500/10' : 'bg-red-50') : ''}`}
+                                                                id={`line-${currentLine}`}
+                                                                className={`relative group transition-all duration-500 ${isTargetLine ? (isDarkMode ? 'bg-blue-500/10' : 'bg-blue-50/50') : lineErrors.length > 0 ? (isDarkMode ? 'bg-red-500/5' : 'bg-red-50/30') : ''}`}
                                                             >
-                                                                {isTargetLine && activeLintError.column != null && (
+                                                                {/* Column highlights for all errors on this line */}
+                                                                {lineErrors.map((err, eIdx) => (
                                                                     <div
-                                                                        className="absolute h-full bg-red-500/30 border-b-2 border-red-500 z-0"
+                                                                        key={`col-${eIdx}`}
+                                                                        className={`absolute h-full z-0 ${err === activeLintError ? 'bg-blue-500/30 border-b-2 border-blue-500' : 'bg-red-500/20 border-b border-red-500/50'}`}
                                                                         style={{
-                                                                            left: `${activeLintError.column - 1}ch`,
-                                                                            width: `${(activeLintError.endColumn || activeLintError.column + 1) - activeLintError.column}ch`,
+                                                                            left: `${err.column - 1}ch`,
+                                                                            width: `${(err.endColumn || err.column + 1) - err.column}ch`,
                                                                             pointerEvents: 'none'
                                                                         }}
                                                                     />
-                                                                )}
+                                                                ))}
+
                                                                 <div
                                                                     className="relative z-10"
                                                                     dangerouslySetInnerHTML={{ __html: highlighted || ' ' }}
                                                                 />
-                                                                {isTargetLine && (
-                                                                    <div className={`mt-2 mb-4 p-4 rounded-2xl shadow-xl border animate-in zoom-in-95 slide-in-from-top-2 duration-300 relative z-20 ${isDarkMode ? 'bg-gray-800 border-red-500/50 text-red-200' : 'bg-red-50 border-red-200 text-red-700'
+
+                                                                {/* Stacked error bubbles for all errors on this line */}
+                                                                {lineErrors.map((err, eIdx) => (
+                                                                    <div key={`msg-${eIdx}`} className={`mt-2 mb-2 p-4 rounded-2xl shadow-xl border animate-in zoom-in-95 slide-in-from-top-2 duration-300 relative z-20 ${err === activeLintError
+                                                                        ? (isDarkMode ? 'bg-gray-800 border-blue-500 ring-1 ring-blue-500/50 text-blue-100' : 'bg-blue-50 border-blue-300 text-blue-800')
+                                                                        : (isDarkMode ? 'bg-gray-800 border-red-500/50 text-red-200' : 'bg-red-50 border-red-200 text-red-700')
                                                                         }`}>
                                                                         <div className="flex items-start gap-3">
-                                                                            <div className={`p-1.5 rounded-lg ${isDarkMode ? 'bg-red-500/20' : 'bg-red-500/10'}`}>
-                                                                                <AlertTriangle size={14} className="text-red-500" />
+                                                                            <div className={`p-1.5 rounded-lg ${err === activeLintError ? (isDarkMode ? 'bg-blue-500/20' : 'bg-blue-500/10') : (isDarkMode ? 'bg-red-500/20' : 'bg-red-500/10')}`}>
+                                                                                {err === activeLintError ? <CheckCircle size={14} className="text-blue-500" /> : <AlertTriangle size={14} className={err.type === 'error' ? 'text-red-500' : 'text-amber-500'} />}
                                                                             </div>
                                                                             <div className="flex-1">
                                                                                 <div className="flex items-center justify-between mb-1">
                                                                                     <span className="text-[10px] font-black uppercase tracking-widest opacity-70">
-                                                                                        {activeLintError.symbol || activeLintError.type}
+                                                                                        {err.symbol || err.type}
                                                                                     </span>
-                                                                                    <button
-                                                                                        onClick={(e) => {
-                                                                                            e.stopPropagation();
-                                                                                            setActiveLintError(null);
-                                                                                        }}
-                                                                                        className="opacity-40 hover:opacity-100 transition-opacity"
-                                                                                    >
-                                                                                        <Check size={12} />
-                                                                                    </button>
+                                                                                    {err === activeLintError && (
+                                                                                        <span className="text-[10px] font-bold bg-blue-500 text-white px-2 py-0.5 rounded-full">ACTIVE</span>
+                                                                                    )}
                                                                                 </div>
                                                                                 <p className="text-sm font-bold leading-tight">
-                                                                                    {activeLintError.message}
+                                                                                    {err.message}
                                                                                 </p>
                                                                             </div>
                                                                         </div>
                                                                         {/* Carrot arrow pointing up */}
-                                                                        <div className={`absolute -top-1.5 left-4 w-3 h-3 rotate-45 border-t border-l ${isDarkMode ? 'bg-gray-800 border-red-500/50' : 'bg-red-50 border-red-200'
-                                                                            }`} />
+                                                                        {eIdx === 0 && (
+                                                                            <div className={`absolute -top-1.5 left-4 w-3 h-3 rotate-45 border-t border-l ${err === activeLintError
+                                                                                ? (isDarkMode ? 'bg-gray-800 border-blue-500' : 'bg-blue-50 border-blue-300')
+                                                                                : (isDarkMode ? 'bg-gray-800 border-red-500/50' : 'bg-red-50 border-red-200')
+                                                                                }`} />
+                                                                        )}
                                                                     </div>
-                                                                )}
+                                                                ))}
                                                             </div>
                                                         )
                                                     })}
