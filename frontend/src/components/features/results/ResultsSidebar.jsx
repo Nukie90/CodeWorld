@@ -237,9 +237,6 @@ function ResultsSidebar({
                                 <p className="text-sm font-bold text-blue-900 dark:text-blue-200 truncate mb-1">
                                     {animatingCommit.message}
                                 </p>
-                                <p className="text-xs font-mono text-gray-600 dark:text-gray-400 truncate">
-                                    {animatingCommit.hash?.substring(0, 12)}
-                                </p>
                                 {animationProgress > 0 && (
                                     <div className="mt-3">
                                         <div className="flex items-center justify-between text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">

@@ -55,6 +55,8 @@ function ResultsPage() {
   const [isCustomMode, setIsCustomMode] = useState(false);
   const [selectedDirectory, setSelectedDirectory] = useState('All');
   const [availableDirectories, setAvailableDirectories] = useState([]);
+  const [lintResults, setLintResults] = useState(null);
+  const [isLinting, setIsLinting] = useState(false);
 
   const individual_files = useMemo(() => analysisResult?.analysis?.individual_files || [], [analysisResult]);
 
@@ -127,6 +129,7 @@ function ResultsPage() {
   const handleFunctionClick = useCallback(async (functionData) => {
     if (!analysisResult?.repo_url) return;
     setCodeLoading(true);
+    setLintResults(null);
     setSelectedCode(null);
     setIsRightPanelOpen(true);
     setIsBottomPanelOpen(false);
@@ -155,9 +158,30 @@ function ResultsPage() {
     }
   }, [analysisResult?.repo_url, token]);
 
+  const handleLintFile = useCallback(async (filename) => {
+    if (!filename || !analysisResult?.repo_url) return;
+    setIsLinting(true);
+    setLintResults(null);
+    try {
+      const resp = await repoService.lintFile(filename, {
+        repo_url: analysisResult.repo_url,
+        commit_hash: animatingCommit?.hash || currentBranch || 'HEAD',
+        token: token
+      });
+      if (resp.data) {
+        setLintResults(resp.data);
+      }
+    } catch (err) {
+      console.error('Failed to lint file', err);
+    } finally {
+      setIsLinting(false);
+    }
+  }, [analysisResult?.repo_url, animatingCommit?.hash, currentBranch, token]);
+
   const handleFileCodeFetch = useCallback(async (fileData) => {
     if (!analysisResult?.repo_url) return;
     setCodeLoading(true);
+    setLintResults(null);
     setSelectedCode(null);
     setIsRightPanelOpen(true);
     setIsBottomPanelOpen(false);
@@ -371,6 +395,9 @@ function ResultsPage() {
         borderColor={borderColor}
         textColor={textColor}
         panelBg={panelBg}
+        lintResults={lintResults}
+        isLinting={isLinting}
+        handleLintFile={handleLintFile}
       />
 
       {/* Right Panel Toggle Button */}

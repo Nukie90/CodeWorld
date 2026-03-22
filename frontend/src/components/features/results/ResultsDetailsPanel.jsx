@@ -1,5 +1,5 @@
 // Side/Bottom Panels: Code Viewer & Metrics Tables
-import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp } from 'lucide-react';
+import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp, AlertTriangle, Info, CheckCircle } from 'lucide-react';
 
 function ResultsDetailsPanel({
     isDarkMode,
@@ -24,7 +24,10 @@ function ResultsDetailsPanel({
     handleFunctionClick,
     isBottomPanelOpen,
     setIsBottomPanelOpen,
-    setIsLeftPanelOpen
+    setIsLeftPanelOpen,
+    lintResults,
+    isLinting,
+    handleLintFile
 }) {
     const textColor = isDarkMode ? 'text-white' : 'text-gray-900';
     const panelBg = isDarkMode ? 'bg-gray-800' : 'bg-white';
@@ -85,6 +88,20 @@ function ResultsDetailsPanel({
                                     <Sparkles size={14} strokeWidth={2.5} />
                                     AI Suggest
                                 </button>
+                                <button
+                                    onClick={() => {
+                                        setCodeDisplayMode('linterSuggest');
+                                        handleLintFile(selectedCode.filename);
+                                    }}
+                                    className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all ${codeDisplayMode === 'linterSuggest'
+                                        ? 'bg-gradient-to-r from-teal-500 to-emerald-600 text-white shadow-lg'
+                                        : `${textColor} hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-white`
+                                        }`}
+                                    title="Linter Suggestions"
+                                >
+                                    <AlertTriangle size={14} strokeWidth={2.5} />
+                                    Linter Suggest
+                                </button>
                             </div>
 
                             <button
@@ -110,7 +127,7 @@ function ResultsDetailsPanel({
                         </div>
                     )}
 
-                    <div className={`${isDarkMode ? 'bg-gray-900' : 'bg-white'} rounded-xl ${codeDisplayMode === 'aiSuggest' ? 'p-0' : 'p-5'} flex-1 overflow-auto border ${borderColor} shadow-inner`}>
+                    <div className={`${isDarkMode ? 'bg-gray-900' : 'bg-white'} rounded-xl ${codeDisplayMode === 'aiSuggest' || codeDisplayMode === 'linterSuggest' ? 'p-0' : 'p-5'} flex-1 overflow-auto border ${borderColor} shadow-inner`}>
                         {codeLoading ? (
                             <div className="flex items-center justify-center h-full">
                                 <p className="text-gray-400 text-sm">Loading function code...</p>
@@ -132,6 +149,19 @@ function ResultsDetailsPanel({
                                     <h4 className={`text-base font-semibold px-4 pt-4 ${isDarkMode ? 'text-indigo-200' : 'text-indigo-900/80'}`}>
                                         Let's spice up that code a bit!
                                     </h4>
+                                )}
+                                {codeDisplayMode === 'linterSuggest' && (
+                                    <div className="flex items-center justify-between px-6 pt-6 mb-2">
+                                        <h4 className={`text-xl font-black bg-gradient-to-r from-teal-400 to-emerald-500 bg-clip-text text-transparent`}>
+                                            Linter Insights
+                                        </h4>
+                                        {lintResults?.lint_score != null && (
+                                            <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
+                                                <span className="text-xs font-bold text-emerald-500 uppercase tracking-tighter">Lint Score</span>
+                                                <span className="text-lg font-black text-emerald-500">{(lintResults.lint_score).toFixed(1)}/10</span>
+                                            </div>
+                                        )}
+                                    </div>
                                 )}
                                 <div className="flex-1 overflow-auto relative">
                                     {codeDisplayMode === 'aiSuggest' ? (
@@ -172,6 +202,57 @@ function ResultsDetailsPanel({
                                                     </div>
                                                 </div>
                                             </div>
+                                        </div>
+                                    ) : codeDisplayMode === 'linterSuggest' ? (
+                                        <div className={`h-full flex flex-col overflow-y-auto rounded-xl p-4`} style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+                                            {isLinting ? (
+                                                <div className="flex flex-col items-center justify-center h-full gap-4 py-12">
+                                                    <div className="w-12 h-12 border-4 border-teal-500/20 border-t-teal-500 rounded-full animate-spin"></div>
+                                                    <p className="text-sm font-bold text-gray-500 animate-pulse uppercase tracking-widest">Running Linter...</p>
+                                                </div>
+                                            ) : lintResults ? (
+                                                <div className="space-y-4">
+                                                    {lintResults.lint_errors.length === 0 ? (
+                                                        <div className={`p-8 rounded-[2rem] flex flex-col items-center justify-center text-center gap-4 ${isDarkMode ? 'bg-gray-800/40' : 'bg-emerald-50/30'}`}>
+                                                            <CheckCircle size={48} className="text-emerald-500" />
+                                                            <div>
+                                                                <h5 className="font-black text-lg text-emerald-500">Pristine Code!</h5>
+                                                                <p className="text-sm opacity-60">No linting issues were found. Your code is clean and follows best practices.</p>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        lintResults.lint_errors.map((error, idx) => (
+                                                            <div key={idx} className={`group p-5 rounded-[2rem] shadow-sm transform transition-all hover:scale-[1.01] flex gap-4 ${isDarkMode ? 'bg-gray-800 border border-gray-700' : 'bg-white border border-gray-100 shadow-md'}`}>
+                                                                <div className={`mt-1 h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center ${error.type === 'error' ? 'bg-red-500/10 text-red-500' :
+                                                                    error.type === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                                                                        'bg-blue-500/10 text-blue-500'
+                                                                    }`}>
+                                                                    {error.type === 'error' ? <AlertTriangle size={20} /> : <Info size={20} />}
+                                                                </div>
+                                                                <div className="flex-1">
+                                                                    <div className="flex items-center justify-between mb-1">
+                                                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${error.type === 'error' ? 'bg-red-500/10 text-red-500' :
+                                                                            error.type === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                                                                                'bg-blue-500/10 text-blue-500'
+                                                                            }`}>
+                                                                            {error.symbol || error.type}
+                                                                        </span>
+                                                                        <span className="text-[10px] font-bold opacity-40">Line {error.line}:{error.column}</span>
+                                                                    </div>
+                                                                    <p className={`text-sm font-semibold leading-relaxed mb-1 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                                                                        {error.message}
+                                                                    </p>
+                                                                    <span className="text-[10px] opacity-40 font-mono tracking-tighter">ID: {error.message_id}</span>
+                                                                </div>
+                                                            </div>
+                                                        ))
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="flex flex-col items-center justify-center h-full gap-4 py-12">
+                                                    <p className="text-sm font-bold text-gray-500 opacity-50 uppercase tracking-widest">No linting data available</p>
+                                                </div>
+                                            )}
                                         </div>
                                     ) : codeDisplayMode === 'highlighted' ? (
                                         <div className="relative">

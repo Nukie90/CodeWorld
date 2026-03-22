@@ -19,6 +19,7 @@ export const repoService = {
     getCommits: (repo_url, branch, token, limit = 1000) =>
         api.post('/repo/commits', { repo_url, branch, token, limit }),
     analyzeRepo: (data) => api.post('/analyze/repo', data),
+    lintFile: (fileName, data) => api.post(`/lint/${fileName}`, data),
 };
 
 export default api;
