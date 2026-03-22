@@ -70,23 +70,72 @@ def calculate_cyclomatic_complexity(node: ast.AST, skip_nested_functions: bool =
 
 def count_lloc(tokens: list, start_line: int = None, end_line: int = None, exclude_ranges: list = None) -> int:
     """Calculate Logical Lines of Code (LLOC) based on tokenize NEWLINE and semicolons to match Radon."""
-    count = 0
+    filtered_tokens = []
     for tok in tokens:
         line_no = tok.start[0]
         if start_line is not None and line_no < start_line:
             continue
         if end_line is not None and line_no > end_line:
             continue
-            
         if exclude_ranges:
             if any(r_start <= line_no <= r_end for r_start, r_end in exclude_ranges):
                 continue
+        filtered_tokens.append(tok)
         
-        if tok.type == tokenize.NEWLINE:
-            count += 1
-        elif tok.type == tokenize.OP and tok.string == ';':
-            count += 1
+    if not filtered_tokens:
+        return 0
+
+    count = 0
+    current_logical_line = []
+    
+    def process_logical_line(line_tokens):
+        if not line_tokens: return 0
+        subs = []
+        cur = []
+        for t in line_tokens:
+            if t.type == tokenize.OP and t.string == ';':
+                subs.append(cur)
+                cur = []
+            else:
+                cur.append(t)
+        subs.append(cur)
+        
+        c = 0
+        for sub in subs:
+            processed = [t for t in sub if t.type not in (tokenize.COMMENT, tokenize.NL, tokenize.NEWLINE, tokenize.ENCODING, tokenize.INDENT, tokenize.DEDENT)]
+            if not processed:
+                continue
             
+            last_colon_idx = -1
+            for i in range(len(processed) - 1, -1, -1):
+                if processed[i].type == tokenize.OP and processed[i].string == ':':
+                    last_colon_idx = i
+                    break
+            if last_colon_idx != -1:
+                last_semantic = len(processed) - 1
+                while last_semantic > last_colon_idx and processed[last_semantic].type == tokenize.ENDMARKER:
+                    last_semantic -= 1
+                if last_colon_idx == last_semantic:
+                    c += 1
+                else:
+                    c += 2
+            else:
+                c_valid = [t for t in processed if t.type != tokenize.ENDMARKER]
+                if c_valid:
+                    c += 1
+        return c
+
+    for tok in filtered_tokens:
+        if tok.type in (tokenize.NEWLINE, tokenize.ENDMARKER):
+            current_logical_line.append(tok)
+            count += process_logical_line(current_logical_line)
+            current_logical_line = []
+        else:
+            current_logical_line.append(tok)
+            
+    if current_logical_line:
+        count += process_logical_line(current_logical_line)
+        
     return count
 
 def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, function_name: str = None) -> Dict[str, int]:

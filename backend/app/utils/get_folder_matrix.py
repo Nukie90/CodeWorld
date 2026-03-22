@@ -27,20 +27,7 @@ def _collect_files(temp_dir: str) -> List[Tuple[str, str]]:
             
     return all_files
 
-async def _analyze_file(file_path: str, relative_path: str, adapters: List[AnalysisAdapter]) -> Optional[FileMetrics]:
-    """Analyze a single file using the appropriate adapter."""
-    try:
-        content = await Path(file_path).read_text(encoding='utf-8')
-        
-        for adapter in adapters:
-            if adapter.supports(relative_path):
-                return await adapter.analyze_content(content, relative_path)
-                
-    except Exception as e:
-        # Skip files that can't be read or analyzed
-        print(f"Error analyzing {relative_path}: {e}")
-        
-    return None
+from app.utils.analysis_helpers import group_files_by_adapter, run_adapter_batches, aggregate_metrics
 
 async def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnalysisResult:
     """Analyze a folder uploaded as a zip file"""
@@ -53,50 +40,26 @@ async def get_folder_matrix(zip_content: bytes, folder_name: str) -> FolderAnaly
         
         # Find all files
         all_files = _collect_files(temp_dir)
-        
-        # Initialize Metrics
-        file_metrics_list: List[FileMetrics] = []
-        total_loc = 0
-        total_lloc = 0
-        total_functions = 0
-        total_complexity = 0
-        complexity_max = 0
-        halstead_volume = 0.0
-        
-        # Get list of adapters
         adapters = get_adapters()
 
-        for file_path, relative_path in all_files:
-            file_metrics = await _analyze_file(file_path, relative_path, adapters)
+        # Collect contents first
+        file_contents = {}
+        for file_path, rel_path in all_files:
+            try:
+                content = await Path(file_path).read_text(encoding='utf-8')
+                file_contents[rel_path] = content
+            except Exception as e:
+                print(f"Error reading {rel_path}: {e}")
 
-            if file_metrics:
-                file_metrics_list.append(file_metrics)
-                
-                # Aggregate folder metrics
-                total_loc += file_metrics.total_loc
-                total_lloc += file_metrics.total_lloc
-                total_functions += file_metrics.function_count
-                
-                # Ensure complexity_avg is treated as a number
-                total_complexity += file_metrics.total_complexity
-                
-                if file_metrics.complexity_max > complexity_max:
-                    complexity_max = file_metrics.complexity_max
-                
-                if file_metrics.halstead_volume is not None:
-                    halstead_volume += file_metrics.halstead_volume
-        
-        folder_metrics = FolderMetrics(
-            folder_name=folder_name,
-            total_files=len(file_metrics_list),
-            total_loc=total_loc,
-            total_lloc=total_lloc,
-            total_functions=total_functions,
-            total_complexity=total_complexity,
-            complexity_max=complexity_max,
-            halstead_volume=halstead_volume,
-            files=file_metrics_list
+        rel_paths = [f[1] for f in all_files]
+        grouped_files, _ = group_files_by_adapter(
+            rel_paths, adapters, lambda r: file_contents.get(r)
         )
+
+        # Batch analyze
+        file_metrics_list = await run_adapter_batches(grouped_files)
+
+        folder_metrics = aggregate_metrics(file_metrics_list, folder_name)
         
         return FolderAnalysisResult(
             folder_metrics=folder_metrics,

@@ -28,21 +28,15 @@ class LintRequest(BaseModel):
 
 @router.post("/lint/{file_name:path}", response_model=FileLint)
 async def lint_file(file_name: str, payload: LintRequest):
-    if file_name.endswith('.py'):
-        from app.python_plugin.python_analyzer import run_pylint
-        result = run_pylint(payload.code, file_name)
-        return FileLint(lint_score=result.get("score"), lint_errors=result.get("errors", []))
-    elif file_name.endswith(('.js', '.jsx', '.ts', '.tsx')):
-        import httpx
-        try:
-            async with httpx.AsyncClient() as client:
-                resp = await client.post("http://localhost:3001/lint-code", json={"code": payload.code, "filename": file_name})
-            if resp.status_code == 200:
-                data = resp.json()
-                return FileLint(lint_score=data.get("lint_score"), lint_errors=data.get("lint_errors", []))
-        except Exception as e:
-            print(f"Failed to fetch JS lint: {e}")
-            
+    from app.adapter.factory import get_adapters
+    for adapter in get_adapters():
+        if adapter.supports(file_name):
+            result = await adapter.lint_content(payload.code, file_name)
+            if result:
+                return result
+            # break here to prevent falling through if an adapter matches but returns None
+            break
+
     return FileLint(lint_score=None, lint_errors=[])
 
 

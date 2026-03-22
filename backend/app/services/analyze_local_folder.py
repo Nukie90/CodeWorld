@@ -1,15 +1,11 @@
 import os
+import asyncio
 from typing import List, Optional, Callable
 import pygount
-from app.utils.get_file_matrix_js import get_file_matrix_js_batch
-from app.python_plugin.python_analyzer import calculate_metrics as get_file_matrix_python
+from app.adapter.factory import get_adapters
 from app.model.analyzer_model import FileMetrics, FolderMetrics, FolderAnalysisResult
 from app.utils.ignore import build_ignore_checker
-
-
-JS_EXTENSIONS = ('.js', '.jsx', '.ts', '.tsx')
-PYTHON_EXTENSION = '.py'
-
+from app.utils.analysis_helpers import aggregate_metrics, run_adapter_batches, group_files_by_adapter
 
 def _analyze_single_file(file_path: str, relative_path: str,
                           content_override: Optional[str] = None) -> Optional[FileMetrics]:
@@ -21,14 +17,11 @@ def _analyze_single_file(file_path: str, relative_path: str,
             with open(file_path, "r", encoding="utf-8", errors="replace") as f:
                 content = f.read()
 
-        ext = os.path.splitext(relative_path)[1].lower()
+        adapters = get_adapters()
+        supported_adapter = next((a for a in adapters if a.supports(relative_path)), None)
 
-        if ext in JS_EXTENSIONS:
-            # Will be handled by batch — should not be called directly for JS in normal flow
-            from app.utils.get_file_matrix_js import get_file_matrix_js
-            return get_file_matrix_js(content, relative_path)
-        elif ext == PYTHON_EXTENSION:
-            return get_file_matrix_python(content, relative_path)
+        if supported_adapter:
+            return asyncio.run(supported_adapter.analyze_content(content, relative_path))
         else:
             # pygount only works on real files; if we have a content override, count lines
             if content_override is not None:
@@ -60,6 +53,29 @@ def _analyze_single_file(file_path: str, relative_path: str,
         print(f"Skipping file {relative_path} due to error: {e}")
         return None
 
+def _scan_directory(path: str, is_ignored: Callable) -> List[tuple[str, str]]:
+    """Recursively scan directory for files that are not ignored."""
+    all_files = []
+    for root, dirs, files in os.walk(path):
+        dirs[:] = [d for d in dirs if not is_ignored(os.path.join(root, d))]
+        for file in files:
+            file_path = os.path.join(root, file)
+            if is_ignored(file_path):
+                continue
+            relative_path = os.path.relpath(file_path, path).replace(os.path.sep, '/')
+            all_files.append((file_path, relative_path))
+    return all_files
+
+def _carry_over_unchanged_files(previous_analysis: FolderAnalysisResult, 
+                               changed_set: set, deleted_set: set) -> List[FileMetrics]:
+    """Identify unchanged files from previous analysis and carry them forward."""
+    prev_map: dict[str, FileMetrics] = {}
+    for m in previous_analysis.individual_files:
+        clean_name = m.filename.split('\n')[0]
+        prev_map[clean_name] = m
+    
+    return [m for clean_name, m in prev_map.items() 
+            if clean_name not in changed_set and clean_name not in deleted_set]
 
 def _incremental_analysis(
     local_path: str,
@@ -78,92 +94,92 @@ def _incremental_analysis(
     deleted_set = set(deleted_files or [])
     changed_set = set(changed_files or [])
 
-    # Build lookup of previous file metrics (strip language suffix from key)
-    prev_map: dict[str, FileMetrics] = {}
-    for m in previous_analysis.individual_files:
-        clean_name = m.filename.split('\n')[0]
-        prev_map[clean_name] = m
-
-    file_metrics_list: List[FileMetrics] = []
-
-    # 1. Carry over all unchanged, non-deleted previous files
-    for clean_name, m in prev_map.items():
-        if clean_name not in changed_set and clean_name not in deleted_set:
-            file_metrics_list.append(m)
+    file_metrics_list = _carry_over_unchanged_files(previous_analysis, changed_set, deleted_set)
 
     # 2. Analyze ONLY the changed/added files
-    js_to_analyze: List[tuple] = []  # (content, relative_path)
-    non_js_to_analyze: List[tuple] = []  # (relative_path, content_or_None)
+    adapters = get_adapters()
 
-    for rel_path in changed_files:
-        if rel_path in deleted_set:
-            continue  # deleted — skip
-        content = None
-        if file_contents_override:
-            content = file_contents_override.get(rel_path)
-        if content is None:
-            # Try reading from disk as fallback
-            abs_path = os.path.join(local_path, rel_path.replace('/', os.sep))
-            if os.path.exists(abs_path):
-                try:
-                    with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
-                        content = f.read()
-                except Exception:
-                    pass
-        if content is None:
-            continue  # Can't get content — skip
+    def get_content(rel_path):
+        if file_contents_override and rel_path in file_contents_override:
+            return file_contents_override[rel_path]
+        abs_path = os.path.join(local_path, rel_path.replace('/', os.sep))
+        if os.path.exists(abs_path):
+             try:
+                 with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
+                     return f.read()
+             except Exception:
+                 pass
+        return None
 
-        ext = os.path.splitext(rel_path)[1].lower()
-        if ext in JS_EXTENSIONS:
-            js_to_analyze.append((content, rel_path))
-        else:
-            non_js_to_analyze.append((rel_path, content))
+    grouped_files, unsupported_files = group_files_by_adapter(
+        changed_files, adapters, get_content, deleted_set
+    )
 
-    # Batch analyze JS files in one call
-    if js_to_analyze:
-        results = get_file_matrix_js_batch(js_to_analyze)
-        for fm in results:
-            if fm is not None:
-                file_metrics_list.append(fm)
+    # Batch analyze files per adapter
+    batch_results = asyncio.run(run_adapter_batches(grouped_files))
+    file_metrics_list.extend(batch_results)
 
-    # Analyze non-JS changed files
-    for rel_path, content in non_js_to_analyze:
+    # Analyze unsupported files (pygount)
+    for rel_path, content in unsupported_files:
         abs_path = os.path.join(local_path, rel_path.replace('/', os.sep))
         fm = _analyze_single_file(abs_path, rel_path, content_override=content)
         if fm is not None:
             file_metrics_list.append(fm)
 
-    # 3. Aggregate metrics
-    total_loc = total_lloc = total_functions = total_complexity = complexity_max = 0
-    halstead_volume = 0.0
-    total_mi = 0.0
-    valid_mi_files = 0
+    folder_metrics = aggregate_metrics(file_metrics_list, os.path.basename(local_path))
+    return FolderAnalysisResult(folder_metrics=folder_metrics, individual_files=file_metrics_list)
 
-    for fm in file_metrics_list:
-        total_loc += fm.total_loc or 0
-        total_lloc += fm.total_lloc or 0
-        total_functions += fm.function_count or 0
-        total_complexity += fm.total_complexity or 0
-        if (fm.complexity_max or 0) > complexity_max:
-            complexity_max = fm.complexity_max or 0
-        if getattr(fm, 'halstead_volume', None) is not None:
-            halstead_volume += fm.halstead_volume
-        if getattr(fm, 'maintainability_index', None) is not None:
-            total_mi += fm.maintainability_index
-            valid_mi_files += 1
 
-    folder_metrics = FolderMetrics(
-        folder_name=os.path.basename(local_path),
-        total_files=len(file_metrics_list),
-        total_loc=total_loc,
-        total_lloc=total_lloc,
-        total_functions=total_functions,
-        total_complexity=total_complexity,
-        complexity_max=complexity_max,
-        halstead_volume=halstead_volume,
-        maintainability_index=round(total_mi / valid_mi_files, 2) if valid_mi_files > 0 else None,
-        files=file_metrics_list,
+
+def _full_analysis(
+    path: str,
+    progress_callback: Optional[Callable] = None,
+) -> FolderAnalysisResult:
+    """Perform a complete analysis of a local folder."""
+    if progress_callback:
+        progress_callback(35, "Scanning directory structure")
+
+    all_files = _scan_directory(path, build_ignore_checker(path))
+    num_files = len(all_files)
+
+    if progress_callback:
+        progress_callback(40, f"Starting analysis of {num_files} files")
+
+    adapters = get_adapters()
+    rel_paths = [f[1] for f in all_files]
+
+    def get_content(rel_path):
+        target = next((f[0] for f in all_files if f[1] == rel_path), None)
+        if target and os.path.exists(target):
+            try:
+                with open(target, "r", encoding="utf-8", errors="replace") as f:
+                    return f.read()
+            except Exception as e:
+                print(f"Skipping file {rel_path}: {e}")
+        return None
+
+    grouped_files, unsupported_files_with_content = group_files_by_adapter(
+        rel_paths, adapters, get_content
     )
+
+    if progress_callback:
+        progress_callback(45, "Batch analyzing plugin files")
+
+    file_metrics_list = asyncio.run(run_adapter_batches(grouped_files))
+
+    if progress_callback:
+        progress_callback(70, "Analyzing pygount fallback files")
+
+    for rel_path, content in unsupported_files_with_content:
+        abs_path = os.path.join(path, rel_path.replace('/', os.sep))
+        fm = _analyze_single_file(abs_path, rel_path, content_override=content)
+        if fm is not None:
+            file_metrics_list.append(fm)
+
+    if progress_callback:
+        progress_callback(95, "Aggregating metrics")
+
+    folder_metrics = aggregate_metrics(file_metrics_list, os.path.basename(path))
     return FolderAnalysisResult(folder_metrics=folder_metrics, individual_files=file_metrics_list)
 
 
@@ -177,9 +193,6 @@ def analyze_local_folder(
 ) -> FolderAnalysisResult:
     """Analyze a local folder on disk and return folder analysis result."""
 
-    # ---- Fast incremental path (used during timeline playback) ----
-    # When we have a previous cached analysis and know exactly which files changed,
-    # skip os.walk entirely and build the result from the cache + fresh analysis.
     if previous_analysis is not None and changed_files is not None:
         if progress_callback:
             progress_callback(50, f"Incremental: re-analyzing {len(changed_files)} changed file(s)")
@@ -192,101 +205,4 @@ def analyze_local_folder(
             progress_callback(95, "Done")
         return result
 
-    # ---- Full analysis path (first commit, branch checkout, etc.) ----
-    all_files = []
-    is_ignored = build_ignore_checker(path)
-
-    if progress_callback:
-        progress_callback(35, "Scanning directory structure")
-
-    for root, dirs, files in os.walk(path):
-        dirs[:] = [d for d in dirs if not is_ignored(os.path.join(root, d))]
-        for file in files:
-            file_path = os.path.join(root, file)
-            if is_ignored(file_path):
-                continue
-            relative_path = os.path.relpath(file_path, path).replace(os.path.sep, '/')
-            all_files.append((file_path, relative_path))
-
-    file_metrics_list: List[FileMetrics] = []
-    total_loc = 0
-    total_lloc = 0
-    total_functions = 0
-    total_complexity = 0
-    complexity_max = 0
-    total_mi = 0.0
-    valid_mi_files = 0
-
-    num_files = len(all_files)
-
-    if progress_callback:
-        progress_callback(40, f"Starting analysis of {num_files} files")
-
-    # Separate into JS and non-JS for efficient batch handling
-    js_to_analyze: List[tuple] = []   # (content, relative_path)
-    non_js: List[tuple] = []          # (file_path, relative_path)
-
-    for file_path, relative_path in all_files:
-        ext = os.path.splitext(relative_path)[1].lower()
-        if ext in JS_EXTENSIONS:
-            try:
-                with open(file_path, "r", encoding="utf-8", errors="replace") as f:
-                    content = f.read()
-                js_to_analyze.append((content, relative_path))
-            except Exception as e:
-                print(f"Skipping JS file {relative_path}: {e}")
-        else:
-            non_js.append((file_path, relative_path))
-
-    if progress_callback:
-        progress_callback(45, f"Batch analyzing {len(js_to_analyze)} JS/TS files")
-
-    # Batch all JS files in one HTTP call
-    if js_to_analyze:
-        results = get_file_matrix_js_batch(js_to_analyze)
-        for fm in results:
-            if fm is not None:
-                file_metrics_list.append(fm)
-
-    if progress_callback:
-        progress_callback(70, "Analyzing Python / other files")
-
-    # Analyze non-JS files
-    for file_path, relative_path in non_js:
-        fm = _analyze_single_file(file_path, relative_path)
-        if fm is not None:
-            file_metrics_list.append(fm)
-
-    if progress_callback:
-        progress_callback(95, "Aggregating metrics")
-
-    total_loc = total_lloc = total_functions = total_complexity = complexity_max = 0
-    halstead_volume = 0.0
-    total_mi = 0.0
-    valid_mi_files = 0
-    for fm in file_metrics_list:
-        total_loc += fm.total_loc
-        total_lloc += fm.total_lloc
-        total_functions += fm.function_count
-        total_complexity += fm.total_complexity
-        if (fm.complexity_max or 0) > complexity_max:
-            complexity_max = fm.complexity_max
-        if fm.halstead_volume is not None:
-            halstead_volume += fm.halstead_volume
-        if getattr(fm, 'maintainability_index', None) is not None:
-            total_mi += fm.maintainability_index
-            valid_mi_files += 1
-
-    folder_metrics = FolderMetrics(
-        folder_name=os.path.basename(path),
-        total_files=len(file_metrics_list),
-        total_loc=total_loc,
-        total_lloc=total_lloc,
-        total_functions=total_functions,
-        total_complexity=total_complexity,
-        complexity_max=complexity_max,
-        halstead_volume=halstead_volume,
-        maintainability_index=round(total_mi / valid_mi_files, 2) if valid_mi_files > 0 else None,
-        files=file_metrics_list,
-    )
-    return FolderAnalysisResult(folder_metrics=folder_metrics, individual_files=file_metrics_list)
+    return _full_analysis(path, progress_callback)

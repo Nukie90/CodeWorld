@@ -1,6 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-# from app.routes.analyzer_routes import router as analyzer_router
 from app.routes.github_routes import router as github_router
 from app.routes.ai_routes import router as ai_router
 
@@ -15,8 +14,6 @@ try:
 except Exception:
     # If python-dotenv isn't installed or .env doesn't exist, continue silently.
     print("env not loaded")
-    pass
-
 
 app = FastAPI()
 
@@ -48,4 +45,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000)
