@@ -1,4 +1,4 @@
-import React, { useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp, AlertTriangle, Info, CheckCircle, ExternalLink } from 'lucide-react';
 import LintScoreGauge from './visualizations/LintScoreGauge';
 import LintErrorDistribution from './visualizations/LintErrorDistribution';
@@ -31,6 +31,13 @@ function ResultsDetailsPanel({
     isLinting,
     handleLintFile
 }) {
+    const [activeLintError, setActiveLintError] = React.useState(null);
+
+    // Reset active error when code changes
+    useEffect(() => {
+        setActiveLintError(null);
+    }, [selectedCode?.filename, selectedCode?.functionName]);
+
     const textColor = isDarkMode ? 'text-white' : 'text-gray-900';
     const panelBg = isDarkMode ? 'bg-gray-800' : 'bg-white';
     const borderColor = isDarkMode ? 'border-gray-700' : 'border-gray-200';
@@ -243,13 +250,12 @@ function ResultsDetailsPanel({
                                                             <div
                                                                 key={idx}
                                                                 onClick={() => {
+                                                                    setActiveLintError(error);
                                                                     setCodeDisplayMode('highlighted');
                                                                     setTimeout(() => {
                                                                         const element = document.getElementById(`line-${error.line}`);
                                                                         if (element) {
                                                                             element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                                                            element.style.backgroundColor = isDarkMode ? 'rgba(59, 130, 246, 0.3)' : 'rgba(59, 130, 246, 0.1)';
-                                                                            setTimeout(() => { element.style.backgroundColor = 'transparent'; }, 2000);
                                                                         }
                                                                     }, 300);
                                                                 }}
@@ -305,18 +311,66 @@ function ResultsDetailsPanel({
                                             >
                                                 <code style={{ color: '#d4d4d4' }}>
                                                     {selectedCode.code.split('\n').map((line, idx) => {
+                                                        const isTargetLine = activeLintError && (idx + 1) === activeLintError.line;
                                                         const highlighted = line
                                                             .replace(/(['"`])(?:(?=(\\?))\2.)*?\1/g, '<span style="color: #ce9178">$&</span>')
                                                             .replace(/\b(async|await|function|const|let|var|if|else|for|while|return|class|import|export|from|def|try|except|finally|with|as)\b/g, '<span style="color: #569cd6">$&</span>')
                                                             .replace(/\b(\d+\.?\d*)\b/g, '<span style="color: #b5cea8">$&</span>')
                                                             .replace(/(\/\/.*$|\/\*[\s\S]*?\*\/)/gm, '<span style="color: #6a9955">$&</span>')
+
                                                         return (
                                                             <div
                                                                 key={idx}
                                                                 id={`line-${idx + 1}`}
-                                                                className="transition-colors duration-500"
-                                                                dangerouslySetInnerHTML={{ __html: highlighted || ' ' }}
-                                                            />
+                                                                className={`relative group transition-all duration-500 ${isTargetLine ? (isDarkMode ? 'bg-red-500/10' : 'bg-red-50') : ''}`}
+                                                            >
+                                                                {isTargetLine && activeLintError.column != null && (
+                                                                    <div
+                                                                        className="absolute h-full bg-red-500/30 border-b-2 border-red-500 z-0"
+                                                                        style={{
+                                                                            left: `${activeLintError.column - 1}ch`,
+                                                                            width: `${(activeLintError.endColumn || activeLintError.column + 1) - activeLintError.column}ch`,
+                                                                            pointerEvents: 'none'
+                                                                        }}
+                                                                    />
+                                                                )}
+                                                                <div
+                                                                    className="relative z-10"
+                                                                    dangerouslySetInnerHTML={{ __html: highlighted || ' ' }}
+                                                                />
+                                                                {isTargetLine && (
+                                                                    <div className={`mt-2 mb-4 p-4 rounded-2xl shadow-xl border animate-in zoom-in-95 slide-in-from-top-2 duration-300 relative z-20 ${isDarkMode ? 'bg-gray-800 border-red-500/50 text-red-200' : 'bg-red-50 border-red-200 text-red-700'
+                                                                        }`}>
+                                                                        <div className="flex items-start gap-3">
+                                                                            <div className={`p-1.5 rounded-lg ${isDarkMode ? 'bg-red-500/20' : 'bg-red-500/10'}`}>
+                                                                                <AlertTriangle size={14} className="text-red-500" />
+                                                                            </div>
+                                                                            <div className="flex-1">
+                                                                                <div className="flex items-center justify-between mb-1">
+                                                                                    <span className="text-[10px] font-black uppercase tracking-widest opacity-70">
+                                                                                        {activeLintError.symbol || activeLintError.type}
+                                                                                    </span>
+                                                                                    <button
+                                                                                        onClick={(e) => {
+                                                                                            e.stopPropagation();
+                                                                                            setActiveLintError(null);
+                                                                                        }}
+                                                                                        className="opacity-40 hover:opacity-100 transition-opacity"
+                                                                                    >
+                                                                                        <Check size={12} />
+                                                                                    </button>
+                                                                                </div>
+                                                                                <p className="text-sm font-bold leading-tight">
+                                                                                    {activeLintError.message}
+                                                                                </p>
+                                                                            </div>
+                                                                        </div>
+                                                                        {/* Carrot arrow pointing up */}
+                                                                        <div className={`absolute -top-1.5 left-4 w-3 h-3 rotate-45 border-t border-l ${isDarkMode ? 'bg-gray-800 border-red-500/50' : 'bg-red-50 border-red-200'
+                                                                            }`} />
+                                                                    </div>
+                                                                )}
+                                                            </div>
                                                         )
                                                     })}
                                                 </code>
