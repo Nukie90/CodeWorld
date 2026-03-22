@@ -600,6 +600,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         const diff = SceneDiffer.diffFiles(previousFilesRef.current, individualFiles);
         if (diff.added.length === 0 && diff.removed.length === 0 && diff.modified.length === 0) return;
 
+        const startTime = performance.now();
         console.log('[Island3D] Incremental update:', SceneDiffer.getSummary(diff));
 
         // Handle removed files
@@ -793,16 +794,21 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         // Fire laser strike directly here (avoids race condition with separate useEffect)
         if (changedFilenames.length > 0 && isTimelinePlayingRef.current && animatingCommitRef.current) {
             const commitAuthor = animatingCommitRef.current.author;
-            console.log(`[Island3D] Incremental diff found ${changedFilenames.length} changed files. Firing laser for ${commitAuthor}.`);
             // Small delay to let React finish rendering state from this batch
             setTimeout(() => {
+                const droneStart = performance.now();
                 // Ensure timeline is STILL playing after the delay to prevent stranded drones
                 if (sceneRef.current && isTimelinePlayingRef.current && showContributorsRef.current) {
                     createDrone(commitAuthor, sceneRef.current, islandCenterX, islandCenterZ);
                     triggerLaserStrike(commitAuthor, changedFilenames, sceneRef.current);
                 }
+                const droneEnd = performance.now();
+                console.log(`[Island3D] Contributor and laser setup processed in ${(droneEnd - droneStart).toFixed(2)}ms`);
             }, 150);
         }
+
+        const endTime = performance.now();
+        console.log(`[Island3D] Total incremental loop processed in ${(endTime - startTime).toFixed(2)}ms for ${individualFiles.length} nodes`);
 
         // Since we flawlessly handle geometry instantiation inline now, we no longer need the fallback rebuild at all
         previousFilesRef.current = individualFiles;
