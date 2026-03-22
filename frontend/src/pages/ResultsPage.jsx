@@ -16,6 +16,8 @@ import { useRepoBranches } from '../hooks/useRepoBranches';
 import { useRepoAnimation } from '../hooks/useRepoAnimation';
 import { repoService } from '../services/api';
 
+import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp } from 'lucide-react';
+
 function ResultsPage() {
   const navigate = useNavigate();
   const { state } = useLocation();
