@@ -428,115 +428,22 @@ function ResultsDetailsPanel({
                 }}
             >
                 <div className="h-full flex flex-col overflow-hidden">
-                    <div className={`flex ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-100/30'} backdrop-blur-sm p-1.5 m-6 mb-4 rounded-xl border ${isDarkMode ? 'border-white/10' : 'border-gray-200/50'} shadow-lg gap-2`}>
-                        <button
-                            onClick={() => setRightPanelTab('summary')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider transition-all rounded-lg ${rightPanelTab === 'summary'
-                                ? 'bg-gradient-to-r from-blue-500 to-teal-600 text-white shadow-lg'
-                                : `${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50' : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'}`
-                                }`}
-                        >
-                            <FileTextIcon size={16} strokeWidth={2.5} /> Folder Summary
-                        </button>
-                        <button
-                            onClick={() => setRightPanelTab('analysis')}
-                            className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-xs sm:text-sm font-bold uppercase tracking-wider transition-all rounded-lg ${rightPanelTab === 'analysis'
-                                ? 'bg-gradient-to-r from-blue-500 to-teal-600 text-white shadow-lg'
-                                : `${isDarkMode ? 'text-gray-400 hover:text-gray-200 hover:bg-gray-700/50' : 'text-gray-600 hover:text-gray-900 hover:bg-white/50'}`
-                                }`}
-                        >
-                            <Hash size={16} strokeWidth={2.5} /> File Analysis
-                        </button>
+                    <div className="flex items-center gap-3 px-6 mt-8 mb-2 text-slate-900 dark:text-gray-100">
+                        <FileTextIcon size={20} strokeWidth={2.5} className="text-blue-600 dark:text-blue-400" />
+                        <span className="text-lg font-black uppercase tracking-widest">Folder Summary</span>
                     </div>
-
-                    <div className="flex-1 overflow-y-auto px-6 pb-6">
-                        {rightPanelTab === 'summary' ? (
-                            <div className="animate-in fade-in duration-300">
-                                <h3 className="text-xl font-bold mb-6 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Project Metrics</h3>
-                                <div className="grid grid-cols-3 gap-6">
-                                    {Object.entries(folderSummary).map(([key, value]) => (
-                                        <div key={key} className={`${isDarkMode ? 'bg-gray-800/50' : 'bg-gradient-to-br from-blue-50 to-purple-50'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg hover:shadow-xl transition-all`}>
-                                            <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">{key}</span>
-                                            <span className={`font-black text-2xl ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{value}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="animate-in fade-in slide-in-from-right-4 duration-300">
-                                {selectedFileForCard ? (() => {
-                                    const fullFileData = individual_files?.find(f => f.filename === selectedFileForCard.filename) || selectedFileForCard;
-                                    return (
-                                        <div className={`${isDarkMode ? 'bg-gradient-to-br from-gray-800 to-gray-700' : 'bg-gradient-to-br from-white to-blue-50'} rounded-2xl p-6 border-l-4 border-l-blue-500 shadow-2xl`}>
-                                            <div className="mb-6">
-                                                <h3 className="text-xs font-bold text-blue-500 opacity-70 uppercase tracking-wider mb-2">Selected File</h3>
-                                                <h4 className="text-base font-black break-all leading-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                                                    {fullFileData.filename}
-                                                </h4>
-                                            </div>
-                                            <div className="grid grid-cols-5 gap-4 mb-6">
-                                                <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
-                                                    <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Total LOC</span>
-                                                    <span className={`text-xl font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{fullFileData.total_loc || "—"}</span>
-                                                </div>
-                                                <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
-                                                    <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Logical LOC</span>
-                                                    <span className={`text-xl font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{fullFileData.total_nloc || "—"}</span>
-                                                </div>
-                                                <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
-                                                    <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Max Complexity</span>
-                                                    <span className="text-xl font-black bg-gradient-to-r from-red-600 to-orange-600 bg-clip-text text-transparent">{fullFileData.total_complexity || "—"}</span>
-                                                </div>
-                                                <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
-                                                    <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Cog Complexity</span>
-                                                    <span className="text-xl font-black bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">{fullFileData.total_cognitive_complexity || "0"}</span>
-                                                </div>
-                                                <div className={`${isDarkMode ? 'bg-gray-900/50' : 'bg-white/80'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg`}>
-                                                    <span className="text-xs text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider block mb-2">Functions</span>
-                                                    <span className={`text-xl font-black ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{fullFileData.function_count || fullFileData.functions?.length || 0}</span>
-                                                </div>
-                                            </div>
-                                            <div>
-                                                <h3 className="text-sm font-bold text-gray-600 dark:text-gray-300 uppercase tracking-wider mb-3">Functions List</h3>
-                                                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 max-h-60 overflow-y-auto pr-2">
-                                                    {selectedFileForCard.functions?.map((fn, idx) => (
-                                                        <button
-                                                            key={idx}
-                                                            onClick={() => handleFunctionClick({
-                                                                filename: selectedFileForCard.filename,
-                                                                functionName: fn.name,
-                                                                startLine: fn.start_line,
-                                                                nloc: fn.nloc
-                                                            })}
-                                                            className={`${isDarkMode ? 'bg-gray-800/70 hover:bg-gray-700' : 'bg-white/70 hover:bg-blue-50'} backdrop-blur-sm rounded-xl p-3 text-left transition-all border ${borderColor} shadow-md hover:shadow-lg hover:border-blue-400 group`}
-                                                        >
-                                                            <div className="flex justify-between items-start">
-                                                                <div className="flex flex-col flex-1 min-w-0">
-                                                                    <span className="font-bold text-sm truncate group-hover:text-blue-500 transition-colors">{fn.name}</span>
-                                                                    <span className="text-xs opacity-60 font-medium">Lines: {fn.nloc}</span>
-                                                                </div>
-                                                                <span className={`ml-2 px-2.5 py-1 rounded-lg text-xs font-black ${fn.cyclomatic_complexity > 10
-                                                                    ? 'bg-gradient-to-r from-red-500 to-orange-500 text-white shadow-lg'
-                                                                    : 'bg-gradient-to-r from-blue-500 to-purple-500 text-white shadow-lg'
-                                                                    }`}>
-                                                                    CC {fn.cyclomatic_complexity}
-                                                                </span>
-                                                            </div>
-                                                        </button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    );
-                                })() : (
-                                    <div className={`h-64 flex flex-col items-center justify-center ${isDarkMode ? 'text-gray-500' : 'text-gray-400'} text-center px-6 border-2 border-dashed ${borderColor} rounded-2xl backdrop-blur-sm`}>
-                                        <Code size={48} className="mb-4 opacity-20" strokeWidth={1.5} />
-                                        <p className="text-sm font-bold uppercase tracking-widest mb-2">No File Selected</p>
-                                        <p className="text-xs opacity-70 max-w-md">Click on a building in the 3D city, a bar in the chart, or any visualization element to see detailed file analysis</p>
+                    <div className="flex-1 overflow-y-auto px-6 pb-6 pt-2">
+                        <div className="animate-in fade-in duration-300">
+                            <h3 className="text-sm font-bold mb-4 text-gray-500 dark:text-gray-400 uppercase tracking-widest">Project Metrics</h3>
+                            <div className="grid grid-cols-3 gap-6">
+                                {Object.entries(folderSummary).map(([key, value]) => (
+                                    <div key={key} className={`${isDarkMode ? 'bg-gray-800/50' : 'bg-gradient-to-br from-blue-50 to-purple-50'} backdrop-blur-sm rounded-xl p-4 border ${borderColor} shadow-lg hover:shadow-xl transition-all`}>
+                                        <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider block mb-2">{key}</span>
+                                        <span className={`font-black text-2xl ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{value}</span>
                                     </div>
-                                )}
+                                ))}
                             </div>
-                        )}
+                        </div>
                     </div>
                 </div>
             </div>
