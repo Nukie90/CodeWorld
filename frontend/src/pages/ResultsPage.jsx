@@ -6,8 +6,6 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import BarChartVisualization from '../components/features/visualizations/BarChartVisualization';
 import Island3DVisualization from '../components/features/visualizations/Island3DVisualization';
 import CommitDetailModal from '../components/features/git_graph/CommitDetailModal';
-import ChatBot from '../components/features/chat/ChatBot';
-
 import ResultsSidebar from '../components/features/results/ResultsSidebar';
 import ResultsDetailsPanel from '../components/features/results/ResultsDetailsPanel';
 import ResultsControlBar from '../components/features/results/ResultsControlBar';
@@ -515,15 +513,6 @@ function ResultsPage() {
           onClose={() => setSelectedCommitForModal(null)}
         />
       )}
-
-      <ChatBot
-        isDarkMode={isDarkMode}
-        projectContext={{
-          repo_url: analysisResult?.repo_url,
-          folder_metrics: analysisResult?.analysis?.folder_metrics,
-          individual_files: analysisResult?.analysis?.individual_files
-        }}
-      />
     </div>
   );
 }
