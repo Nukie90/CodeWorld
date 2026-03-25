@@ -1254,7 +1254,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         }
 
         // Lighting
-        const ambientLight = new THREE.AmbientLight(0xffffff, isDarkMode ? 0.4 : 0.8);
+        const ambientLight = new THREE.AmbientLight(0xffffff, isDarkMode ? 0.3 : 0.6);
         scene.add(ambientLight);
 
         const sunLight = new THREE.DirectionalLight(isDarkMode ? 0xa5b4fc : 0xfff5e6, isDarkMode ? 0.8 : 1.5); // Moon/Sun
@@ -1279,7 +1279,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         const hemiLight = new THREE.HemisphereLight(
             isDarkMode ? 0x0f172a : 0x87CEEB,
             isDarkMode ? 0x334155 : 0x98FB98,
-            isDarkMode ? 0.1 : 0.6
+            isDarkMode ? 0.4 : 0.4
         );
         scene.add(hemiLight);
 
@@ -1439,7 +1439,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         roughness: 0.3,
                         metalness: 0.6,
                         emissive: color,
-                        emissiveIntensity: isDarkMode ? 0.8 : 0.4,
+                        emissiveIntensity: isDarkMode ? 0.6 : 0,
                         transparent: towerOpacity < 1.0,
                         opacity: towerOpacity
                     });
@@ -1475,7 +1475,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     const capMat = new THREE.MeshStandardMaterial({
                         color: 0xffffff,
                         emissive: color,
-                        emissiveIntensity: isDarkMode ? 0.9 : 0.6,
+                        emissiveIntensity: isDarkMode ? 0.9 : 0.4,
                         transparent: towerOpacity < 1.0,
                         opacity: towerOpacity
                     });
