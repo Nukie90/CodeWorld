@@ -379,11 +379,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         if (isDarkMode) {
             // Dark Slate / Grey tones
             const colors = [
-                0x1e293b, // Depth 0 (Root) - Dark Slate 800
-                0x334155, // Depth 1 - Slate 700
-                0x475569, // Depth 2 - Slate 600
-                0x64748b, // Depth 3 - Slate 500
-                0x94a3b8, // Depth 4 - Slate 400
+                0x334155, // Depth 0 (Root) - Slate 700 (Lighter)
+                0x475569, // Depth 1 - Slate 600
+                0x64748b, // Depth 2 - Slate 500
+                0x94a3b8, // Depth 3 - Slate 400
+                0xcbd5e1, // Depth 4 - Slate 300
             ];
             return colors[Math.min(depth, colors.length - 1)];
         }
@@ -1295,7 +1295,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         // Ocean
         const oceanGeometry = new THREE.PlaneGeometry(3000, 3000, 100, 100);
         const oceanMaterial = new THREE.MeshStandardMaterial({
-            color: isDarkMode ? 0x1e1b4b : 0x0891b2, // Deep Indigo vs Cyan
+            color: isDarkMode ? 0x020617 : 0x0891b2, // Dark Midnight vs Cyan
             roughness: 0.1,
             metalness: 0.8,
             transparent: true,
