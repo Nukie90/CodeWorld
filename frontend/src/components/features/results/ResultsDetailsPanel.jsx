@@ -46,7 +46,7 @@ function ResultsDetailsPanel({
         <>
             {/* Right Panel - Raw Code */}
             <div
-                className={`absolute right-0 top-0 h-full ${isDarkMode ? 'bg-gray-900/95' : 'bg-white/95'} backdrop-blur-xl shadow-2xl ${isDragging ? 'transition-none duration-0' : 'transition-transform duration-300'} z-30 border-l ${isDarkMode ? 'border-white/10' : 'border-gray-200/50'}`}
+                className={`absolute right-0 top-0 h-full ${isDarkMode ? 'bg-gray-900/20' : 'bg-white/60'} backdrop-blur-xl shadow-2xl ${isDragging ? 'transition-none duration-0' : 'transition-transform duration-300'} z-30 border-l ${isDarkMode ? 'border-white/10' : 'border-gray-200/50'}`}
                 style={{
                     width: `${rightPanelWidth}px`,
                     transform: isRightPanelOpen ? 'translateX(0)' : `translateX(${rightPanelWidth}px)`

@@ -2420,22 +2420,22 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 </button>
 
                 {showOptionsPanel && (
-                    <div className={`mt-2 backdrop-blur-md rounded-xl shadow-lg p-4 border min-w-[250px] animate-in fade-in slide-in-from-top-2 ${isDarkMode
+                    <div className={`mt-2 backdrop-blur-md rounded-xl shadow-lg p-5 border min-w-[280px] animate-in fade-in slide-in-from-top-2 ${isDarkMode
                         ? 'bg-slate-800/90 border-slate-700/50'
                         : 'bg-white/90 border-white/50'}`}>
-                        <h4 className={`font-bold text-sm mb-3 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Visualization Options</h4>
+                        <h4 className={`font-bold text-sm mb-4 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Visualization Options</h4>
 
                         {/* Visualization Style Selector */}
-                        <div className="mb-4">
-                            <label className={`text-xs mb-1 block ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        <div className="mb-5">
+                            <label className={`text-xs mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                                 Platform Style
                             </label>
-                            <div className="flex bg-gray-200 dark:bg-slate-700 rounded-lg p-1 gap-1">
+                            <div className="flex bg-gray-200 dark:bg-slate-700 rounded-lg p-1.5 gap-2">
                                 {['circular', 'honeycomb', 'freeform'].map(style => (
                                     <button
                                         key={style}
                                         onClick={() => setVizStyle(style)}
-                                        className={`flex-1 text-[10px] py-1.5 rounded-md font-medium transition-colors ${vizStyle === style
+                                        className={`flex-1 text-[11px] py-2 px-1 rounded-md font-medium transition-colors ${vizStyle === style
                                             ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'
                                             : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                                             }`}

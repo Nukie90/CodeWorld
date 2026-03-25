@@ -48,7 +48,7 @@ function ResultsPage() {
 
   const [selectedCode, setSelectedCode] = useState(null);
   const [codeLoading, setCodeLoading] = useState(false);
-  const [codeDisplayMode, setCodeDisplayMode] = useState('plain');
+  const [codeDisplayMode, setCodeDisplayMode] = useState('highlighted');
   const [showLineNumbers, setShowLineNumbers] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showContributors, setShowContributors] = useState(false);
@@ -132,6 +132,7 @@ function ResultsPage() {
     setCodeLoading(true);
     setLintResults(null);
     setSelectedCode(null);
+    setCodeDisplayMode('highlighted');
     setIsRightPanelOpen(true);
     setIsBottomPanelOpen(false);
     try {
@@ -194,6 +195,7 @@ function ResultsPage() {
     setCodeLoading(true);
     setLintResults(null);
     setSelectedCode(null);
+    setCodeDisplayMode('highlighted');
     setIsRightPanelOpen(true);
     setIsBottomPanelOpen(false);
     try {
