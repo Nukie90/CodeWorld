@@ -637,7 +637,7 @@ def classify_ruff_rule(rule_code: str, message: str) -> tuple[str, str]:
     if rule_code == "invalid-syntax" or "syntax error" in message.lower():
         return "fatal", "fatal"
     if rule_code.startswith(("D", "ERA", "INP")):
-        return "info", "convention"
+        return "info", "info"
     if rule_code.startswith(("BLE", "PLE", "F", "E")):
         return "error", "error"
     if rule_code.startswith(("SIM", "PERF", "UP")):
@@ -649,7 +649,7 @@ def classify_ruff_rule(rule_code: str, message: str) -> tuple[str, str]:
 
 def _process_ruff_diagnostics(diagnostics: List[Dict[str, Any]], filename: str, module_name: str) -> Dict[str, Any]:
     lint_errors = []
-    counts = {"fatal": 0, "error": 0, "warning": 0, "refactor": 0, "convention": 0}
+    counts = {"fatal": 0, "error": 0, "warning": 0, "refactor": 0}
 
     for diagnostic in diagnostics:
         location = diagnostic.get("location", {})
@@ -682,12 +682,19 @@ def _process_ruff_diagnostics(diagnostics: List[Dict[str, Any]], filename: str, 
 
 
 def _calculate_lint_score(counts: Dict[str, int], statement_count: int) -> float:
-    if counts["fatal"] > 0:
-        return 0.0
+    if statement_count <= 0:
+        return 10.0
 
-    penalty = 5 * counts["error"] + counts["warning"] + counts["refactor"] + counts["convention"]
-    score = 10.0 - (float(penalty) / statement_count * 10)
-    return round(max(0.0, score), 2)
+    penalty = (
+        10 * counts.get("fatal", 0)
+        + 5 * counts.get("error", 0)
+        + 2 * counts.get("warning", 0)
+        + 1 * counts.get("refactor", 0)
+        + 0.5 * counts.get("convention", 0)
+    )
+    density = penalty / statement_count
+    score = 10.0 - (density * 10.0)
+    return round(max(0.0, min(10.0, score)), 2)
 
 
 def run_ruff(code: str, filename: str) -> Dict[str, Any]:
@@ -707,7 +714,7 @@ def run_ruff(code: str, filename: str) -> Dict[str, Any]:
             "--output-format",
             "json",
             "--ignore",
-            "I,T20,COM,ANN",
+            "I,T20,COM,ANN,D,ERA,INP,PLC",
             "-",
         ]
 

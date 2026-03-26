@@ -11,7 +11,6 @@ const LintErrorDistribution = ({ errors, isDarkMode }) => {
     const counts = {
         error: 0,
         warning: 0,
-        info: 0
     };
 
     errors.forEach(err => {
@@ -19,23 +18,20 @@ const LintErrorDistribution = ({ errors, isDarkMode }) => {
         if (type === 'fatal') return;
         if (type === 'error') counts.error++;
         else if (type === 'warning' || type === 'refactor') counts.warning++;
-        else counts.info++;
     });
 
-    const total = counts.error + counts.warning + counts.info;
+    const total = counts.error + counts.warning;
     if (total === 0) return null;
 
     // Percentages for the bar
     const percentages = {
         error: (counts.error / total) * 100,
         warning: (counts.warning / total) * 100,
-        info: (counts.info / total) * 100
     };
 
     const colors = {
         error: '#ef4444', // Red
         warning: '#f59e0b', // Amber
-        info: '#3b82f6' // Blue
     };
 
     return (
@@ -65,13 +61,6 @@ const LintErrorDistribution = ({ errors, isDarkMode }) => {
                         title={`Warnings: ${counts.warning}`}
                     />
                 )}
-                {counts.info > 0 && (
-                    <div
-                        style={{ width: `${percentages.info}%`, backgroundColor: colors.info }}
-                        className="h-full first:rounded-l-full last:rounded-r-full transition-all duration-700 hover:brightness-110"
-                        title={`Info: ${counts.info}`}
-                    />
-                )}
             </div>
 
             {/* Legend */}
@@ -83,10 +72,6 @@ const LintErrorDistribution = ({ errors, isDarkMode }) => {
                 <div className="flex items-center gap-1.5 grayscale-[0.2] hover:grayscale-0 transition-all">
                     <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: colors.warning }} />
                     <span className="text-[10px] font-bold opacity-60">Warnings ({counts.warning})</span>
-                </div>
-                <div className="flex items-center gap-1.5 grayscale-[0.2] hover:grayscale-0 transition-all">
-                    <div className="w-2.5 h-2.5 rounded-sm" style={{ backgroundColor: colors.info }} />
-                    <span className="text-[10px] font-bold opacity-60">Info ({counts.info})</span>
                 </div>
             </div>
         </div>

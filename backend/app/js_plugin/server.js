@@ -91,17 +91,16 @@ async function getLintResults(code, filename) {
             const warningCount = result.warningCount || 0;
             const refactorCount = 0;
             const conventionCount = 0;
+            const penalty =
+                (10 * fatalCount) +
+                (5 * errorCount) +
+                (2 * warningCount) +
+                (1 * refactorCount) +
+                (0.5 * conventionCount);
+            const density = statementCount <= 0 ? 0 : penalty / statementCount;
+            const rawScore = 10.0 - (density * 10.0);
 
-            lint_score = Math.max(
-                0,
-                fatalCount > 0 ? 0 : Number(
-                    (
-                        10.0 - (
-                            (((5 * errorCount) + warningCount + refactorCount + conventionCount) / statementCount) * 10
-                        )
-                    ).toFixed(2)
-                )
-            );
+            lint_score = Number(Math.max(0, Math.min(10, rawScore)).toFixed(2));
         }
     } catch (e) {
         console.error(`Error running eslint on ${safeFilename}:`, e.message);
