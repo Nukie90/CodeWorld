@@ -14,6 +14,34 @@ const upload = multer({ dest: os.tmpdir() });
 
 const eslint = new ESLint({ cwd: __dirname });
 
+function countStatementsForLint(code) {
+    try {
+        const ast = parser.parse(code, {
+            sourceType: 'module',
+            plugins: ['jsx', 'typescript', 'classProperties', 'classPrivateProperties', 'objectRestSpread'],
+            allowReturnOutsideFunction: true,
+            errorRecovery: true,
+        });
+
+        let statementCount = 0;
+        traverse(ast, {
+            enter(currentPath) {
+                if (currentPath.isStatement()) {
+                    statementCount++;
+                }
+            }
+        });
+
+        return Math.max(1, statementCount);
+    } catch {
+        const fallbackCount = code
+            .split('\n')
+            .map(line => line.trim())
+            .filter(Boolean).length;
+        return Math.max(1, fallbackCount);
+    }
+}
+
 async function getLintResults(code, filename) {
     let lint_score = null;
     let lint_errors = [];
@@ -40,15 +68,23 @@ async function getLintResults(code, filename) {
                 message_id: msg.ruleId || ""
             }));
 
-            // Simple score formula similar in spirit to pylint
-            const errorCount = result.errorCount || 0;
+            const statementCount = countStatementsForLint(code);
+            const fatalCount = result.fatalErrorCount || 0;
+            const errorCount = Math.max(0, (result.errorCount || 0) - fatalCount);
             const warningCount = result.warningCount || 0;
+            const refactorCount = 0;
+            const conventionCount = 0;
 
-            // start from 10
-            // error = -1
-            // warning = -0.5
-            const rawScore = 10 - (errorCount * 1.0) - (warningCount * 0.5);
-            lint_score = Math.max(0, Number(rawScore.toFixed(2)));
+            lint_score = Math.max(
+                0,
+                fatalCount > 0 ? 0 : Number(
+                    (
+                        10.0 - (
+                            (((5 * errorCount) + warningCount + refactorCount + conventionCount) / statementCount) * 10
+                        )
+                    ).toFixed(2)
+                )
+            );
         }
     } catch (e) {
         console.error(`Error running eslint on ${safeFilename}:`, e.message);

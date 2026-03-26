@@ -12,7 +12,7 @@ class PythonPluginAdapter(AnalysisAdapter):
         return calculate_metrics(content, filename)
 
     async def lint_content(self, content: str, filename: str) -> Optional['FileLint']:
-        from app.python_plugin.python_analyzer import run_pylint
+        from app.python_plugin.python_analyzer import run_ruff
         from app.model.analyzer_model import FileLint
-        result = run_pylint(content, filename)
+        result = run_ruff(content, filename)
         return FileLint(lint_score=result.get("score"), lint_errors=result.get("errors", []))

@@ -2,10 +2,12 @@ import os
 import json
 import hashlib
 import subprocess
+from pathlib import Path
 from typing import Optional, Callable
 
 
-CACHE_DIR = os.environ.get("REPO_CACHE_DIR", os.path.join(os.getcwd(), "temp_repos"))
+BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
+CACHE_DIR = os.environ.get("REPO_CACHE_DIR", str(BACKEND_DIR / "temp_repos"))
 INDEX_FILE = os.path.join(CACHE_DIR, "index.json")
 
 
