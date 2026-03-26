@@ -5,6 +5,7 @@ from pydantic import BaseModel
 from app.services import repo_manager
 from app.services.analyze_local_folder import analyze_local_folder
 from app.services.state_manager import _ANALYSIS_CACHE
+from app.utils.analysis_helpers import normalize_analysis_result
 import re as _re
 
 router = APIRouter(tags=["repo"])
@@ -124,7 +125,7 @@ def repo_checkout(payload: RepoCheckoutRequest):
                 "repo_url": payload.repo_url,
                 "branch": payload.branch,
                 "folder_name": local_path,
-                "analysis": _ANALYSIS_CACHE[commit_hash]
+                "analysis": normalize_analysis_result(_ANALYSIS_CACHE[commit_hash])
             }
 
         # Find parent commit and determine changed files
@@ -178,6 +179,7 @@ def repo_checkout(payload: RepoCheckoutRequest):
                 deleted_files=deleted_files if changed_files is not None else None,
                 file_contents_override=file_contents_override,
             )
+            analysis = normalize_analysis_result(analysis)
             _ANALYSIS_CACHE[commit_hash] = analysis
             return {
                 "repo_url": payload.repo_url,
@@ -204,7 +206,7 @@ def repo_checkout(payload: RepoCheckoutRequest):
             "repo_url": payload.repo_url,
             "branch": payload.branch,
             "folder_name": local_path,
-            "analysis": _ANALYSIS_CACHE[current_head]
+            "analysis": normalize_analysis_result(_ANALYSIS_CACHE[current_head])
         }
 
     previous_analysis = None
@@ -222,6 +224,7 @@ def repo_checkout(payload: RepoCheckoutRequest):
 
     try:
         analysis = analyze_local_folder(local_path, previous_analysis=previous_analysis, changed_files=changed_files)
+        analysis = normalize_analysis_result(analysis)
         if current_head:
             _ANALYSIS_CACHE[current_head] = analysis
         return {"repo_url": payload.repo_url, "branch": payload.branch, "folder_name": local_path, "analysis": analysis}
@@ -426,6 +429,7 @@ def prefetch_commit(payload: PrefetchCommitRequest, background_tasks: Background
             except Exception:
                 pass
             analysis = analyze_local_folder(local_path, previous_analysis=previous_analysis, changed_files=changed_files)
+            analysis = normalize_analysis_result(analysis)
             _ANALYSIS_CACHE[current_head] = analysis
         except Exception:
             pass

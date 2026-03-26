@@ -1,6 +1,7 @@
 import httpx
 from typing import Optional, List, Tuple
 from app.model.analyzer_model import FileMetrics, FunctionMetric
+from app.utils.analysis_helpers import ensure_file_total_cognitive_complexity
 
 # Define the URL of the Node.js service
 ANALYZER_URL = "http://localhost:3001/analyze-code-stream"
@@ -61,16 +62,20 @@ def _parse_response(data: dict) -> Optional[FileMetrics]:
     """Convert a raw analyzer response dict into a FileMetrics object."""
     try:
         functions = [FunctionMetric(**f) for f in data.get("functions", [])]
-        return FileMetrics(
+        file_metrics = FileMetrics(
             filename=data["filename"],
             language=data.get("language"),
             total_loc=data["total_loc"],
             total_lloc=data["total_lloc"],
             function_count=data["function_count"],
             total_complexity=data["total_complexity"],
+            total_cognitive_complexity=data.get("total_cognitive_complexity"),
+            halstead_volume=data.get("halstead_volume"),
             maintainability_index=data.get("maintainability_index"),
+            is_unsupported=data.get("is_unsupported", False),
             functions=functions,
         )
+        return ensure_file_total_cognitive_complexity(file_metrics)
     except (KeyError, TypeError) as e:
         print(f"Failed to parse analyzer response: {e}")
         return None

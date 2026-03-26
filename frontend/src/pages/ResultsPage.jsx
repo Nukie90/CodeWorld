@@ -16,12 +16,50 @@ import { repoService } from '../services/api';
 
 import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp } from 'lucide-react';
 
+function normalizeFunctionTotals(fn) {
+  const normalizedChildren = (fn.children || []).map(normalizeFunctionTotals);
+  const childSum = normalizedChildren.reduce((sum, child) => sum + (child.total_cognitive_complexity || 0), 0);
+  const ownCc = fn.cognitive_complexity || 0;
+  const total = fn.total_cognitive_complexity ?? (ownCc + childSum);
+
+  return {
+    ...fn,
+    children: normalizedChildren,
+    total_cognitive_complexity: total,
+  };
+}
+
+function normalizeAnalysisResultPayload(result) {
+  if (!result?.analysis?.individual_files) return result;
+
+  const normalizedFiles = result.analysis.individual_files.map((file) => {
+    const normalizedFunctions = (file.functions || []).map(normalizeFunctionTotals);
+    const roots = normalizedFunctions.filter((fn) => fn.parentId == null);
+    const totalFromFunctions = (roots.length > 0 ? roots : normalizedFunctions)
+      .reduce((sum, fn) => sum + (fn.total_cognitive_complexity || 0), 0);
+
+    return {
+      ...file,
+      functions: normalizedFunctions,
+      total_cognitive_complexity: file.total_cognitive_complexity ?? totalFromFunctions,
+    };
+  });
+
+  return {
+    ...result,
+    analysis: {
+      ...result.analysis,
+      individual_files: normalizedFiles,
+    },
+  };
+}
+
 function ResultsPage() {
   const navigate = useNavigate();
   const { state } = useLocation();
   const { analysisResult: initialAnalysisResult, token, username } = state || {};
 
-  const [analysisResult, setAnalysisResult] = useState(initialAnalysisResult);
+  const [analysisResult, setAnalysisResult] = useState(() => normalizeAnalysisResultPayload(initialAnalysisResult));
   const [activeTab, setActiveTab] = useState('island3D');
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -57,6 +95,10 @@ function ResultsPage() {
   const [lintResults, setLintResults] = useState(null);
   const [isLinting, setIsLinting] = useState(false);
 
+  const applyAnalysisResult = useCallback((nextResult) => {
+    setAnalysisResult(normalizeAnalysisResultPayload(nextResult));
+  }, []);
+
   const individual_files = useMemo(() => analysisResult?.analysis?.individual_files || [], [analysisResult]);
 
   const {
@@ -64,7 +106,7 @@ function ResultsPage() {
     currentBranch,
     branchLoading,
     handleBranchChange
-  } = useRepoBranches(analysisResult?.repo_url, token, initialAnalysisResult, setAnalysisResult);
+  } = useRepoBranches(analysisResult?.repo_url, token, initialAnalysisResult, applyAnalysisResult);
 
   const {
     isAnimating,
@@ -80,7 +122,7 @@ function ResultsPage() {
     handleStepPrev,
     handleStepNext,
     handleCommitClick
-  } = useRepoAnimation(analysisResult, setAnalysisResult, currentBranch, token, individual_files);
+  } = useRepoAnimation(analysisResult, applyAnalysisResult, currentBranch, token, individual_files);
 
   // Extract unique directories
   useEffect(() => {

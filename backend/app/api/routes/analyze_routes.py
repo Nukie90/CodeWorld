@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from app.services import repo_manager
 from app.services.analyze_local_folder import analyze_local_folder
 from app.services.state_manager import _PROGRESS, _ANALYSIS_CACHE
+from app.utils.analysis_helpers import normalize_analysis_result
 
 router = APIRouter(tags=["analyze"])
 
@@ -67,9 +68,10 @@ def analyze_repo(payload: RepoAnalyzeRequest):
              pass
 
         if current_head and current_head in _ANALYSIS_CACHE:
-             analysis = _ANALYSIS_CACHE[current_head]
+             analysis = normalize_analysis_result(_ANALYSIS_CACHE[current_head])
         else:
              analysis = analyze_local_folder(local_path, progress_callback=update_progress)
+             analysis = normalize_analysis_result(analysis)
              if current_head:
                  _ANALYSIS_CACHE[current_head] = analysis
                  

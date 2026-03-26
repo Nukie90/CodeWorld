@@ -5,6 +5,7 @@ import { Search, ArrowUpDown, ArrowUp, ArrowDown, Code, ArrowLeft } from 'lucide
 const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileClick }) => {
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'start_line', direction: 'asc' });
+    console.log(file);
 
     // Flatten functions to include children
     const flattenedFunctions = useMemo(() => {
@@ -143,8 +144,8 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                                 <span className={`font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{file?.function_count || file?.functions?.length || 0}</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="opacity-50 uppercase font-bold text-[10px]">Total Complexity</span>
-                                <span className={`font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{file?.total_complexity || 0}</span>
+                                <span className="opacity-50 uppercase font-bold text-[10px]">Total Cognitive Complexity</span>
+                                <span className={`font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{file?.total_cognitive_complexity || 0}</span>
                             </div>
                             <div className="flex flex-col">
                                 <span className="opacity-50 uppercase font-bold text-[10px]">Maintainability</span>

@@ -1,8 +1,36 @@
 import os
 import asyncio
 from typing import List, Tuple, Optional, Dict
-from app.model.analyzer_model import FileMetrics, FolderMetrics
+from app.model.analyzer_model import FileMetrics, FolderMetrics, FolderAnalysisResult, FunctionMetric
 from app.adapter.adapter import AnalysisAdapter
+
+
+def _ensure_function_total_cognitive_complexity(function_metric: FunctionMetric) -> int:
+    child_sum = sum(_ensure_function_total_cognitive_complexity(child) for child in function_metric.children)
+    base_cc = function_metric.cognitive_complexity or 0
+    total_cc = base_cc + child_sum
+    function_metric.total_cognitive_complexity = total_cc
+    return total_cc
+
+
+def ensure_file_total_cognitive_complexity(file_metrics: FileMetrics) -> FileMetrics:
+    if file_metrics.total_cognitive_complexity is not None:
+        return file_metrics
+
+    roots = [fn for fn in file_metrics.functions if fn.parentId is None]
+    if not roots and file_metrics.functions:
+        roots = file_metrics.functions
+
+    file_metrics.total_cognitive_complexity = sum(
+        _ensure_function_total_cognitive_complexity(fn) for fn in roots
+    )
+    return file_metrics
+
+
+def normalize_analysis_result(analysis: FolderAnalysisResult) -> FolderAnalysisResult:
+    for file_metrics in analysis.individual_files:
+        ensure_file_total_cognitive_complexity(file_metrics)
+    return analysis
 
 def aggregate_metrics(file_metrics_list: List[FileMetrics], folder_name: str) -> FolderMetrics:
     """Aggregate individual file metrics into folder-level metrics."""
