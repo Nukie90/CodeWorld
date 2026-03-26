@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp, AlertTriangle, Info, CheckCircle, ExternalLink, RotateCw } from 'lucide-react';
+import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp, AlertTriangle, Info, CheckCircle, ExternalLink, RotateCw, OctagonAlert } from 'lucide-react';
 import LintScoreGauge from './visualizations/LintScoreGauge';
 import LintErrorDistribution from './visualizations/LintErrorDistribution';
 
@@ -41,6 +41,11 @@ function ResultsDetailsPanel({
     const textColor = isDarkMode ? 'text-white' : 'text-gray-900';
     const panelBg = isDarkMode ? 'bg-gray-800' : 'bg-white';
     const borderColor = isDarkMode ? 'border-gray-700' : 'border-gray-200';
+    const hasFatalLint = Boolean(lintResults?.lint_errors?.some((error) => error.type === 'fatal' || error.message_id === 'invalid-syntax'));
+    const getLintVisualType = (error) => {
+        if (error.type === 'fatal' || error.message_id === 'invalid-syntax') return 'fatal';
+        return error.type;
+    };
 
     return (
         <>
@@ -231,11 +236,20 @@ function ResultsDetailsPanel({
                                                     {lintResults.lint_score != null && (
                                                         <div className={`p-6 mb-4 rounded-[2.5rem] border shadow-2xl relative overflow-hidden transition-all hover:scale-[1.02] duration-500 ${isDarkMode ? 'bg-gray-800/40 border-white/5' : 'bg-white border-gray-100'}`}>
                                                             {/* Background Glow */}
-                                                            <div className="absolute -right-20 -top-20 w-64 h-64 bg-emerald-500/10 blur-[100px] pointer-events-none" />
+                                                            <div className={`absolute -right-20 -top-20 w-64 h-64 blur-[100px] pointer-events-none ${hasFatalLint ? 'bg-red-500/15' : 'bg-emerald-500/10'}`} />
 
                                                             <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-8 relative z-10">
-                                                                <LintScoreGauge score={lintResults.lint_score} isDarkMode={isDarkMode} />
+                                                                <LintScoreGauge score={lintResults.lint_score} isDarkMode={isDarkMode} isFatal={hasFatalLint} />
                                                                 <div className="space-y-6">
+                                                                    {hasFatalLint && (
+                                                                        <div className={`p-4 rounded-3xl border flex items-start gap-3 ${isDarkMode ? 'bg-red-500/10 border-red-500/20 text-red-300' : 'bg-red-50 border-red-100 text-red-700'}`}>
+                                                                            <OctagonAlert size={18} className="mt-0.5 shrink-0" />
+                                                                            <div>
+                                                                                <div className="text-[10px] font-black uppercase tracking-widest mb-1">Fatal Lint Issue</div>
+                                                                                <p className="text-xs leading-relaxed">The linter found a fatal issue, usually invalid syntax. Fix this first before trusting the rest of the results.</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
                                                                     <LintErrorDistribution errors={lintResults.lint_errors} isDarkMode={isDarkMode} />
 
                                                                     <div className={`p-4 rounded-3xl text-[11px] leading-relaxed italic opacity-80 border ${isDarkMode ? 'bg-gray-900/50 border-white/5 text-gray-400' : 'bg-gray-50 border-black/5 text-gray-500'}`}>
@@ -255,6 +269,9 @@ function ResultsDetailsPanel({
                                                         </div>
                                                     ) : (
                                                         lintResults.lint_errors.map((error, idx) => (
+                                                            (() => {
+                                                                const visualType = getLintVisualType(error);
+                                                                return (
                                                             <div
                                                                 key={idx}
                                                                 onClick={() => {
@@ -269,19 +286,21 @@ function ResultsDetailsPanel({
                                                                 }}
                                                                 className={`group p-5 rounded-[2rem] shadow-sm transform transition-all hover:scale-[1.01] hover:shadow-xl cursor-pointer flex gap-4 border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:border-blue-500/50' : 'bg-white border-gray-100 hover:border-blue-300'}`}
                                                             >
-                                                                <div className={`mt-1 h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-12 ${error.type === 'error' ? 'bg-red-500/10 text-red-500' :
-                                                                    error.type === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                                                                <div className={`mt-1 h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-12 ${visualType === 'fatal' ? 'bg-red-600/15 text-red-600' :
+                                                                    visualType === 'error' ? 'bg-red-500/10 text-red-500' :
+                                                                    visualType === 'warning' ? 'bg-amber-500/10 text-amber-500' :
                                                                         'bg-blue-500/10 text-blue-500'
                                                                     }`}>
-                                                                    {error.type === 'error' ? <AlertTriangle size={20} /> : <Info size={20} />}
+                                                                    {visualType === 'fatal' ? <OctagonAlert size={20} /> : visualType === 'error' ? <AlertTriangle size={20} /> : <Info size={20} />}
                                                                 </div>
                                                                 <div className="flex-1">
                                                                     <div className="flex items-center justify-between mb-1">
-                                                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${error.type === 'error' ? 'bg-red-500/10 text-red-500' :
-                                                                            error.type === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                                                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${visualType === 'fatal' ? 'bg-red-600/15 text-red-600' :
+                                                                            visualType === 'error' ? 'bg-red-500/10 text-red-500' :
+                                                                            visualType === 'warning' ? 'bg-amber-500/10 text-amber-500' :
                                                                                 'bg-blue-500/10 text-blue-500'
                                                                             }`}>
-                                                                            {error.symbol || error.type}
+                                                                            {visualType === 'fatal' ? 'FATAL' : error.symbol || error.type}
                                                                         </span>
                                                                         <div className="flex items-center gap-2">
                                                                             <span className="text-[10px] font-bold opacity-40">Line {error.line}:{error.column}</span>
@@ -293,6 +312,8 @@ function ResultsDetailsPanel({
                                                                     </p>
                                                                 </div>
                                                             </div>
+                                                                );
+                                                            })()
                                                         ))
                                                     )}
                                                 </div>

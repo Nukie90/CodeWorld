@@ -16,12 +16,14 @@ const LintErrorDistribution = ({ errors, isDarkMode }) => {
 
     errors.forEach(err => {
         const type = err.type?.toLowerCase();
-        if (type === 'error' || type === 'fatal') counts.error++;
+        if (type === 'fatal') return;
+        if (type === 'error') counts.error++;
         else if (type === 'warning' || type === 'refactor') counts.warning++;
         else counts.info++;
     });
 
     const total = counts.error + counts.warning + counts.info;
+    if (total === 0) return null;
 
     // Percentages for the bar
     const percentages = {

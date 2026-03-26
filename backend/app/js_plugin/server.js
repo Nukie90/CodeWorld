@@ -14,6 +14,23 @@ const upload = multer({ dest: os.tmpdir() });
 
 const eslint = new ESLint({ cwd: __dirname });
 
+function getLintType(message) {
+    if (message?.fatal) {
+        return 'fatal';
+    }
+    return message?.severity === 2 ? 'error' : 'warning';
+}
+
+function getLintCode(message) {
+    if (message?.ruleId) {
+        return message.ruleId;
+    }
+    if (message?.fatal) {
+        return 'invalid-syntax';
+    }
+    return '';
+}
+
 function countStatementsForLint(code) {
     try {
         const ast = parser.parse(code, {
@@ -55,7 +72,7 @@ async function getLintResults(code, filename) {
             const messages = result.messages || [];
 
             lint_errors = messages.map(msg => ({
-                type: msg.severity === 2 ? "error" : "warning",
+                type: getLintType(msg),
                 module: path.parse(safeFilename).name || "",
                 obj: "",
                 line: msg.line || 0,
@@ -63,9 +80,9 @@ async function getLintResults(code, filename) {
                 endLine: msg.endLine ?? null,
                 endColumn: msg.endColumn ?? null,
                 path: safeFilename,
-                symbol: msg.ruleId || "",
+                symbol: getLintCode(msg),
                 message: msg.message || "",
-                message_id: msg.ruleId || ""
+                message_id: getLintCode(msg)
             }));
 
             const statementCount = countStatementsForLint(code);
@@ -88,6 +105,20 @@ async function getLintResults(code, filename) {
         }
     } catch (e) {
         console.error(`Error running eslint on ${safeFilename}:`, e.message);
+        lint_score = 0;
+        lint_errors = [{
+            type: 'fatal',
+            module: path.parse(safeFilename).name || "",
+            obj: "",
+            line: 0,
+            column: 0,
+            endLine: null,
+            endColumn: null,
+            path: safeFilename,
+            symbol: 'eslint-fatal',
+            message: e.message || 'ESLint failed to run',
+            message_id: 'eslint-fatal'
+        }];
     }
 
     return { lint_score, lint_errors };

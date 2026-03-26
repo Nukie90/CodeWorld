@@ -635,7 +635,7 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
 
 def classify_ruff_rule(rule_code: str, message: str) -> tuple[str, str]:
     if rule_code == "invalid-syntax" or "syntax error" in message.lower():
-        return "error", "fatal"
+        return "fatal", "fatal"
     if rule_code.startswith(("D", "ERA", "INP")):
         return "info", "convention"
     if rule_code.startswith(("BLE", "PLE", "F", "E")):
@@ -718,8 +718,11 @@ def run_ruff(code: str, filename: str) -> Dict[str, Any]:
 
         diagnostics = json.loads(process.stdout or "[]")
         module_name = PurePath(filename).stem
-        parsed_tree = ast.parse(code, filename=filename)
-        statement_count = max(1, sum(isinstance(node, ast.stmt) for node in ast.walk(parsed_tree)))
+        try:
+            parsed_tree = ast.parse(code, filename=filename)
+            statement_count = max(1, sum(isinstance(node, ast.stmt) for node in ast.walk(parsed_tree)))
+        except SyntaxError:
+            statement_count = max(1, sum(1 for line in code.splitlines() if line.strip()))
 
         result = _process_ruff_diagnostics(diagnostics, filename, module_name)
         lint_errors = result["errors"]

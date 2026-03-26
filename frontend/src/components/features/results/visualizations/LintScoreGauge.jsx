@@ -5,7 +5,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Label } from 'recharts';
  * LintScoreGauge - A beautiful circular gauge to display lint scores (0-10)
  * Uses a Recharts PieChart to create the arc effect.
  */
-const LintScoreGauge = ({ score, isDarkMode }) => {
+const LintScoreGauge = ({ score, isDarkMode, isFatal = false }) => {
     // Ensure score is a number between 0 and 10
     const numericScore = typeof score === 'number' ? Math.min(10, Math.max(0, score)) : 0;
 
@@ -17,6 +17,7 @@ const LintScoreGauge = ({ score, isDarkMode }) => {
 
     // Dynamic color based on score
     const getGaugeColor = (s) => {
+        if (isFatal) return '#dc2626';
         if (s >= 8) return '#10b981'; // Emerald/Green (Good)
         if (s >= 5) return '#f59e0b'; // Amber/Yellow (Warning)
         return '#ef4444'; // Red (Danger)
@@ -27,6 +28,7 @@ const LintScoreGauge = ({ score, isDarkMode }) => {
 
     // Rank logic
     const getRank = (s) => {
+        if (isFatal) return { label: 'FATAL', color: '#dc2626' };
         if (s >= 10) return { label: 'S+', color: '#10b981' };
         if (s >= 9.5) return { label: 'S', color: '#10b981' };
         if (s >= 8.5) return { label: 'A', color: '#10b981' };
@@ -75,7 +77,7 @@ const LintScoreGauge = ({ score, isDarkMode }) => {
                         color: rank.color
                     }}
                 >
-                    Rank {rank.label}
+                    {isFatal ? rank.label : `Rank ${rank.label}`}
                 </div>
             </div>
         </div>
