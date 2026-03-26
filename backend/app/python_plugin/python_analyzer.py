@@ -632,6 +632,64 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
 
     return file_metrics
 
+
+def classify_ruff_rule(rule_code: str, message: str) -> tuple[str, str]:
+    if rule_code == "invalid-syntax" or "syntax error" in message.lower():
+        return "error", "fatal"
+    if rule_code.startswith(("D", "ERA", "INP")):
+        return "info", "convention"
+    if rule_code.startswith(("BLE", "PLE", "F", "E")):
+        return "error", "error"
+    if rule_code.startswith(("SIM", "PERF", "UP")):
+        return "warning", "refactor"
+    if rule_code.startswith(("B", "W")):
+        return "warning", "warning"
+    return "warning", "warning"
+
+
+def _process_ruff_diagnostics(diagnostics: List[Dict[str, Any]], filename: str, module_name: str) -> Dict[str, Any]:
+    lint_errors = []
+    counts = {"fatal": 0, "error": 0, "warning": 0, "refactor": 0, "convention": 0}
+
+    for diagnostic in diagnostics:
+        location = diagnostic.get("location", {})
+        end_location = diagnostic.get("end_location", {})
+        rule_code = diagnostic.get("code") or ""
+        message = diagnostic.get("message", "")
+        severity, score_bucket = classify_ruff_rule(rule_code, message)
+
+        if score_bucket in counts:
+            counts[score_bucket] += 1
+        else:
+            counts["warning"] += 1
+
+        lint_errors.append(
+            LintError(
+                type=severity,
+                module=module_name,
+                obj="",
+                line=location.get("row", 0),
+                column=location.get("column", 0),
+                endLine=end_location.get("row"),
+                endColumn=end_location.get("column"),
+                path=filename,
+                symbol=rule_code,
+                message=message,
+                message_id=rule_code,
+            )
+        )
+    return {"errors": lint_errors, "counts": counts}
+
+
+def _calculate_lint_score(counts: Dict[str, int], statement_count: int) -> float:
+    if counts["fatal"] > 0:
+        return 0.0
+
+    penalty = 5 * counts["error"] + counts["warning"] + counts["refactor"] + counts["convention"]
+    score = 10.0 - (float(penalty) / statement_count * 10)
+    return round(max(0.0, score), 2)
+
+
 def run_ruff(code: str, filename: str) -> Dict[str, Any]:
     lint_errors = []
     lint_score = None
@@ -662,73 +720,12 @@ def run_ruff(code: str, filename: str) -> Dict[str, Any]:
         module_name = PurePath(filename).stem
         parsed_tree = ast.parse(code, filename=filename)
         statement_count = max(1, sum(isinstance(node, ast.stmt) for node in ast.walk(parsed_tree)))
-        fatal_count = 0
-        error_count = 0
-        warning_count = 0
-        refactor_count = 0
-        convention_count = 0
 
-        def classify_ruff_rule(rule_code: str, message: str) -> tuple[str, str]:
-            if rule_code == "invalid-syntax" or "syntax error" in message.lower():
-                return "error", "fatal"
-            if rule_code.startswith(("D", "ERA", "INP")):
-                return "info", "convention"
-            if rule_code.startswith(("BLE", "PLE", "F", "E")):
-                return "error", "error"
-            if rule_code.startswith(("SIM", "PERF", "UP")):
-                return "warning", "refactor"
-            if rule_code.startswith(("B", "W")):
-                return "warning", "warning"
-            return "warning", "warning"
+        result = _process_ruff_diagnostics(diagnostics, filename, module_name)
+        lint_errors = result["errors"]
+        lint_score = _calculate_lint_score(result["counts"], statement_count)
 
-        for diagnostic in diagnostics:
-            location = diagnostic.get("location", {})
-            end_location = diagnostic.get("end_location", {})
-            rule_code = diagnostic.get("code") or ""
-            message = diagnostic.get("message", "")
-            severity, score_bucket = classify_ruff_rule(rule_code, message)
-
-            if score_bucket == "fatal":
-                fatal_count += 1
-            elif score_bucket == "error":
-                error_count += 1
-            elif score_bucket == "refactor":
-                refactor_count += 1
-            elif score_bucket == "convention":
-                convention_count += 1
-            else:
-                warning_count += 1
-
-            lint_errors.append(
-                LintError(
-                    type=severity,
-                    module=module_name,
-                    obj="",
-                    line=location.get("row", 0),
-                    column=location.get("column", 0),
-                    endLine=end_location.get("row"),
-                    endColumn=end_location.get("column"),
-                    path=filename,
-                    symbol=rule_code,
-                    message=message,
-                    message_id=rule_code,
-                )
-            )
     except Exception as e:
         print(f"Error running ruff on {filename}: {e}")
-    else:
-        lint_score = max(
-            0,
-            0
-            if fatal_count
-            else round(
-                10.0
-                - (
-                    (float(5 * error_count + warning_count + refactor_count + convention_count) / statement_count)
-                    * 10
-                ),
-                2,
-            ),
-        )
 
     return {"score": lint_score, "errors": lint_errors}
