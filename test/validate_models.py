@@ -16,7 +16,7 @@ try:
     print("FunctionMetric validated")
 
     # Test FileMetrics
-    fm = FileMetrics(filename="test.py", language="python", total_loc=20, total_lloc=15, function_count=1, functions=[f], total_complexity=2, complexity_max=2)
+    fm = FileMetrics(filename="test.py", language="python", total_loc=20, total_lloc=15, function_count=1, functions=[f], total_complexity=2)
     print("FileMetrics validated")
 
     # Test FunctionCodeRequest

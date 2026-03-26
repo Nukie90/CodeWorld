@@ -512,12 +512,10 @@ async function buildFileMetricsResponse(code, filename) {
     const hierarchicalFunctions = roots.map(r => formatFunction(r, ''));
 
     let complexity_sum = 0;
-    let complexity_max = 0;
 
     babelMetrics.functions.forEach(f => {
         const cyc = f.CYC ?? 0;
         complexity_sum += cyc;
-        if (cyc > complexity_max) complexity_max = cyc;
     });
 
     const fileCyc = babelMetrics.fileCYC !== undefined ? babelMetrics.fileCYC : complexity_sum;
@@ -539,7 +537,6 @@ async function buildFileMetricsResponse(code, filename) {
         total_lloc: babelMetrics.LLOC ?? 0,
         function_count: babelMetrics.functions.length,
         total_complexity: babelMetrics.fileCYC !== undefined ? babelMetrics.fileCYC : complexity_sum,
-        complexity_max,
         total_cognitive_complexity,
         halstead_volume: babelMetrics.halsteadVolume ?? 0.0,
         maintainability_index: parseFloat(maintainability_index.toFixed(2)),
@@ -584,7 +581,13 @@ function calculateCognitiveComplexity(funcPath, baseNesting = 0, functionName = 
             // --- Recursion ---
             if (path.isCallExpression() && functionName) {
                 const callee = path.node.callee;
-                if (callee.type === 'Identifier' && callee.name === functionName) {
+                if (
+                    (callee.type === 'Identifier' && callee.name === functionName) ||
+                    (callee.type === 'MemberExpression' &&
+                        !callee.computed &&
+                        callee.property?.type === 'Identifier' &&
+                        callee.property.name === functionName)
+                ) {
                     addFundamental();
                 }
             }
@@ -737,7 +740,6 @@ async function analyzeFileAt(filePath, rootPathForRel) {
             total_lloc: 0,
             function_count: 0,
             total_complexity: 0,
-            complexity_max: 0,
             total_cognitive_complexity: 0,
             halstead_volume: 0.0,
             maintainability_index: 0.0,
@@ -909,7 +911,6 @@ app.post('/analyze-batch', express.json({ limit: '50mb' }), async (req, res) => 
                 total_lloc: 0,
                 function_count: 0,
                 total_complexity: 0,
-                complexity_max: 0,
                 total_cognitive_complexity: 0,
                 halstead_volume: 0.0,
                 maintainability_index: 0.0,
@@ -951,7 +952,6 @@ app.post('/analyze-batch-stream', upload.array('files'), async (req, res) => {
                 total_lloc: 0,
                 function_count: 0,
                 total_complexity: 0,
-                complexity_max: 0,
                 total_cognitive_complexity: 0,
                 halstead_volume: 0.0,
                 maintainability_index: 0.0,

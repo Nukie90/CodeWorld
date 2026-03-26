@@ -147,10 +147,6 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                                 <span className={`font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{file?.total_complexity || 0}</span>
                             </div>
                             <div className="flex flex-col">
-                                <span className="opacity-50 uppercase font-bold text-[10px]">Max Complexity</span>
-                                <span className={`font-mono text-sm ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>{file?.complexity_max || 0}</span>
-                            </div>
-                            <div className="flex flex-col">
                                 <span className="opacity-50 uppercase font-bold text-[10px]">Maintainability</span>
                                 <span className={`font-mono text-sm ${getMaintainabilityColor(file?.maintainability_index)}`}>
                                     {file?.maintainability_index?.toFixed(2) || '—'}

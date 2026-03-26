@@ -177,36 +177,31 @@ def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, fu
             self.generic_visit(node)
 
         def visit_If(self, node):
-            # Check if this is an 'elif' (else if)
-            # In Python AST, 'elif' appears as a nested If in 'orelse'
-            # But we must distinguish between real nested if in else block vs elif
-            # Actually, `elif` is just `orelse=[If(...)]`.
-            # We can't easily distinguish source-level `elif` from `else: if ...` without line numbers or assumptions.
-            # However, standard Cognitive Complexity treats `else if` as +1 (structural).
-            # Wait, JS version says: `else if` -> complexity += 1 + (nesting-1)
-            
-            # Let's start with basic structural
-            nonlocal nesting
-            
-            # If this node is the single child of a parent's `orelse`, it might be an `elif`
-            # For simplicity in this port, we will treat it as standard structural for now,
-            # but we can try to detect the pattern.
-            
-            add_structural()
-            nesting += 1
-            check_nesting()
-            
-            self.generic_visit(node)
-            
-            nesting -= 1
-            
-            # Handle 'else' (fundamental)
-            # In Python, 'else' is in `orelse`. If `orelse` is not empty and NOT an `elif`...
+            nonlocal complexity, nesting
+            is_elif = getattr(node, "_is_elif", False)
+
+            if is_elif:
+                complexity += 1 + max(nesting - 1, 0)
+            else:
+                add_structural()
+                nesting += 1
+                check_nesting()
+
+            self.visit(node.test)
+            for stmt in node.body:
+                self.visit(stmt)
+
             if node.orelse:
-                # if orelse is a single If node, it's likely an elif -> handled by visit_If recursively
-                # if orelse has multiple statements or non-If, it's a real `else`
-                 if not (len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If)):
-                     add_fundamental()
+                if len(node.orelse) == 1 and isinstance(node.orelse[0], ast.If):
+                    node.orelse[0]._is_elif = True
+                    self.visit(node.orelse[0])
+                else:
+                    add_fundamental()
+                    for stmt in node.orelse:
+                        self.visit(stmt)
+
+            if not is_elif:
+                nesting -= 1
 
 
         def visit_For(self, node):
@@ -298,8 +293,11 @@ def calculate_cognitive_complexity(func_node: ast.AST, base_nesting: int = 0, fu
             
         def visit_Call(self, node):
             # Recursive call check
-            if function_name and isinstance(node.func, ast.Name) and node.func.id == function_name:
-                add_fundamental()
+            if function_name:
+                if isinstance(node.func, ast.Name) and node.func.id == function_name:
+                    add_fundamental()
+                elif isinstance(node.func, ast.Attribute) and node.func.attr == function_name:
+                    add_fundamental()
             self.generic_visit(node)
 
     ComplexityVisitor().visit(func_node)
@@ -320,7 +318,6 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
              total_lloc=0,
              function_count=0,
              total_complexity=0,
-             complexity_max=0,
              maintainability_index=0.0,
              functions=[]
         )
@@ -572,9 +569,6 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
             f.lloc or 0
         )
 
-    # Stats
-    complexity_max = max((f.cyclomatic_complexity for f in functions if f.cyclomatic_complexity is not None), default=0)
-    
     # Build hierarchy
     fn_map = {f.id: f for f in functions if f.id is not None}
     roots = []
@@ -623,7 +617,6 @@ def calculate_metrics(code: str, filename: str) -> FileMetrics:
         total_lloc=lloc,
         function_count=len(functions),
         total_complexity=file_cyclomatic_complexity,
-        complexity_max=complexity_max,
         total_cognitive_complexity=total_cognitive_complexity,
         halstead_volume=halstead_volume,
         maintainability_index=maintainability_index,

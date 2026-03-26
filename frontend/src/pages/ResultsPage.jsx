@@ -123,8 +123,7 @@ function ResultsPage() {
     'Total lines': folderMetrics?.total_loc,
     'Logical LOC': folderMetrics?.total_lloc,
     'Total function': folderMetrics?.total_functions,
-    'Total complexity': folderMetrics?.total_complexity,
-    'Max complexity': folderMetrics?.complexity_max
+    'Total complexity': folderMetrics?.total_complexity
   };
 
   const handleFunctionClick = useCallback(async (functionData) => {

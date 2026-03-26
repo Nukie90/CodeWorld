@@ -6,7 +6,7 @@ from app.adapter.adapter import AnalysisAdapter
 
 def aggregate_metrics(file_metrics_list: List[FileMetrics], folder_name: str) -> FolderMetrics:
     """Aggregate individual file metrics into folder-level metrics."""
-    total_loc = total_lloc = total_functions = total_complexity = complexity_max = 0
+    total_loc = total_lloc = total_functions = total_complexity = 0
     halstead_volume = 0.0
     total_mi = 0.0
     valid_mi_files = 0
@@ -16,8 +16,6 @@ def aggregate_metrics(file_metrics_list: List[FileMetrics], folder_name: str) ->
         total_lloc += fm.total_lloc or 0
         total_functions += fm.function_count or 0
         total_complexity += fm.total_complexity or 0
-        if (fm.complexity_max or 0) > complexity_max:
-            complexity_max = fm.complexity_max or 0
         if getattr(fm, 'halstead_volume', None) is not None:
             halstead_volume += fm.halstead_volume
         if getattr(fm, 'maintainability_index', None) is not None:
@@ -31,7 +29,6 @@ def aggregate_metrics(file_metrics_list: List[FileMetrics], folder_name: str) ->
         total_lloc=total_lloc,
         total_functions=total_functions,
         total_complexity=total_complexity,
-        complexity_max=complexity_max,
         halstead_volume=halstead_volume,
         maintainability_index=round(total_mi / valid_mi_files, 2) if valid_mi_files > 0 else None,
         files=file_metrics_list,

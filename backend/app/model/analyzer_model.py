@@ -42,7 +42,6 @@ class FileMetrics(BaseModel):
     total_lloc: int
     function_count: int
     total_complexity: int
-    complexity_max: int
     total_cognitive_complexity: Optional[int] = None
     halstead_volume: Optional[float] = None
     maintainability_index: Optional[float] = None
@@ -56,7 +55,6 @@ class FolderMetrics(BaseModel):
     total_lloc: int
     total_functions: int
     total_complexity: int
-    complexity_max: int
     maintainability_index: Optional[float] = None
     files: List[FileMetrics]
 

@@ -39,6 +39,16 @@ module.exports = [
   },
 
   {
+    files: ["server.js"],
+    languageOptions: {
+      globals: {
+        ...globals.browser,
+        ...globals.node
+      }
+    }
+  },
+
+  {
     files: ["**/*.{jsx,tsx}"],
     plugins: {
       react: reactPlugin,

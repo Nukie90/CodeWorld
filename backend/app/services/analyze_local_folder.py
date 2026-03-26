@@ -29,7 +29,7 @@ def _analyze_single_file(file_path: str, relative_path: str,
                 return FileMetrics(
                     filename=f"{relative_path}\n(unsupported)",
                     total_loc=total_lines, total_lloc=total_lines,
-                    function_count=0, total_complexity=0, complexity_max=0,
+                    function_count=0, total_complexity=0,
                     functions=[], is_unsupported=True
                 )
             try:
@@ -38,7 +38,7 @@ def _analyze_single_file(file_path: str, relative_path: str,
                 return FileMetrics(
                     filename=f"{relative_path}\n({analysis.language})",
                     total_loc=loc, total_lloc=analysis.code_count,
-                    function_count=0, total_complexity=0, complexity_max=0,
+                    function_count=0, total_complexity=0,
                     functions=[], is_unsupported=True
                 )
             except Exception:
@@ -46,7 +46,7 @@ def _analyze_single_file(file_path: str, relative_path: str,
                 return FileMetrics(
                     filename=f"{relative_path}\n(unsupported)",
                     total_loc=total_lines, total_lloc=total_lines,
-                    function_count=0, total_complexity=0, complexity_max=0,
+                    function_count=0, total_complexity=0,
                     functions=[], is_unsupported=True
                 )
     except Exception as e:
