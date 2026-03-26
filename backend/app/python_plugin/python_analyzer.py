@@ -693,6 +693,15 @@ def _calculate_lint_score(counts: Dict[str, int], statement_count: int) -> float
 def run_ruff(code: str, filename: str) -> Dict[str, Any]:
     lint_errors = []
     lint_score = None
+    is_not_applicable = False
+
+    if PurePath(filename).name == "__init__.py":
+        return {
+            "score": None,
+            "errors": [],
+            "is_not_applicable": True,
+            "not_applicable_reason": "Package initializer files like __init__.py are skipped by the Python linter.",
+        }
 
     try:
         ruff_args = [
@@ -731,4 +740,9 @@ def run_ruff(code: str, filename: str) -> Dict[str, Any]:
     except Exception as e:
         print(f"Error running ruff on {filename}: {e}")
 
-    return {"score": lint_score, "errors": lint_errors}
+    return {
+        "score": lint_score,
+        "errors": lint_errors,
+        "is_not_applicable": is_not_applicable,
+        "not_applicable_reason": None,
+    }

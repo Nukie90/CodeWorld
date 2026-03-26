@@ -18,6 +18,8 @@ class LintError(BaseModel):
 class FileLint(BaseModel):
     lint_score: Optional[float] = None
     lint_errors: List[LintError] = Field(default_factory=list)
+    is_not_applicable: bool = False
+    not_applicable_reason: Optional[str] = None
 
 class FunctionMetric(BaseModel):
     name: str

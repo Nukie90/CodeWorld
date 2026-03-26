@@ -42,6 +42,8 @@ function ResultsDetailsPanel({
     const panelBg = isDarkMode ? 'bg-gray-800' : 'bg-white';
     const borderColor = isDarkMode ? 'border-gray-700' : 'border-gray-200';
     const hasFatalLint = Boolean(lintResults?.lint_errors?.some((error) => error.type === 'fatal' || error.message_id === 'invalid-syntax'));
+    const isLintNotApplicable = Boolean(lintResults?.is_not_applicable);
+    const lintNotApplicableReason = lintResults?.not_applicable_reason || 'Linting is not available for this file.';
     const getLintVisualType = (error) => {
         if (error.type === 'fatal' || error.message_id === 'invalid-syntax') return 'fatal';
         return error.type;
@@ -176,14 +178,23 @@ function ResultsDetailsPanel({
                                                         </div>
                                                     </div>
 
-                                                    {lintResults.lint_score != null && (
+                                                    {(lintResults.lint_score != null || isLintNotApplicable) && (
                                                         <div className={`p-6 mb-4 rounded-[2.5rem] border shadow-2xl relative overflow-hidden transition-all hover:scale-[1.02] duration-500 ${isDarkMode ? 'bg-gray-800/40 border-white/5' : 'bg-white border-gray-100'}`}>
                                                             {/* Background Glow */}
-                                                            <div className={`absolute -right-20 -top-20 w-64 h-64 blur-[100px] pointer-events-none ${hasFatalLint ? 'bg-red-500/15' : 'bg-emerald-500/10'}`} />
+                                                            <div className={`absolute -right-20 -top-20 w-64 h-64 blur-[100px] pointer-events-none ${hasFatalLint ? 'bg-red-500/15' : isLintNotApplicable ? 'bg-slate-500/10' : 'bg-emerald-500/10'}`} />
 
                                                             <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-8 relative z-10">
-                                                                <LintScoreGauge score={lintResults.lint_score} isDarkMode={isDarkMode} isFatal={hasFatalLint} />
+                                                                <LintScoreGauge score={lintResults.lint_score} isDarkMode={isDarkMode} isFatal={hasFatalLint} isNotApplicable={isLintNotApplicable} />
                                                                 <div className="space-y-6">
+                                                                    {isLintNotApplicable && (
+                                                                        <div className={`p-4 rounded-3xl border flex items-start gap-3 ${isDarkMode ? 'bg-slate-500/10 border-slate-500/20 text-slate-300' : 'bg-slate-50 border-slate-200 text-slate-700'}`}>
+                                                                            <Info size={18} className="mt-0.5 shrink-0" />
+                                                                            <div>
+                                                                                <div className="text-[10px] font-black uppercase tracking-widest mb-1">Lint Not Applicable</div>
+                                                                                <p className="text-xs leading-relaxed">{lintNotApplicableReason}</p>
+                                                                            </div>
+                                                                        </div>
+                                                                    )}
                                                                     {hasFatalLint && (
                                                                         <div className={`p-4 rounded-3xl border flex items-start gap-3 ${isDarkMode ? 'bg-red-500/10 border-red-500/20 text-red-300' : 'bg-red-50 border-red-100 text-red-700'}`}>
                                                                             <OctagonAlert size={18} className="mt-0.5 shrink-0" />
@@ -202,7 +213,7 @@ function ResultsDetailsPanel({
                                                             </div>
                                                         </div>
                                                     )}
-                                                    {lintResults.lint_errors.length === 0 ? (
+                                                    {lintResults.lint_errors.length === 0 && !isLintNotApplicable ? (
                                                         <div className={`p-8 rounded-[2rem] flex flex-col items-center justify-center text-center gap-4 ${isDarkMode ? 'bg-gray-800/40' : 'bg-emerald-50/30'}`}>
                                                             <CheckCircle size={48} className="text-emerald-500" />
                                                             <div>

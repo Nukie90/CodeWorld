@@ -15,4 +15,9 @@ class PythonPluginAdapter(AnalysisAdapter):
         from app.python_plugin.python_analyzer import run_ruff
         from app.model.analyzer_model import FileLint
         result = run_ruff(content, filename)
-        return FileLint(lint_score=result.get("score"), lint_errors=result.get("errors", []))
+        return FileLint(
+            lint_score=result.get("score"),
+            lint_errors=result.get("errors", []),
+            is_not_applicable=result.get("is_not_applicable", False),
+            not_applicable_reason=result.get("not_applicable_reason"),
+        )

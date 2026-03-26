@@ -5,7 +5,7 @@ import { PieChart, Pie, Cell, ResponsiveContainer, Label } from 'recharts';
  * LintScoreGauge - A beautiful circular gauge to display lint scores (0-10)
  * Uses a Recharts PieChart to create the arc effect.
  */
-const LintScoreGauge = ({ score, isDarkMode, isFatal = false }) => {
+const LintScoreGauge = ({ score, isDarkMode, isFatal = false, isNotApplicable = false }) => {
     // Ensure score is a number between 0 and 10
     const numericScore = typeof score === 'number' ? Math.min(10, Math.max(0, score)) : 0;
 
@@ -17,6 +17,7 @@ const LintScoreGauge = ({ score, isDarkMode, isFatal = false }) => {
 
     // Dynamic color based on score
     const getGaugeColor = (s) => {
+        if (isNotApplicable) return isDarkMode ? 'rgba(255, 255, 255, 0.18)' : 'rgba(15, 23, 42, 0.18)';
         if (isFatal) return '#dc2626';
         if (s >= 8) return '#10b981'; // Emerald/Green (Good)
         if (s >= 5) return '#f59e0b'; // Amber/Yellow (Warning)
@@ -28,6 +29,7 @@ const LintScoreGauge = ({ score, isDarkMode, isFatal = false }) => {
 
     // Rank logic
     const getRank = (s) => {
+        if (isNotApplicable) return { label: 'N/A', color: isDarkMode ? '#cbd5e1' : '#475569' };
         if (isFatal) return { label: 'FATAL', color: '#dc2626' };
         if (s >= 10) return { label: 'S+', color: '#10b981' };
         if (s >= 9.5) return { label: 'S', color: '#10b981' };
@@ -67,7 +69,7 @@ const LintScoreGauge = ({ score, isDarkMode, isFatal = false }) => {
                     className="text-4xl font-black tracking-tighter transition-all duration-700"
                     style={{ color: isDarkMode ? '#fff' : '#111' }}
                 >
-                    {numericScore.toFixed(1)}
+                    {isNotApplicable ? 'N/A' : numericScore.toFixed(1)}
                 </div>
                 <div
                     className={`text-[10px] font-black uppercase tracking-widest mt-1 px-3 py-1 rounded-full border shadow-lg animate-in zoom-in duration-500`}
@@ -77,7 +79,7 @@ const LintScoreGauge = ({ score, isDarkMode, isFatal = false }) => {
                         color: rank.color
                     }}
                 >
-                    {isFatal ? rank.label : `Rank ${rank.label}`}
+                    {isFatal || isNotApplicable ? rank.label : `Rank ${rank.label}`}
                 </div>
             </div>
         </div>

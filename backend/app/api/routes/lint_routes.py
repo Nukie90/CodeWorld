@@ -32,4 +32,9 @@ async def lint_file(file_name: str, payload: LintRequest):
             # break here to prevent falling through if an adapter matches but returns None
             break
 
-    return FileLint(lint_score=None, lint_errors=[])
+    return FileLint(
+        lint_score=None,
+        lint_errors=[],
+        is_not_applicable=True,
+        not_applicable_reason="Linting is not available for this file type.",
+    )
