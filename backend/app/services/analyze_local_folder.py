@@ -1,11 +1,54 @@
 import os
 import asyncio
+import tempfile
 from typing import List, Optional, Callable
 import pygount
 from app.adapter.factory import get_adapters
 from app.model.analyzer_model import FileMetrics, FolderMetrics, FolderAnalysisResult
 from app.utils.ignore import build_ignore_checker
 from app.utils.analysis_helpers import aggregate_metrics, run_adapter_batches, group_files_by_adapter
+
+
+def _build_unsupported_file_metrics(relative_path: str, total_loc: int, total_lloc: int, language: str) -> FileMetrics:
+    return FileMetrics(
+        filename=f"{relative_path}\n({language})",
+        total_loc=total_loc,
+        total_lloc=total_lloc,
+        function_count=0,
+        total_complexity=0,
+        functions=[],
+        is_unsupported=True,
+    )
+
+
+def _analyze_with_pygount(file_path: str, relative_path: str, content: Optional[str] = None) -> Optional[FileMetrics]:
+    try:
+        target_path = file_path
+        temp_path = None
+
+        if not os.path.exists(file_path):
+            suffix = os.path.splitext(relative_path)[1]
+            with tempfile.NamedTemporaryFile("w", suffix=suffix, delete=False, encoding="utf-8") as temp_file:
+                temp_file.write(content or "")
+                temp_path = temp_file.name
+                target_path = temp_path
+
+        analysis = pygount.SourceAnalysis.from_file(target_path, group="main")
+        loc = analysis.code_count + analysis.documentation_count + analysis.empty_count
+        if loc == 0 and content is not None:
+            return None
+        return _build_unsupported_file_metrics(
+            relative_path=relative_path,
+            total_loc=loc,
+            total_lloc=analysis.code_count,
+            language=analysis.language,
+        )
+    except Exception:
+        return None
+    finally:
+        if temp_path and os.path.exists(temp_path):
+            os.unlink(temp_path)
+
 
 def _analyze_single_file(file_path: str, relative_path: str,
                           content_override: Optional[str] = None) -> Optional[FileMetrics]:
@@ -23,32 +66,17 @@ def _analyze_single_file(file_path: str, relative_path: str,
         if supported_adapter:
             return asyncio.run(supported_adapter.analyze_content(content, relative_path))
         else:
-            # pygount only works on real files; if we have a content override, count lines
-            if content_override is not None:
-                total_lines = len(content.splitlines())
-                return FileMetrics(
-                    filename=f"{relative_path}\n(unsupported)",
-                    total_loc=total_lines, total_lloc=total_lines,
-                    function_count=0, total_complexity=0,
-                    functions=[], is_unsupported=True
-                )
-            try:
-                analysis = pygount.SourceAnalysis.from_file(file_path, group="main")
-                loc = analysis.code_count + analysis.documentation_count + analysis.empty_count
-                return FileMetrics(
-                    filename=f"{relative_path}\n({analysis.language})",
-                    total_loc=loc, total_lloc=analysis.code_count,
-                    function_count=0, total_complexity=0,
-                    functions=[], is_unsupported=True
-                )
-            except Exception:
-                total_lines = len(content.splitlines())
-                return FileMetrics(
-                    filename=f"{relative_path}\n(unsupported)",
-                    total_loc=total_lines, total_lloc=total_lines,
-                    function_count=0, total_complexity=0,
-                    functions=[], is_unsupported=True
-                )
+            pygount_metrics = _analyze_with_pygount(file_path, relative_path, content)
+            if pygount_metrics is not None:
+                return pygount_metrics
+
+            total_lines = len(content.splitlines())
+            return _build_unsupported_file_metrics(
+                relative_path=relative_path,
+                total_loc=total_lines,
+                total_lloc=total_lines,
+                language="unsupported",
+            )
     except Exception as e:
         print(f"Skipping file {relative_path} due to error: {e}")
         return None
