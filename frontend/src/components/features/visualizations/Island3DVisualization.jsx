@@ -379,11 +379,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         if (isDarkMode) {
             // Dark Slate / Grey tones
             const colors = [
-                0x1e293b, // Depth 0 (Root) - Dark Slate 800
-                0x334155, // Depth 1 - Slate 700
-                0x475569, // Depth 2 - Slate 600
-                0x64748b, // Depth 3 - Slate 500
-                0x94a3b8, // Depth 4 - Slate 400
+                0x334155, // Depth 0 (Root) - Slate 700 (Lighter)
+                0x475569, // Depth 1 - Slate 600
+                0x64748b, // Depth 2 - Slate 500
+                0x94a3b8, // Depth 3 - Slate 400
+                0xcbd5e1, // Depth 4 - Slate 300
             ];
             return colors[Math.min(depth, colors.length - 1)];
         }
@@ -1295,7 +1295,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         // Ocean
         const oceanGeometry = new THREE.PlaneGeometry(3000, 3000, 100, 100);
         const oceanMaterial = new THREE.MeshStandardMaterial({
-            color: isDarkMode ? 0x1e1b4b : 0x0891b2, // Deep Indigo vs Cyan
+            color: isDarkMode ? 0x020617 : 0x0891b2, // Dark Midnight vs Cyan
             roughness: 0.1,
             metalness: 0.8,
             transparent: true,
@@ -2420,22 +2420,22 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 </button>
 
                 {showOptionsPanel && (
-                    <div className={`mt-2 backdrop-blur-md rounded-xl shadow-lg p-4 border min-w-[250px] animate-in fade-in slide-in-from-top-2 ${isDarkMode
+                    <div className={`mt-2 backdrop-blur-md rounded-xl shadow-lg p-5 border min-w-[280px] animate-in fade-in slide-in-from-top-2 ${isDarkMode
                         ? 'bg-slate-800/90 border-slate-700/50'
                         : 'bg-white/90 border-white/50'}`}>
-                        <h4 className={`font-bold text-sm mb-3 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Visualization Options</h4>
+                        <h4 className={`font-bold text-sm mb-4 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>Visualization Options</h4>
 
                         {/* Visualization Style Selector */}
-                        <div className="mb-4">
-                            <label className={`text-xs mb-1 block ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+                        <div className="mb-5">
+                            <label className={`text-xs mb-2 block ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                                 Platform Style
                             </label>
-                            <div className="flex bg-gray-200 dark:bg-slate-700 rounded-lg p-1 gap-1">
+                            <div className="flex bg-gray-200 dark:bg-slate-700 rounded-lg p-1.5 gap-2">
                                 {['circular', 'honeycomb', 'freeform'].map(style => (
                                     <button
                                         key={style}
                                         onClick={() => setVizStyle(style)}
-                                        className={`flex-1 text-[10px] py-1.5 rounded-md font-medium transition-colors ${vizStyle === style
+                                        className={`flex-1 text-[11px] py-2 px-1 rounded-md font-medium transition-colors ${vizStyle === style
                                             ? 'bg-white dark:bg-slate-600 text-blue-600 dark:text-blue-400 shadow-sm'
                                             : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200'
                                             }`}
