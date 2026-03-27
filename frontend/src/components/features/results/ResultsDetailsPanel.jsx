@@ -226,46 +226,46 @@ function ResultsDetailsPanel({
                                                             (() => {
                                                                 const visualType = getLintVisualType(error);
                                                                 return (
-                                                            <div
-                                                                key={idx}
-                                                                onClick={() => {
-                                                                    setActiveLintError(error);
-                                                                    setCodeDisplayMode('highlighted');
-                                                                    setTimeout(() => {
-                                                                        const element = document.getElementById(`line-${error.line}`);
-                                                                        if (element) {
-                                                                            element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                                                        }
-                                                                    }, 300);
-                                                                }}
-                                                                className={`group p-5 rounded-[2rem] shadow-sm transform transition-all hover:scale-[1.01] hover:shadow-xl cursor-pointer flex gap-4 border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:border-blue-500/50' : 'bg-white border-gray-100 hover:border-blue-300'}`}
-                                                            >
-                                                                <div className={`mt-1 h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-12 ${visualType === 'fatal' ? 'bg-red-600/15 text-red-600' :
-                                                                    visualType === 'error' ? 'bg-red-500/10 text-red-500' :
-                                                                    visualType === 'warning' ? 'bg-amber-500/10 text-amber-500' :
-                                                                        'bg-blue-500/10 text-blue-500'
-                                                                    }`}>
-                                                                    {visualType === 'fatal' ? <OctagonAlert size={20} /> : visualType === 'error' ? <AlertTriangle size={20} /> : <Info size={20} />}
-                                                                </div>
-                                                                <div className="flex-1">
-                                                                    <div className="flex items-center justify-between mb-1">
-                                                                        <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${visualType === 'fatal' ? 'bg-red-600/15 text-red-600' :
+                                                                    <div
+                                                                        key={idx}
+                                                                        onClick={() => {
+                                                                            setActiveLintError(error);
+                                                                            setCodeDisplayMode('highlighted');
+                                                                            setTimeout(() => {
+                                                                                const element = document.getElementById(`line-${error.line}`);
+                                                                                if (element) {
+                                                                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                                                }
+                                                                            }, 300);
+                                                                        }}
+                                                                        className={`group p-5 rounded-[2rem] shadow-sm transform transition-all hover:scale-[1.01] hover:shadow-xl cursor-pointer flex gap-4 border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:border-blue-500/50' : 'bg-white border-gray-100 hover:border-blue-300'}`}
+                                                                    >
+                                                                        <div className={`mt-1 h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-12 ${visualType === 'fatal' ? 'bg-red-600/15 text-red-600' :
                                                                             visualType === 'error' ? 'bg-red-500/10 text-red-500' :
-                                                                            visualType === 'warning' ? 'bg-amber-500/10 text-amber-500' :
-                                                                                'bg-blue-500/10 text-blue-500'
+                                                                                visualType === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                                                                                    'bg-blue-500/10 text-blue-500'
                                                                             }`}>
-                                                                            {visualType === 'fatal' ? 'FATAL' : error.symbol || error.type}
-                                                                        </span>
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className="text-[10px] font-bold opacity-40">Line {error.line}:{error.column}</span>
-                                                                            <ExternalLink size={10} className="opacity-0 group-hover:opacity-40 transition-opacity" />
+                                                                            {visualType === 'fatal' ? <OctagonAlert size={20} /> : visualType === 'error' ? <AlertTriangle size={20} /> : <Info size={20} />}
+                                                                        </div>
+                                                                        <div className="flex-1">
+                                                                            <div className="flex items-center justify-between mb-1">
+                                                                                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${visualType === 'fatal' ? 'bg-red-600/15 text-red-600' :
+                                                                                    visualType === 'error' ? 'bg-red-500/10 text-red-500' :
+                                                                                        visualType === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                                                                                            'bg-blue-500/10 text-blue-500'
+                                                                                    }`}>
+                                                                                    {visualType === 'fatal' ? 'FATAL' : error.symbol || error.type}
+                                                                                </span>
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="text-[10px] font-bold opacity-40">Line {error.line}:{error.column}</span>
+                                                                                    <ExternalLink size={10} className="opacity-0 group-hover:opacity-40 transition-opacity" />
+                                                                                </div>
+                                                                            </div>
+                                                                            <p className={`text-sm font-semibold leading-relaxed mb-1 transition-colors group-hover:text-blue-500 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                                                                                {error.message}
+                                                                            </p>
                                                                         </div>
                                                                     </div>
-                                                                    <p className={`text-sm font-semibold leading-relaxed mb-1 transition-colors group-hover:text-blue-500 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                                                                        {error.message}
-                                                                    </p>
-                                                                </div>
-                                                            </div>
                                                                 );
                                                             })()
                                                         ))

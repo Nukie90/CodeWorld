@@ -2020,6 +2020,18 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 camera.position.add(moveVec);
             }
 
+            // Reset emissive intensities every frame so towers keep correct colours
+            // regardless of whether the mouse is locked or not. The onMouseMove
+            // hover handler will then override specific meshes for highlight.
+            if (isMouseLocked) {
+                interactableMeshesRef.current.forEach(m => {
+                    const defaultIntensity = isDarkMode
+                        ? (m.userData.type === 'file' ? 0.6 : 0)
+                        : 0;
+                    if (m.material && m.material.emissive) m.material.emissiveIntensity = defaultIntensity;
+                });
+            }
+
             renderer.render(scene, camera);
         };
         animate();
@@ -2080,6 +2092,17 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         const onPointerLockChange = () => {
             isMouseLocked = document.pointerLockElement === mountRef.current;
+
+            // When locking, the mousemove hover-reset block stops running.
+            // Re-apply default emissive intensities so towers keep their correct colours.
+            if (isMouseLocked) {
+                interactableMeshesRef.current.forEach(m => {
+                    const defaultIntensity = isDarkMode
+                        ? (m.userData.type === 'file' ? 0.6 : 0)
+                        : 0;
+                    if (m.material && m.material.emissive) m.material.emissiveIntensity = defaultIntensity;
+                });
+            }
         };
 
         const onMouseMove = (event) => {
@@ -2095,12 +2118,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 raycaster.setFromCamera(mouse, camera);
                 const intersects = raycaster.intersectObjects(interactableMeshesRef.current);
 
-                // Reset emissions
+                // Reset emissions to default (same logic now also runs in animate() for locked state)
                 interactableMeshesRef.current.forEach(m => {
                     const defaultIntensity = isDarkMode
                         ? (m.userData.type === 'file' ? 0.6 : 0)
-                        : 0; // Light mode default is 0
-
+                        : 0;
                     if (m.material && m.material.emissive) m.material.emissiveIntensity = defaultIntensity;
                 });
 
