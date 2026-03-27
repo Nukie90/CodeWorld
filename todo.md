@@ -36,3 +36,14 @@ repo demo result
             Total Commits: 39
             Total Time: 5153.30ms
             Average Time per Commit: 97.05ms
+
+
+-show list private repo in github
+-effect sound
+-remove reflection? 
+-แก้ภาพแตกบนtower
+-เอาตัวยิงเข้ามาใกล้ สลับไกลๆ
+-แก้ Honeycomb and freeform 
+
+- [BUG] react footer appear when view linter code page
+- [BUG] ตัวhover บัง

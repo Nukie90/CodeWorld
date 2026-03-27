@@ -3,9 +3,10 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import * as d3 from 'd3';
 import gsap from 'gsap';
-import { Settings } from 'lucide-react';
+import { Settings, Volume2, VolumeX } from 'lucide-react';
 import FunctionTableView from './FunctionTableView';
 import { SceneDiffer } from '../../../utils/SceneDiffer';
+import { audioManager } from '../../../utils/audioManager';
 
 function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, isDarkMode, isTimelinePlaying, animatingCommit, showContributors = false }) {
     const mountRef = useRef(null);
@@ -39,7 +40,24 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const [searchResults, setSearchResults] = useState([]);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [isSearchActive, setIsSearchActive] = useState(false);
+    const [isMuted, setIsMuted] = useState(audioManager.isMuted);
 
+    useEffect(() => {
+        const handleInteraction = () => {
+            audioManager.init();
+            if (!audioManager.isMuted) {
+                audioManager.startBackgroundMusic();
+            }
+        };
+        window.addEventListener('click', handleInteraction, { once: true });
+        return () => window.removeEventListener('click', handleInteraction);
+    }, []);
+
+    const handleToggleMute = () => {
+        audioManager.init(); // just in case
+        const newMutedState = audioManager.toggleMute();
+        setIsMuted(newMutedState);
+    };
 
 
     const keysRef = useRef({});
@@ -664,6 +682,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             }
 
             console.log(`[Island3D] Firing laser at ${filename}`);
+            audioManager.playLaserSound();
             const targetPos = new THREE.Vector3();
             building.cap.getWorldPosition(targetPos);
 
