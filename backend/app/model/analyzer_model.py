@@ -48,6 +48,7 @@ class FileMetrics(BaseModel):
     halstead_volume: Optional[float] = None
     maintainability_index: Optional[float] = None
     is_unsupported: bool = False
+    analysis_error: Optional[str] = None
     functions: List[FunctionMetric]
 
 class FolderMetrics(BaseModel):

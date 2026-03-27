@@ -49,7 +49,7 @@ def get_file_matrix_js_batch(files: List[Tuple[str, str]]) -> List[Optional[File
         )
         response.raise_for_status()
         results = response.json()
-        return [_parse_response(r) if "error" not in r else None for r in results]
+        return [_parse_response(r) for r in results]
     except (httpx.RequestError, httpx.HTTPStatusError) as e:
         print(f"Batch JS analysis failed: {e}. Falling back to individual calls.")
         if hasattr(e, 'response') and e.response is not None:
@@ -73,6 +73,7 @@ def _parse_response(data: dict) -> Optional[FileMetrics]:
             halstead_volume=data.get("halstead_volume"),
             maintainability_index=data.get("maintainability_index"),
             is_unsupported=data.get("is_unsupported", False),
+            analysis_error=data.get("analysis_error") or data.get("error"),
             functions=functions,
         )
         return ensure_file_total_cognitive_complexity(file_metrics)
