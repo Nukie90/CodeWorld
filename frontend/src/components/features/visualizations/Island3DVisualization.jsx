@@ -1214,7 +1214,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         // Ensure renderer exists (Created ONCE)
         let renderer = rendererRef.current;
         if (!renderer) {
-            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
+            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true });
             renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             renderer.shadowMap.enabled = true;
