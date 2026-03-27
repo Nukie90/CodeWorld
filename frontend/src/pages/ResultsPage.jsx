@@ -117,12 +117,24 @@ function ResultsPage() {
     animationSpeed,
     setAnimationSpeed,
     fixedFileOrder,
-    handlePlayAnimation,
-    handlePlayFromDate,
+    handlePlayAnimation: baseHandlePlayAnimation,
+    handlePlayFromDate: baseHandlePlayFromDate,
     handleStepPrev,
     handleStepNext,
     handleCommitClick
   } = useRepoAnimation(analysisResult, applyAnalysisResult, currentBranch, token, individual_files);
+
+  const handlePlayAnimation = useCallback((...args) => {
+    if (!isAnimating) {
+      setIsRightPanelOpen(false);
+    }
+    baseHandlePlayAnimation(...args);
+  }, [isAnimating, baseHandlePlayAnimation]);
+
+  const handlePlayFromDate = useCallback((...args) => {
+    setIsRightPanelOpen(false);
+    baseHandlePlayFromDate(...args);
+  }, [baseHandlePlayFromDate]);
 
   // Extract unique directories
   useEffect(() => {
