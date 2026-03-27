@@ -66,8 +66,11 @@ export function useRepoAnimation(analysisResult, setAnalysisResult, currentBranc
                 setAnimatingCommit(commit);
                 setAnimationProgress(Math.round((index / (commits.length - 1)) * 100));
 
+                const fetchStart = performance.now();
                 try {
                     const checkoutResp = await repoService.checkout(analysisResult.repo_url, commit.hash, token);
+                    const fetchTime = performance.now() - fetchStart;
+                    console.log(`[Timeline API] Commit ${commit.hash} fetched in ${fetchTime.toFixed(2)}ms`);
                     if (checkoutResp.data) {
                         setAnalysisResult(checkoutResp.data);
                     }

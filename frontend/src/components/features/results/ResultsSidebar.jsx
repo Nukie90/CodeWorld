@@ -246,7 +246,7 @@ function ResultsSidebar({
                                             {animationProgress > 0 && (
                                                 <div className="mt-3">
                                                     <div className="flex items-center justify-between text-xs font-medium text-gray-600 dark:text-gray-400 mb-2">
-                                                        <span>Progress</span>
+                                                        <span>Commit {currentCommitIndex + 1} of {allCommits?.length || 0}</span>
                                                         <span className="font-bold text-blue-600 dark:text-blue-400">{animationProgress}%</span>
                                                     </div>
                                                     <div className="w-full bg-gray-200 dark:bg-gray-600 rounded-full h-2 overflow-hidden">
