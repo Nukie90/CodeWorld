@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp, AlertTriangle, Info, CheckCircle, ExternalLink, RotateCw, OctagonAlert, Filter, ArrowUp, ArrowDown, ListFilter } from 'lucide-react';
+import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp, AlertTriangle, Info, CheckCircle, ExternalLink, RotateCw, OctagonAlert, Filter, ArrowUp, ArrowDown, ListFilter, X } from 'lucide-react';
 import LintScoreGauge from './visualizations/LintScoreGauge';
 import LintErrorDistribution from './visualizations/LintErrorDistribution';
 
@@ -161,88 +161,88 @@ function ResultsDetailsPanel({
                                             ) : lintResults ? (
                                                 <div className="space-y-4 px-2">
                                                     {/* Scrolling Header inside the content area */}
-                                                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 animate-in fade-in slide-in-from-bottom-2 duration-700">
-                                                            <div className="flex flex-col gap-3">
-                                                                <h4 className="text-3xl font-black bg-gradient-to-r from-teal-400 via-emerald-400 to-green-500 bg-clip-text text-transparent tracking-tighter">
-                                                                    Linter Insights
-                                                                </h4>
-                                                                
-                                                                <div className="flex flex-wrap items-center gap-3">
-                                                                    {/* Enhanced Filter Control */}
-                                                                    <div className={`group flex items-center p-1 rounded-2xl border transition-all duration-300 ${isDarkMode ? 'bg-gray-800/40 border-white/5 hover:border-teal-500/30' : 'bg-gray-100/50 border-black/5 hover:border-teal-500/30'} backdrop-blur-xl shadow-inner`}>
-                                                                        <div className="flex items-center px-2 py-1 mr-1">
-                                                                            <ListFilter size={14} className={`${isDarkMode ? 'text-gray-500 group-hover:text-teal-400' : 'text-gray-400 group-hover:text-teal-600'} transition-colors`} />
-                                                                        </div>
-                                                                        <div className="flex items-center gap-1">
-                                                                            {[
-                                                                                { id: 'all', label: 'All', color: 'bg-teal-500' },
-                                                                                { id: 'error', label: 'Errors', color: 'bg-red-500' },
-                                                                                { id: 'warning', label: 'Warnings', color: 'bg-amber-500' },
-                                                                                { id: 'convention', label: 'Convention', color: 'bg-blue-500' }
-                                                                            ].map(opt => (
-                                                                                <button
-                                                                                    key={opt.id}
-                                                                                    onClick={() => setLintFilter(opt.id)}
-                                                                                    className={`relative px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 overflow-hidden ${lintFilter === opt.id
-                                                                                        ? 'text-white shadow-lg'
-                                                                                        : 'text-gray-500 hover:text-gray-400'
-                                                                                        }`}
-                                                                                >
-                                                                                    {lintFilter === opt.id && (
-                                                                                        <div className={`absolute inset-0 ${opt.color} animate-in fade-in zoom-in-95 duration-300`} />
-                                                                                    )}
-                                                                                    <span className="relative z-10">{opt.label}</span>
-                                                                                </button>
-                                                                            ))}
-                                                                        </div>
-                                                                    </div>
+                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 animate-in fade-in slide-in-from-bottom-2 duration-700">
+                                                        <div className="flex flex-col gap-3">
+                                                            <h4 className="text-3xl font-black bg-gradient-to-r from-teal-400 via-emerald-400 to-green-500 bg-clip-text text-transparent tracking-tighter">
+                                                                Linter Insights
+                                                            </h4>
 
-                                                                    {/* Enhanced Sort Control */}
-                                                                    <div className={`flex items-center p-1 rounded-2xl border transition-all duration-300 ${isDarkMode ? 'bg-gray-800/40 border-white/5 hover:border-blue-500/30' : 'bg-gray-100/50 border-black/5 hover:border-blue-500/30'} backdrop-blur-xl shadow-inner`}>
-                                                                        <div className="flex items-center gap-1">
-                                                                            {[
-                                                                                { id: 'line-asc', label: 'Line', icon: <ArrowUp size={12} strokeWidth={3} /> },
-                                                                                { id: 'severity-high', label: 'Severity', icon: <ArrowDown size={12} strokeWidth={3} /> }
-                                                                            ].map(opt => (
-                                                                                <button
-                                                                                    key={opt.id}
-                                                                                    onClick={() => setLintSort(opt.id)}
-                                                                                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 ${lintSort === opt.id
-                                                                                        ? 'bg-blue-600 text-white shadow-lg'
-                                                                                        : 'text-gray-500 hover:text-gray-400'
-                                                                                        }`}
-                                                                                >
-                                                                                    {opt.icon}
-                                                                                    {opt.label}
-                                                                                </button>
-                                                                            ))}
-                                                                        </div>
+                                                            <div className="flex flex-wrap items-center gap-3">
+                                                                {/* Enhanced Filter Control */}
+                                                                <div className={`group flex items-center p-1 rounded-2xl border transition-all duration-300 ${isDarkMode ? 'bg-gray-800/40 border-white/5 hover:border-teal-500/30' : 'bg-gray-100/50 border-black/5 hover:border-teal-500/30'} backdrop-blur-xl shadow-inner`}>
+                                                                    <div className="flex items-center px-2 py-1 mr-1">
+                                                                        <ListFilter size={14} className={`${isDarkMode ? 'text-gray-500 group-hover:text-teal-400' : 'text-gray-400 group-hover:text-teal-600'} transition-colors`} />
+                                                                    </div>
+                                                                    <div className="flex items-center gap-1">
+                                                                        {[
+                                                                            { id: 'all', label: 'All', color: 'bg-teal-500' },
+                                                                            { id: 'error', label: 'Errors', color: 'bg-red-500' },
+                                                                            { id: 'warning', label: 'Warnings', color: 'bg-amber-500' },
+                                                                            { id: 'convention', label: 'Convention', color: 'bg-blue-500' }
+                                                                        ].map(opt => (
+                                                                            <button
+                                                                                key={opt.id}
+                                                                                onClick={() => setLintFilter(opt.id)}
+                                                                                className={`relative px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 overflow-hidden ${lintFilter === opt.id
+                                                                                    ? 'text-white shadow-lg'
+                                                                                    : 'text-gray-500 hover:text-gray-400'
+                                                                                    }`}
+                                                                            >
+                                                                                {lintFilter === opt.id && (
+                                                                                    <div className={`absolute inset-0 ${opt.color} animate-in fade-in zoom-in-95 duration-300`} />
+                                                                                )}
+                                                                                <span className="relative z-10">{opt.label}</span>
+                                                                            </button>
+                                                                        ))}
                                                                     </div>
                                                                 </div>
-                                                            </div>
 
-                                                            <div className="flex items-center gap-3">
-                                                                <button
-                                                                    onClick={() => handleLintFile(selectedCode.filename, true)}
-                                                                    disabled={isLinting}
-                                                                    className={`group flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 ${isDarkMode
-                                                                            ? 'bg-gray-800/40 hover:bg-teal-500/10 border border-white/5 hover:border-teal-500/30 text-gray-400 hover:text-teal-400'
-                                                                            : 'bg-gray-100/50 hover:bg-teal-50/80 border border-black/5 hover:border-teal-500/30 text-gray-500 hover:text-teal-600'
-                                                                        } backdrop-blur-xl shadow-lg hover:shadow-teal-500/10`}
-                                                                    title="Recompute Linter"
-                                                                >
-                                                                    <RotateCw size={16} strokeWidth={2.5} className={`${isLinting ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
-                                                                    <span className="text-[10px] font-black uppercase tracking-widest">Refresh</span>
-                                                                </button>
-                                                                
-                                                                <div className={`px-4 py-2 rounded-2xl flex items-center gap-2 border shadow-lg ${isDarkMode ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-emerald-50 border-emerald-100'} backdrop-blur-xl`}>
-                                                                    <div className={`w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse`} />
-                                                                    <span className={`text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                                                                        Quality Analysis
-                                                                    </span>
+                                                                {/* Enhanced Sort Control */}
+                                                                <div className={`flex items-center p-1 rounded-2xl border transition-all duration-300 ${isDarkMode ? 'bg-gray-800/40 border-white/5 hover:border-blue-500/30' : 'bg-gray-100/50 border-black/5 hover:border-blue-500/30'} backdrop-blur-xl shadow-inner`}>
+                                                                    <div className="flex items-center gap-1">
+                                                                        {[
+                                                                            { id: 'line-asc', label: 'Line', icon: <ArrowUp size={12} strokeWidth={3} /> },
+                                                                            { id: 'severity-high', label: 'Severity', icon: <ArrowDown size={12} strokeWidth={3} /> }
+                                                                        ].map(opt => (
+                                                                            <button
+                                                                                key={opt.id}
+                                                                                onClick={() => setLintSort(opt.id)}
+                                                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 ${lintSort === opt.id
+                                                                                    ? 'bg-blue-600 text-white shadow-lg'
+                                                                                    : 'text-gray-500 hover:text-gray-400'
+                                                                                    }`}
+                                                                            >
+                                                                                {opt.icon}
+                                                                                {opt.label}
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
                                                                 </div>
                                                             </div>
                                                         </div>
+
+                                                        <div className="flex items-center gap-3">
+                                                            <button
+                                                                onClick={() => handleLintFile(selectedCode.filename, true)}
+                                                                disabled={isLinting}
+                                                                className={`group flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 ${isDarkMode
+                                                                    ? 'bg-gray-800/40 hover:bg-teal-500/10 border border-white/5 hover:border-teal-500/30 text-gray-400 hover:text-teal-400'
+                                                                    : 'bg-gray-100/50 hover:bg-teal-50/80 border border-black/5 hover:border-teal-500/30 text-gray-500 hover:text-teal-600'
+                                                                    } backdrop-blur-xl shadow-lg hover:shadow-teal-500/10`}
+                                                                title="Recompute Linter"
+                                                            >
+                                                                <RotateCw size={16} strokeWidth={2.5} className={`${isLinting ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
+                                                                <span className="text-[10px] font-black uppercase tracking-widest">Refresh</span>
+                                                            </button>
+
+                                                            <div className={`px-4 py-2 rounded-2xl flex items-center gap-2 border shadow-lg ${isDarkMode ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-emerald-50 border-emerald-100'} backdrop-blur-xl`}>
+                                                                <div className={`w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse`} />
+                                                                <span className={`text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
+                                                                    Quality Analysis
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
 
                                                     {(lintResults.lint_score != null || isLintNotApplicable) && (
                                                         <div className={`p-6 mb-4 rounded-[2.5rem] border shadow-2xl relative overflow-hidden transition-all hover:scale-[1.02] duration-500 ${isDarkMode ? 'bg-gray-800/40 border-white/5' : 'bg-white border-gray-100'}`}>
@@ -303,52 +303,52 @@ function ResultsDetailsPanel({
                                                                 return 0;
                                                             })
                                                             .map((error, idx) => (
-                                                            (() => {
-                                                                const visualType = getLintVisualType(error);
-                                                                return (
-                                                                    <div
-                                                                        key={idx}
-                                                                        onClick={() => {
-                                                                            setActiveLintError(error);
-                                                                            setCodeDisplayMode('highlighted');
-                                                                            setTimeout(() => {
-                                                                                const element = document.getElementById(`line-${error.line}`);
-                                                                                if (element) {
-                                                                                    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                                                                                }
-                                                                            }, 300);
-                                                                        }}
-                                                                        className={`group p-5 rounded-[2rem] shadow-sm transform transition-all hover:scale-[1.01] hover:shadow-xl cursor-pointer flex gap-4 border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:border-blue-500/50' : 'bg-white border-gray-100 hover:border-blue-300'}`}
-                                                                    >
-                                                                        <div className={`mt-1 h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-12 ${visualType === 'fatal' ? 'bg-red-600/15 text-red-600' :
-                                                                            visualType === 'error' ? 'bg-red-500/10 text-red-500' :
-                                                                                visualType === 'warning' ? 'bg-amber-500/10 text-amber-500' :
-                                                                                    'bg-blue-500/10 text-blue-500'
-                                                                            }`}>
-                                                                            {visualType === 'fatal' ? <OctagonAlert size={20} /> : visualType === 'error' ? <AlertTriangle size={20} /> : <Info size={20} />}
-                                                                        </div>
-                                                                        <div className="flex-1">
-                                                                            <div className="flex items-center justify-between mb-1">
-                                                                                <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${visualType === 'fatal' ? 'bg-red-600/15 text-red-600' :
-                                                                                    visualType === 'error' ? 'bg-red-500/10 text-red-500' :
-                                                                                        visualType === 'warning' ? 'bg-amber-500/10 text-amber-500' :
-                                                                                            'bg-blue-500/10 text-blue-500'
-                                                                                    }`}>
-                                                                                    {visualType === 'fatal' ? 'FATAL' : error.symbol || error.type}
-                                                                                </span>
-                                                                                <div className="flex items-center gap-2">
-                                                                                    <span className="text-[10px] font-bold opacity-40">Line {error.line}:{error.column}</span>
-                                                                                    <ExternalLink size={10} className="opacity-0 group-hover:opacity-40 transition-opacity" />
-                                                                                </div>
+                                                                (() => {
+                                                                    const visualType = getLintVisualType(error);
+                                                                    return (
+                                                                        <div
+                                                                            key={idx}
+                                                                            onClick={() => {
+                                                                                setActiveLintError(error);
+                                                                                setCodeDisplayMode('highlighted');
+                                                                                setTimeout(() => {
+                                                                                    const element = document.getElementById(`line-${error.line}`);
+                                                                                    if (element) {
+                                                                                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                                                    }
+                                                                                }, 300);
+                                                                            }}
+                                                                            className={`group p-5 rounded-[2rem] shadow-sm transform transition-all hover:scale-[1.01] hover:shadow-xl cursor-pointer flex gap-4 border ${isDarkMode ? 'bg-gray-800 border-gray-700 hover:border-blue-500/50' : 'bg-white border-gray-100 hover:border-blue-300'}`}
+                                                                        >
+                                                                            <div className={`mt-1 h-10 w-10 shrink-0 rounded-2xl flex items-center justify-center transition-transform group-hover:rotate-12 ${visualType === 'fatal' ? 'bg-red-600/15 text-red-600' :
+                                                                                visualType === 'error' ? 'bg-red-500/10 text-red-500' :
+                                                                                    visualType === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                                                                                        'bg-blue-500/10 text-blue-500'
+                                                                                }`}>
+                                                                                {visualType === 'fatal' ? <OctagonAlert size={20} /> : visualType === 'error' ? <AlertTriangle size={20} /> : <Info size={20} />}
                                                                             </div>
-                                                                            <p className={`text-sm font-semibold leading-relaxed mb-1 transition-colors group-hover:text-blue-500 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
-                                                                                {error.message}
-                                                                            </p>
+                                                                            <div className="flex-1">
+                                                                                <div className="flex items-center justify-between mb-1">
+                                                                                    <span className={`text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full ${visualType === 'fatal' ? 'bg-red-600/15 text-red-600' :
+                                                                                        visualType === 'error' ? 'bg-red-500/10 text-red-500' :
+                                                                                            visualType === 'warning' ? 'bg-amber-500/10 text-amber-500' :
+                                                                                                'bg-blue-500/10 text-blue-500'
+                                                                                        }`}>
+                                                                                        {visualType === 'fatal' ? 'FATAL' : error.symbol || error.type}
+                                                                                    </span>
+                                                                                    <div className="flex items-center gap-2">
+                                                                                        <span className="text-[10px] font-bold opacity-40">Line {error.line}:{error.column}</span>
+                                                                                        <ExternalLink size={10} className="opacity-0 group-hover:opacity-40 transition-opacity" />
+                                                                                    </div>
+                                                                                </div>
+                                                                                <p className={`text-sm font-semibold leading-relaxed mb-1 transition-colors group-hover:text-blue-500 ${isDarkMode ? 'text-gray-200' : 'text-gray-800'}`}>
+                                                                                    {error.message}
+                                                                                </p>
+                                                                            </div>
                                                                         </div>
-                                                                    </div>
-                                                                );
-                                                            })()
-                                                        ))
+                                                                    );
+                                                                })()
+                                                            ))
                                                     )}
                                                 </div>
                                             ) : (
@@ -411,10 +411,24 @@ function ResultsDetailsPanel({
 
                                                                 {/* Stacked error bubbles for all errors on this line */}
                                                                 {lineErrors.map((err, eIdx) => (
-                                                                    <div key={`msg-${eIdx}`} className={`mt-2 mb-2 p-4 rounded-2xl shadow-xl border animate-in zoom-in-95 slide-in-from-top-2 duration-300 relative z-20 ${err === activeLintError
+                                                                    <div key={`msg-${eIdx}`} className={`mt-2 mb-2 p-4 pr-10 rounded-2xl shadow-xl border animate-in zoom-in-95 slide-in-from-top-2 duration-300 relative z-20 ${err === activeLintError
                                                                         ? (isDarkMode ? 'bg-gray-800 border-blue-500 ring-1 ring-blue-500/50 text-blue-100' : 'bg-blue-50 border-blue-300 text-blue-800')
                                                                         : (isDarkMode ? 'bg-gray-800 border-red-500/50 text-red-200' : 'bg-red-50 border-red-200 text-red-700')
                                                                         }`}>
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setActiveLintError(null);
+                                                                            }}
+                                                                            className={`absolute top-3 right-3 p-1 rounded-full transition-all duration-200 ${
+                                                                                isDarkMode 
+                                                                                    ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-200' 
+                                                                                    : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'
+                                                                            }`}
+                                                                            title="Dismiss"
+                                                                        >
+                                                                            <X size={14} strokeWidth={2.5} />
+                                                                        </button>
                                                                         <div className="flex items-start gap-3">
                                                                             <div className={`p-1.5 rounded-lg ${err === activeLintError ? (isDarkMode ? 'bg-blue-500/20' : 'bg-blue-500/10') : (isDarkMode ? 'bg-red-500/20' : 'bg-red-500/10')}`}>
                                                                                 {err === activeLintError ? <CheckCircle size={14} className="text-blue-500" /> : <AlertTriangle size={14} className={err.type === 'error' ? 'text-red-500' : 'text-amber-500'} />}
