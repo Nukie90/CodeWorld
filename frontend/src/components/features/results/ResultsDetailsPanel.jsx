@@ -34,6 +34,7 @@ function ResultsDetailsPanel({
     const [activeLintError, setActiveLintError] = React.useState(null);
     const [lintFilter, setLintFilter] = React.useState('all');
     const [lintSort, setLintSort] = React.useState('line-asc');
+    const codeScrollContainerRef = useRef(null);
 
     // Reset active error when code changes
     useEffect(() => {
@@ -150,7 +151,7 @@ function ResultsDetailsPanel({
                                         {selectedCode.endLine ? `-${selectedCode.endLine}` : ''})
                                     </p>
                                 </div>
-                                <div className="flex-1 overflow-auto relative">
+                                <div ref={codeScrollContainerRef} className="flex-1 overflow-auto relative">
                                     {codeDisplayMode === 'linterSuggest' ? (
                                         <div className={`h-full flex flex-col overflow-y-auto rounded-xl p-4`} style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
                                             {isLinting ? (
@@ -312,9 +313,13 @@ function ResultsDetailsPanel({
                                                                                 setActiveLintError(error);
                                                                                 setCodeDisplayMode('highlighted');
                                                                                 setTimeout(() => {
-                                                                                    const element = document.getElementById(`line-${error.line}`);
-                                                                                    if (element) {
-                                                                                        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                                                                    const container = codeScrollContainerRef.current;
+                                                                                    const element = container?.querySelector(`#line-${error.line}`);
+                                                                                    if (container && element) {
+                                                                                        const containerRect = container.getBoundingClientRect();
+                                                                                        const elementRect = element.getBoundingClientRect();
+                                                                                        const offset = elementRect.top - containerRect.top + container.scrollTop - containerRect.height / 2 + elementRect.height / 2;
+                                                                                        container.scrollTo({ top: offset, behavior: 'smooth' });
                                                                                     }
                                                                                 }, 300);
                                                                             }}
