@@ -1402,7 +1402,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     if (!directoryMeshesRef.current) directoryMeshesRef.current = new Map();
                     directoryMeshesRef.current.set(dirPath, { mesh, ring, r });
 
-                    // Add Palm Trees to the root island (shoreline)
+                    // Add trees to the root island (shoreline)
                     if (node.depth === 0 && showDecorations) {
                         const numTrees = Math.floor(r / 5);
                         for (let i = 0; i < numTrees; i++) {
@@ -1411,28 +1411,86 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                             const treeX = x + Math.cos(angle) * treeR;
                             const treeZ = z + Math.sin(angle) * treeR;
 
-                            // Simple Palm Tree
-                            const trunkH = 4 + Math.random() * 2;
-                            const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, trunkH, 8);
-                            const trunkMat = new THREE.MeshStandardMaterial({ color: isDarkMode ? 0x57534e : 0x8b5a2b });
-                            const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-                            trunk.position.set(treeX, y + trunkH / 2, treeZ);
-                            scene.add(trunk);
-                            palmTreesRef.current.push(trunk);
-                            geometriesToDisposeRef.current.push(trunkGeo);
-                            materialsToDisposeRef.current.push(trunkMat);
-
-                            const leafGeo = new THREE.ConeGeometry(1.5, 3, 5);
-                            const leafMat = new THREE.MeshStandardMaterial({
-                                color: isDarkMode ? 0x15803d : 0x22c55e,
-                                emissive: isDarkMode ? 0x22c55e : 0x000000,
-                                emissiveIntensity: isDarkMode ? 0.2 : 0
-                            });
-                            const foliage = new THREE.Mesh(leafGeo, leafMat);
-                            foliage.position.set(treeX, y + trunkH + 1, treeZ);
-                            scene.add(foliage);
-                            geometriesToDisposeRef.current.push(leafGeo);
-                            materialsToDisposeRef.current.push(leafMat);
+                            if (!isDarkMode) {
+                                // Lush palm tree with leaning segmented trunk
+                                const trunkH = 5 + Math.random() * 3;
+                                const lean = (Math.random() - 0.5) * 0.35;
+                                const segments = 5;
+                                for (let s = 0; s < segments; s++) {
+                                    const segH = trunkH / segments;
+                                    const sGeo = new THREE.CylinderGeometry(0.18 - s * 0.02, 0.28 - s * 0.01, segH, 7);
+                                    const sMat = new THREE.MeshStandardMaterial({ color: 0x8b6914, roughness: 0.95 });
+                                    const seg = new THREE.Mesh(sGeo, sMat);
+                                    seg.position.set(treeX + lean * s * segH, y + s * segH + segH / 2, treeZ + lean * s * segH * 0.5);
+                                    seg.rotation.z = lean * 0.08;
+                                    scene.add(seg);
+                                    palmTreesRef.current.push(seg);
+                                    geometriesToDisposeRef.current.push(sGeo);
+                                    materialsToDisposeRef.current.push(sMat);
+                                }
+                                // Layered fronds
+                                const frondColors = [0x16a34a, 0x15803d, 0x166534];
+                                for (let f = 0; f < 3; f++) {
+                                    const fGeo = new THREE.ConeGeometry(2.2 - f * 0.4, 2.5 + f * 0.3, 7);
+                                    const fMat = new THREE.MeshStandardMaterial({ color: frondColors[f], roughness: 0.7 });
+                                    const frond = new THREE.Mesh(fGeo, fMat);
+                                    frond.position.set(treeX + lean * trunkH + (f - 1) * 0.4, y + trunkH + f * 0.7, treeZ + lean * trunkH * 0.5);
+                                    frond.rotation.z = lean * 0.3 + (f - 1) * 0.15;
+                                    scene.add(frond);
+                                    palmTreesRef.current.push(frond);
+                                    geometriesToDisposeRef.current.push(fGeo);
+                                    materialsToDisposeRef.current.push(fMat);
+                                }
+                                // Coconuts
+                                for (let c = 0; c < 3; c++) {
+                                    const ca = (c / 3) * Math.PI * 2;
+                                    const cGeo = new THREE.SphereGeometry(0.3, 8, 8);
+                                    const cMat = new THREE.MeshStandardMaterial({ color: 0x7c3e0b, roughness: 0.9 });
+                                    const coconut = new THREE.Mesh(cGeo, cMat);
+                                    coconut.position.set(treeX + lean * trunkH + Math.cos(ca) * 0.9, y + trunkH - 0.5, treeZ + lean * trunkH * 0.5 + Math.sin(ca) * 0.9);
+                                    scene.add(coconut);
+                                    palmTreesRef.current.push(coconut);
+                                    geometriesToDisposeRef.current.push(cGeo);
+                                    materialsToDisposeRef.current.push(cMat);
+                                }
+                            } else {
+                                // Crystal shard tree (dark mode)
+                                const isCyan = Math.random() > 0.5;
+                                const trunkColor = isCyan ? 0x0891b2 : 0x7c3aed;
+                                const glowColor = isCyan ? 0x06b6d4 : 0xa855f7;
+                                const tH = 4 + Math.random() * 3;
+                                const tGeo = new THREE.CylinderGeometry(0.15, 0.25, tH, 6);
+                                const tMat = new THREE.MeshStandardMaterial({
+                                    color: trunkColor, emissive: glowColor, emissiveIntensity: 0.8, roughness: 0.2, metalness: 0.7
+                                });
+                                const trunk = new THREE.Mesh(tGeo, tMat);
+                                trunk.position.set(treeX, y + tH / 2, treeZ);
+                                scene.add(trunk);
+                                palmTreesRef.current.push(trunk);
+                                geometriesToDisposeRef.current.push(tGeo);
+                                materialsToDisposeRef.current.push(tMat);
+                                // Crystal shards
+                                const numShards = 3 + Math.floor(Math.random() * 3);
+                                for (let sh = 0; sh < numShards; sh++) {
+                                    const sa = (sh / numShards) * Math.PI * 2 + Math.random() * 0.5;
+                                    const sGeo = new THREE.OctahedronGeometry(0.6 + Math.random() * 0.5, 0);
+                                    const sMat = new THREE.MeshStandardMaterial({
+                                        color: glowColor, emissive: glowColor, emissiveIntensity: 1.2,
+                                        transparent: true, opacity: 0.85, roughness: 0.05, metalness: 0.9
+                                    });
+                                    const shard = new THREE.Mesh(sGeo, sMat);
+                                    shard.position.set(
+                                        treeX + Math.cos(sa) * (0.8 + sh * 0.3),
+                                        y + tH + sh * 0.5 + 0.5,
+                                        treeZ + Math.sin(sa) * (0.8 + sh * 0.3)
+                                    );
+                                    shard.rotation.set(Math.random(), Math.random(), Math.random());
+                                    scene.add(shard);
+                                    palmTreesRef.current.push(shard);
+                                    geometriesToDisposeRef.current.push(sGeo);
+                                    materialsToDisposeRef.current.push(sMat);
+                                }
+                            }
                         }
                     }
 
@@ -1595,38 +1653,182 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             });
         };
 
+        // Helper to register geo/mat for cleanup
+        const addDeco = (geo, mat) => {
+            geometriesToDisposeRef.current.push(geo);
+            materialsToDisposeRef.current.push(mat);
+        };
+
+        // --- Lush Palm Tree (light mode) ---
+        const addPalmTree = (tx, ty, tz) => {
+            const trunkSegments = 5;
+            const trunkH = 5 + Math.random() * 3;
+            const lean = (Math.random() - 0.5) * 0.3;
+            for (let s = 0; s < trunkSegments; s++) {
+                const segH = trunkH / trunkSegments;
+                const geo = new THREE.CylinderGeometry(0.18 - s * 0.02, 0.28 - s * 0.01, segH, 7);
+                const mat = new THREE.MeshStandardMaterial({ color: 0x8b6914, roughness: 0.95 });
+                const seg = new THREE.Mesh(geo, mat);
+                seg.position.set(tx + lean * s * segH, ty + s * segH + segH / 2, tz + lean * s * segH * 0.5);
+                seg.rotation.z = lean * 0.08;
+                scene.add(seg);
+                palmTreesRef.current.push(seg);
+                addDeco(geo, mat);
+            }
+            // Three layered frond cones
+            const frondColors = [0x16a34a, 0x15803d, 0x166534];
+            for (let f = 0; f < 3; f++) {
+                const fGeo = new THREE.ConeGeometry(2.2 - f * 0.4, 2.5 + f * 0.3, 7);
+                const fMat = new THREE.MeshStandardMaterial({ color: frondColors[f], roughness: 0.7 });
+                const frond = new THREE.Mesh(fGeo, fMat);
+                frond.position.set(
+                    tx + lean * trunkH + (f - 1) * 0.4,
+                    ty + trunkH + f * 0.7,
+                    tz + lean * trunkH * 0.5
+                );
+                frond.rotation.z = lean * 0.3 + (f - 1) * 0.15;
+                scene.add(frond);
+                palmTreesRef.current.push(frond);
+                addDeco(fGeo, fMat);
+            }
+            // Coconuts
+            for (let c = 0; c < 3; c++) {
+                const ca = (c / 3) * Math.PI * 2;
+                const cGeo = new THREE.SphereGeometry(0.3, 8, 8);
+                const cMat = new THREE.MeshStandardMaterial({ color: 0x7c3e0b, roughness: 0.9 });
+                const coconut = new THREE.Mesh(cGeo, cMat);
+                coconut.position.set(
+                    tx + lean * trunkH + Math.cos(ca) * 0.9,
+                    ty + trunkH - 0.5,
+                    tz + lean * trunkH * 0.5 + Math.sin(ca) * 0.9
+                );
+                scene.add(coconut);
+                palmTreesRef.current.push(coconut);
+                addDeco(cGeo, cMat);
+            }
+        };
+
+        // --- Crystal Shard Tree (dark mode) ---
+        const addCrystalTree = (tx, ty, tz) => {
+            const isCyan = Math.random() > 0.5;
+            const trunkColor = isCyan ? 0x0891b2 : 0x7c3aed;
+            const glowColor = isCyan ? 0x06b6d4 : 0xa855f7;
+            // Glowing trunk column
+            const tH = 4 + Math.random() * 3;
+            const tGeo = new THREE.CylinderGeometry(0.15, 0.25, tH, 6);
+            const tMat = new THREE.MeshStandardMaterial({
+                color: trunkColor, emissive: glowColor, emissiveIntensity: 0.8, roughness: 0.2, metalness: 0.7
+            });
+            const trunk = new THREE.Mesh(tGeo, tMat);
+            trunk.position.set(tx, ty + tH / 2, tz);
+            scene.add(trunk);
+            palmTreesRef.current.push(trunk);
+            addDeco(tGeo, tMat);
+            // Crystal shards (octahedra)
+            const numShards = 3 + Math.floor(Math.random() * 3);
+            for (let sh = 0; sh < numShards; sh++) {
+                const sa = (sh / numShards) * Math.PI * 2 + Math.random() * 0.5;
+                const sGeo = new THREE.OctahedronGeometry(0.6 + Math.random() * 0.5, 0);
+                const sMat = new THREE.MeshStandardMaterial({
+                    color: glowColor, emissive: glowColor, emissiveIntensity: 1.2,
+                    transparent: true, opacity: 0.85, roughness: 0.05, metalness: 0.9
+                });
+                const shard = new THREE.Mesh(sGeo, sMat);
+                shard.position.set(
+                    tx + Math.cos(sa) * (0.8 + sh * 0.3),
+                    ty + tH + sh * 0.5 + 0.5,
+                    tz + Math.sin(sa) * (0.8 + sh * 0.3)
+                );
+                shard.rotation.set(Math.random(), Math.random(), Math.random());
+                scene.add(shard);
+                palmTreesRef.current.push(shard);
+                addDeco(sGeo, sMat);
+            }
+        };
+
         const renderDecorations = (root) => {
             if (!showDecorations) return;
             const rootChildren = root.children || [];
             rootChildren.forEach(child => {
+                const platY = (child.depth * 3); // top surface of platform
                 const numTrees = 2 + Math.floor(Math.random() * 3);
-                for (let i = 0; i < numTrees; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const dist = Math.random() * (child.r - 2);
-                    const tx = child.x + Math.cos(angle) * dist;
-                    const tz = child.y + Math.sin(angle) * dist;
 
-                    const trunkH = 4 + Math.random() * 2;
-                    const trunkGeo = new THREE.CylinderGeometry(0.2, 0.3, trunkH, 8);
-                    const trunkMat = new THREE.MeshStandardMaterial({ color: isDarkMode ? 0x57534e : 0x8b5a2b });
-                    const trunk = new THREE.Mesh(trunkGeo, trunkMat);
-                    trunk.position.set(tx, trunkH / 2, tz);
-                    scene.add(trunk);
-                    palmTreesRef.current.push(trunk);
-                    geometriesToDisposeRef.current.push(trunkGeo);
-                    materialsToDisposeRef.current.push(trunkMat);
+                if (!isDarkMode) {
+                    // ---- LIGHT MODE: Tropical palm trees + flowers ----
+                    for (let i = 0; i < numTrees; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = Math.random() * Math.max(1, child.r - 3);
+                        const tx = child.x + Math.cos(angle) * dist;
+                        const tz = child.y + Math.sin(angle) * dist;
+                        addPalmTree(tx, platY, tz);
+                    }
+                    // Flower clusters
+                    const flowerColors = [0xff6eb4, 0xffd700, 0xff4500, 0xff9acd];
+                    const numFlowers = 4 + Math.floor(Math.random() * 5);
+                    for (let f = 0; f < numFlowers; f++) {
+                        const fa = Math.random() * Math.PI * 2;
+                        const fd = Math.random() * Math.max(1, child.r - 1);
+                        const fc = flowerColors[Math.floor(Math.random() * flowerColors.length)];
+                        for (let p = 0; p < 5; p++) {
+                            const pa = (p / 5) * Math.PI * 2;
+                            const pGeo = new THREE.SphereGeometry(0.25, 6, 6);
+                            const pMat = new THREE.MeshStandardMaterial({ color: fc, roughness: 0.8 });
+                            const petal = new THREE.Mesh(pGeo, pMat);
+                            petal.position.set(
+                                child.x + Math.cos(fa) * fd + Math.cos(pa) * 0.4,
+                                platY + 0.3,
+                                child.y + Math.sin(fa) * fd + Math.sin(pa) * 0.4
+                            );
+                            scene.add(petal);
+                            palmTreesRef.current.push(petal);
+                            addDeco(pGeo, pMat);
+                        }
+                        // Flower center
+                        const cGeo = new THREE.SphereGeometry(0.2, 6, 6);
+                        const cMat = new THREE.MeshStandardMaterial({ color: 0xFFFF00, roughness: 0.6 });
+                        const center = new THREE.Mesh(cGeo, cMat);
+                        center.position.set(
+                            child.x + Math.cos(fa) * fd,
+                            platY + 0.35,
+                            child.y + Math.sin(fa) * fd
+                        );
+                        scene.add(center);
+                        palmTreesRef.current.push(center);
+                        addDeco(cGeo, cMat);
+                    }
+                } else {
+                    // ---- DARK MODE: Crystal trees + floating rocks + neon rings ----
+                    for (let i = 0; i < numTrees; i++) {
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = Math.random() * Math.max(1, child.r - 3);
+                        const tx = child.x + Math.cos(angle) * dist;
+                        const tz = child.y + Math.sin(angle) * dist;
+                        addCrystalTree(tx, platY, tz);
+                    }
+                    // Floating rocks
+                    const numRocks = 2 + Math.floor(Math.random() * 3);
+                    for (let r = 0; r < numRocks; r++) {
+                        const ra = Math.random() * Math.PI * 2;
+                        const rd = Math.random() * Math.max(1, child.r - 2);
+                        const rGeo = new THREE.DodecahedronGeometry(0.5 + Math.random() * 0.8, 0);
+                        const rMat = new THREE.MeshStandardMaterial({
+                            color: 0x334155, roughness: 0.6, metalness: 0.5,
+                            emissive: 0x7c3aed, emissiveIntensity: 0.15
+                        });
+                        const rock = new THREE.Mesh(rGeo, rMat);
+                        const baseY = platY + 4 + Math.random() * 3;
+                        rock.position.set(
+                            child.x + Math.cos(ra) * rd,
+                            baseY,
+                            child.y + Math.sin(ra) * rd
+                        );
+                        rock.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+                        scene.add(rock);
+                        addDeco(rGeo, rMat);
+                        // Store for animation
+                        dolphinsRef.current.push({ type: 'floatingRock', mesh: rock, baseY, phase: Math.random() * Math.PI * 2 });
+                    }
 
-                    const leafGeo = new THREE.ConeGeometry(1.5, 3, 5);
-                    const leafMat = new THREE.MeshStandardMaterial({
-                        color: isDarkMode ? 0x15803d : 0x22c55e,
-                        emissive: isDarkMode ? 0x22c55e : 0x000000,
-                        emissiveIntensity: isDarkMode ? 0.2 : 0
-                    });
-                    const foliage = new THREE.Mesh(leafGeo, leafMat);
-                    foliage.position.set(tx, trunkH + 1, tz);
-                    scene.add(foliage);
-                    geometriesToDisposeRef.current.push(leafGeo);
-                    materialsToDisposeRef.current.push(leafMat);
                 }
             });
         };
@@ -1826,36 +2028,286 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
             // --- Decorations (Only for Island) ---
             if (showDecorations) {
-                // Add dolphins roaming
-                for (let i = 0; i < 4; i++) {
-                    const dolphinGroup = new THREE.Group();
-                    const bodyGeometry = new THREE.SphereGeometry(1.5, 16, 12);
-                    const dolphinMaterial = new THREE.MeshStandardMaterial({
-                        color: isDarkMode ? 0x94a3b8 : 0x64748b,
-                        metalness: 0.4,
-                        roughness: 0.5
-                    });
-                    const body = new THREE.Mesh(bodyGeometry, dolphinMaterial);
-                    body.scale.set(1, 0.5, 2);
-                    dolphinGroup.add(body);
+                if (!isDarkMode) {
+                    // ===== LIGHT MODE OCEAN DECORATIONS =====
 
-                    // Fin
-                    const finGeo = new THREE.ConeGeometry(0.5, 1, 4);
-                    const fin = new THREE.Mesh(finGeo, dolphinMaterial);
-                    fin.position.set(0, 0.8, 0.5);
-                    fin.rotation.x = -0.5;
-                    dolphinGroup.add(fin);
-                    geometriesToDisposeRef.current.push(finGeo);
+                    // Enhanced dolphins with belly + tail fin (6 total)
+                    for (let i = 0; i < 6; i++) {
+                        const dolphinGroup = new THREE.Group();
+                        const bodyGeo = new THREE.SphereGeometry(1.5, 16, 12);
+                        const bodyMat = new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.3, roughness: 0.5 });
+                        const body = new THREE.Mesh(bodyGeo, bodyMat);
+                        body.scale.set(1, 0.5, 2);
+                        dolphinGroup.add(body);
+                        geometriesToDisposeRef.current.push(bodyGeo);
+                        materialsToDisposeRef.current.push(bodyMat);
 
-                    const radius = 350 + Math.random() * 100;
-                    const angle = (i / 4) * Math.PI * 2;
+                        // White belly stripe
+                        const bellyGeo = new THREE.SphereGeometry(1.3, 12, 8);
+                        const bellyMat = new THREE.MeshStandardMaterial({ color: 0xe2e8f0, roughness: 0.6 });
+                        const belly = new THREE.Mesh(bellyGeo, bellyMat);
+                        belly.scale.set(0.7, 0.3, 1.2);
+                        belly.position.set(0, -0.15, 0);
+                        dolphinGroup.add(belly);
+                        geometriesToDisposeRef.current.push(bellyGeo);
+                        materialsToDisposeRef.current.push(bellyMat);
 
-                    dolphinGroup.position.set(islandCenterX + Math.cos(angle) * radius, -3, islandCenterZ + Math.sin(angle) * radius);
-                    scene.add(dolphinGroup);
-                    dolphinsRef.current.push({ group: dolphinGroup, angle, radius, phase: Math.random() * Math.PI });
+                        // Dorsal fin
+                        const finGeo = new THREE.ConeGeometry(0.5, 1.2, 4);
+                        const fin = new THREE.Mesh(finGeo, bodyMat);
+                        fin.position.set(0, 0.85, 0.3);
+                        fin.rotation.x = -0.4;
+                        dolphinGroup.add(fin);
+                        geometriesToDisposeRef.current.push(finGeo);
 
-                    geometriesToDisposeRef.current.push(bodyGeometry);
-                    materialsToDisposeRef.current.push(dolphinMaterial);
+                        // Tail fin (flat scaled cone at rear)
+                        const tailGeo = new THREE.ConeGeometry(0.8, 0.6, 4);
+                        const tail = new THREE.Mesh(tailGeo, bodyMat);
+                        tail.position.set(0, 0, -3);
+                        tail.rotation.x = Math.PI / 2;
+                        tail.scale.set(1, 0.25, 1);
+                        dolphinGroup.add(tail);
+                        geometriesToDisposeRef.current.push(tailGeo);
+
+                        const radius = 350 + Math.random() * 120;
+                        const angle = (i / 6) * Math.PI * 2;
+                        dolphinGroup.position.set(islandCenterX + Math.cos(angle) * radius, -3, islandCenterZ + Math.sin(angle) * radius);
+                        scene.add(dolphinGroup);
+                        dolphinsRef.current.push({ type: 'dolphin', group: dolphinGroup, angle, radius, phase: Math.random() * Math.PI });
+                    }
+
+                    // Sailboats on the ocean
+                    for (let b = 0; b < 3; b++) {
+                        const boatGroup = new THREE.Group();
+                        // Hull
+                        const hullGeo = new THREE.CylinderGeometry(2, 3.5, 1.5, 8);
+                        const hullMat = new THREE.MeshStandardMaterial({ color: [0xc2410c, 0x1d4ed8, 0x15803d][b], roughness: 0.8 });
+                        const hull = new THREE.Mesh(hullGeo, hullMat);
+                        boatGroup.add(hull);
+                        geometriesToDisposeRef.current.push(hullGeo);
+                        materialsToDisposeRef.current.push(hullMat);
+
+                        // Mast
+                        const mastGeo = new THREE.CylinderGeometry(0.12, 0.12, 8, 6);
+                        const mastMat = new THREE.MeshStandardMaterial({ color: 0x78350f, roughness: 0.9 });
+                        const mast = new THREE.Mesh(mastGeo, mastMat);
+                        mast.position.set(0, 5, 0);
+                        boatGroup.add(mast);
+                        geometriesToDisposeRef.current.push(mastGeo);
+                        materialsToDisposeRef.current.push(mastMat);
+
+                        // Sail (triangle shape via cone)
+                        const sailGeo = new THREE.ConeGeometry(3, 7, 3, 1, true);
+                        const sailMat = new THREE.MeshStandardMaterial({ color: 0xfafafa, side: THREE.DoubleSide, roughness: 0.5 });
+                        const sail = new THREE.Mesh(sailGeo, sailMat);
+                        sail.position.set(1.2, 5, 0);
+                        boatGroup.add(sail);
+                        geometriesToDisposeRef.current.push(sailGeo);
+                        materialsToDisposeRef.current.push(sailMat);
+
+                        const bRadius = 250 + b * 80 + Math.random() * 60;
+                        const bAngle = (b / 3) * Math.PI * 2 + 0.5;
+                        boatGroup.position.set(islandCenterX + Math.cos(bAngle) * bRadius, -3.5, islandCenterZ + Math.sin(bAngle) * bRadius);
+                        boatGroup.rotation.y = -bAngle + Math.PI / 2;
+                        scene.add(boatGroup);
+                        dolphinsRef.current.push({ type: 'sailboat', group: boatGroup, angle: bAngle, radius: bRadius, phase: 0, speed: 0.0008 + Math.random() * 0.0005 });
+                    }
+
+                    // Seagulls (flat V-shape made of 2 scaled tori)
+                    for (let g = 0; g < 8; g++) {
+                        const gGroup = new THREE.Group();
+                        const gMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.5 });
+                        for (let w = 0; w < 2; w++) {
+                            const wGeo = new THREE.TorusGeometry(1.2, 0.15, 4, 12, Math.PI);
+                            const wing = new THREE.Mesh(wGeo, gMat);
+                            wing.rotation.x = Math.PI / 2;
+                            wing.position.x = w === 0 ? -1.2 : 1.2;
+                            wing.rotation.z = w === 0 ? 0.3 : -0.3;
+                            gGroup.add(wing);
+                            geometriesToDisposeRef.current.push(wGeo);
+                        }
+                        materialsToDisposeRef.current.push(gMat);
+                        const gRadius = 80 + Math.random() * 200;
+                        const gAngle = Math.random() * Math.PI * 2;
+                        const gY = 40 + Math.random() * 60;
+                        gGroup.position.set(islandCenterX + Math.cos(gAngle) * gRadius, gY, islandCenterZ + Math.sin(gAngle) * gRadius);
+                        scene.add(gGroup);
+                        dolphinsRef.current.push({ type: 'seagull', group: gGroup, angle: gAngle, radius: gRadius, speed: 0.004 + Math.random() * 0.004, baseY: gY, phase: Math.random() * Math.PI * 2 });
+                    }
+
+                    // Lighthouse on outer shoreline
+                    const lhAngle = Math.random() * Math.PI * 2;
+                    const lhRadius = (root.r || 60) - 5;
+                    const lhX = root.x !== undefined ? root.x : islandCenterX + Math.cos(lhAngle) * lhRadius;
+                    const lhZ = root.y !== undefined ? root.y : islandCenterZ + Math.sin(lhAngle) * lhRadius;
+                    const lhH = 16;
+                    // Striped body
+                    for (let s = 0; s < 8; s++) {
+                        const sGeo = new THREE.CylinderGeometry(1.5 - s * 0.06, 1.6 - s * 0.06, lhH / 8, 12);
+                        const sMat = new THREE.MeshStandardMaterial({ color: s % 2 === 0 ? 0xffffff : 0xef4444, roughness: 0.7 });
+                        const seg = new THREE.Mesh(sGeo, sMat);
+                        seg.position.set(lhX, s * (lhH / 8) + lhH / 16, lhZ);
+                        scene.add(seg);
+                        palmTreesRef.current.push(seg);
+                        geometriesToDisposeRef.current.push(sGeo);
+                        materialsToDisposeRef.current.push(sMat);
+                    }
+                    // Cap
+                    const capGeoLH = new THREE.ConeGeometry(2, 3, 12);
+                    const capMatLH = new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.8 });
+                    const lhCap = new THREE.Mesh(capGeoLH, capMatLH);
+                    lhCap.position.set(lhX, lhH + 1.5, lhZ);
+                    scene.add(lhCap);
+                    palmTreesRef.current.push(lhCap);
+                    geometriesToDisposeRef.current.push(capGeoLH);
+                    materialsToDisposeRef.current.push(capMatLH);
+                    // Beacon light
+                    const beaconGeo = new THREE.SphereGeometry(0.7, 8, 8);
+                    const beaconMat = new THREE.MeshStandardMaterial({ color: 0xfde047, emissive: 0xfde047, emissiveIntensity: 3.0, roughness: 0.1 });
+                    const beacon = new THREE.Mesh(beaconGeo, beaconMat);
+                    beacon.position.set(lhX, lhH + 0.5, lhZ);
+                    scene.add(beacon);
+                    palmTreesRef.current.push(beacon);
+                    geometriesToDisposeRef.current.push(beaconGeo);
+                    materialsToDisposeRef.current.push(beaconMat);
+                    const pointLight = new THREE.PointLight(0xfde047, 30, 200);
+                    pointLight.position.set(lhX, lhH + 0.5, lhZ);
+                    scene.add(pointLight);
+
+                    // Beach umbrellas on root island edge
+                    const numUmbrellas = 5;
+                    for (let u = 0; u < numUmbrellas; u++) {
+                        const uAngle = (u / numUmbrellas) * Math.PI * 2 + Math.random() * 0.4;
+                        const uDist = (root.r || 50) * 0.75 + Math.random() * 8;
+                        const uX = (root.x || islandCenterX) + Math.cos(uAngle) * uDist;
+                        const uZ = (root.y || islandCenterZ) + Math.sin(uAngle) * uDist;
+                        const colors = [0xef4444, 0x3b82f6, 0xf59e0b, 0x10b981, 0xa855f7];
+                        // Pole
+                        const pGeo = new THREE.CylinderGeometry(0.1, 0.1, 3.5, 6);
+                        const pMat = new THREE.MeshStandardMaterial({ color: 0x6b7280, roughness: 0.6 });
+                        const pole = new THREE.Mesh(pGeo, pMat);
+                        pole.position.set(uX, 1.75, uZ);
+                        scene.add(pole);
+                        palmTreesRef.current.push(pole);
+                        geometriesToDisposeRef.current.push(pGeo);
+                        materialsToDisposeRef.current.push(pMat);
+                        // Canopy cone
+                        const cGeo = new THREE.ConeGeometry(2.5, 1.2, 8);
+                        const cMat = new THREE.MeshStandardMaterial({ color: colors[u], roughness: 0.7, side: THREE.DoubleSide });
+                        const canopy = new THREE.Mesh(cGeo, cMat);
+                        canopy.position.set(uX, 3.5, uZ);
+                        scene.add(canopy);
+                        palmTreesRef.current.push(canopy);
+                        geometriesToDisposeRef.current.push(cGeo);
+                        materialsToDisposeRef.current.push(cMat);
+                    }
+
+                } else {
+                    // ===== DARK MODE OCEAN DECORATIONS =====
+
+                    // Star field
+                    for (let s = 0; s < 300; s++) {
+                        const sGeo = new THREE.SphereGeometry(0.4 + Math.random() * 0.5, 4, 4);
+                        const sColor = Math.random() > 0.7 ? 0xa5f3fc : (Math.random() > 0.5 ? 0xe879f9 : 0xfafafa);
+                        const sMat = new THREE.MeshStandardMaterial({ color: sColor, emissive: sColor, emissiveIntensity: 2.5, roughness: 0.1 });
+                        const star = new THREE.Mesh(sGeo, sMat);
+                        const sa = Math.random() * Math.PI * 2;
+                        const sr = 200 + Math.random() * 600;
+                        star.position.set(
+                            islandCenterX + Math.cos(sa) * sr,
+                            100 + Math.random() * 400,
+                            islandCenterZ + Math.sin(sa) * sr
+                        );
+                        scene.add(star);
+                        palmTreesRef.current.push(star);
+                        geometriesToDisposeRef.current.push(sGeo);
+                        materialsToDisposeRef.current.push(sMat);
+                    }
+
+                    // Bioluminescent dolphins (glowing teal)
+                    for (let i = 0; i < 6; i++) {
+                        const dolphinGroup = new THREE.Group();
+                        const bodyGeo = new THREE.SphereGeometry(1.5, 16, 12);
+                        const bodyMat = new THREE.MeshStandardMaterial({
+                            color: 0x0e7490, emissive: 0x06b6d4, emissiveIntensity: 0.8,
+                            metalness: 0.3, roughness: 0.3
+                        });
+                        const body = new THREE.Mesh(bodyGeo, bodyMat);
+                        body.scale.set(1, 0.5, 2);
+                        dolphinGroup.add(body);
+                        geometriesToDisposeRef.current.push(bodyGeo);
+                        materialsToDisposeRef.current.push(bodyMat);
+
+                        const finGeo = new THREE.ConeGeometry(0.5, 1.2, 4);
+                        const finMat = new THREE.MeshStandardMaterial({ color: 0x06b6d4, emissive: 0x22d3ee, emissiveIntensity: 1.2, roughness: 0.2 });
+                        const fin = new THREE.Mesh(finGeo, finMat);
+                        fin.position.set(0, 0.85, 0.3);
+                        fin.rotation.x = -0.4;
+                        dolphinGroup.add(fin);
+                        geometriesToDisposeRef.current.push(finGeo);
+                        materialsToDisposeRef.current.push(finMat);
+
+                        const tailGeo = new THREE.ConeGeometry(0.8, 0.6, 4);
+                        const tail = new THREE.Mesh(tailGeo, finMat);
+                        tail.position.set(0, 0, -3);
+                        tail.rotation.x = Math.PI / 2;
+                        tail.scale.set(1, 0.25, 1);
+                        dolphinGroup.add(tail);
+                        geometriesToDisposeRef.current.push(tailGeo);
+
+                        const radius = 350 + Math.random() * 120;
+                        const angle = (i / 6) * Math.PI * 2;
+                        dolphinGroup.position.set(islandCenterX + Math.cos(angle) * radius, -3, islandCenterZ + Math.sin(angle) * radius);
+                        scene.add(dolphinGroup);
+                        dolphinsRef.current.push({ type: 'dolphin', group: dolphinGroup, angle, radius, phase: Math.random() * Math.PI });
+                    }
+
+                    // Hovering UFOs orbiting the island
+                    for (let u = 0; u < 3; u++) {
+                        const ufoGroup = new THREE.Group();
+                        // Disc
+                        const discGeo = new THREE.CylinderGeometry(4, 5.5, 1, 16);
+                        const discMat = new THREE.MeshStandardMaterial({
+                            color: 0x334155, metalness: 0.9, roughness: 0.1,
+                            emissive: 0x7c3aed, emissiveIntensity: 0.3
+                        });
+                        const disc = new THREE.Mesh(discGeo, discMat);
+                        ufoGroup.add(disc);
+                        geometriesToDisposeRef.current.push(discGeo);
+                        materialsToDisposeRef.current.push(discMat);
+
+                        // Dome
+                        const domeGeo = new THREE.SphereGeometry(2.5, 16, 8, 0, Math.PI * 2, 0, Math.PI / 2);
+                        const domeMat = new THREE.MeshStandardMaterial({
+                            color: 0x7c3aed, emissive: 0xa855f7, emissiveIntensity: 0.8,
+                            transparent: true, opacity: 0.7, roughness: 0.05, metalness: 0.5
+                        });
+                        const dome = new THREE.Mesh(domeGeo, domeMat);
+                        dome.position.y = 0.8;
+                        ufoGroup.add(dome);
+                        geometriesToDisposeRef.current.push(domeGeo);
+                        materialsToDisposeRef.current.push(domeMat);
+
+                        // Glow ring under disc
+                        const glowGeo = new THREE.TorusGeometry(4.5, 0.4, 8, 32);
+                        const glowMat = new THREE.MeshStandardMaterial({
+                            color: 0x06b6d4, emissive: 0x06b6d4, emissiveIntensity: 2.0,
+                            transparent: true, opacity: 0.8
+                        });
+                        const glowRing = new THREE.Mesh(glowGeo, glowMat);
+                        glowRing.rotation.x = Math.PI / 2;
+                        glowRing.position.y = -0.3;
+                        ufoGroup.add(glowRing);
+                        geometriesToDisposeRef.current.push(glowGeo);
+                        materialsToDisposeRef.current.push(glowMat);
+
+                        const uRadius = 150 + u * 80 + Math.random() * 60;
+                        const uAngle = (u / 3) * Math.PI * 2;
+                        const uY = 80 + Math.random() * 60;
+                        ufoGroup.position.set(islandCenterX + Math.cos(uAngle) * uRadius, uY, islandCenterZ + Math.sin(uAngle) * uRadius);
+                        scene.add(ufoGroup);
+                        dolphinsRef.current.push({ type: 'ufo', group: ufoGroup, angle: uAngle, radius: uRadius, speed: 0.002 + Math.random() * 0.002, baseY: uY, phase: Math.random() * Math.PI * 2 });
+                    }
                 }
             }
 
@@ -1983,20 +2435,59 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 oceanVertices.needsUpdate = true;
             }
 
-            // Dolphins / Satellites Animation
+            // Decoration / Satellite Animation (dispatches by type)
             dolphinsRef.current.forEach(d => {
                 if (viewMode === 'island') {
-                    d.angle += 0.003;
-                    d.group.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
-                    d.group.position.z = islandCenterZ + Math.sin(d.angle) * d.radius;
-                    d.group.rotation.y = -d.angle;
+                    const dtype = d.type;
+                    if (!dtype || dtype === 'dolphin') {
+                        // Classic dolphin orbit + jump
+                        d.angle += 0.003;
+                        if (d.group) {
+                            d.group.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
+                            d.group.position.z = islandCenterZ + Math.sin(d.angle) * d.radius;
+                            d.group.rotation.y = -d.angle;
+                            const jump = Math.sin(time * 1.5 + d.phase) * 6;
+                            d.group.position.y = -4 + Math.max(0, jump);
+                            d.group.rotation.x = jump > 1 ? -0.5 : 0;
+                        }
+                    } else if (dtype === 'sailboat') {
+                        // Slow orbit on ocean surface
+                        d.angle += d.speed;
+                        if (d.group) {
+                            d.group.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
+                            d.group.position.z = islandCenterZ + Math.sin(d.angle) * d.radius;
+                            d.group.rotation.y = -d.angle + Math.PI / 2;
+                            // Gentle bob
+                            d.group.position.y = -3.5 + Math.sin(time * 0.8 + d.phase) * 0.4;
+                        }
+                    } else if (dtype === 'seagull') {
+                        // Circle at altitude
+                        d.angle += d.speed;
+                        if (d.group) {
+                            d.group.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
+                            d.group.position.z = islandCenterZ + Math.sin(d.angle) * d.radius;
+                            d.group.position.y = d.baseY + Math.sin(time * 0.5 + d.phase) * 5;
+                            d.group.rotation.y = -d.angle;
+                        }
+                    } else if (dtype === 'ufo') {
+                        // Orbit + hover bob
+                        d.angle += d.speed;
+                        if (d.group) {
+                            d.group.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
+                            d.group.position.z = islandCenterZ + Math.sin(d.angle) * d.radius;
+                            d.group.position.y = d.baseY + Math.sin(time * 0.7 + d.phase) * 4;
+                            d.group.rotation.y += 0.008;
+                        }
+                    } else if (dtype === 'floatingRock') {
+                        // Vertical bob at fixed XZ position
+                        if (d.mesh) {
+                            d.mesh.position.y = d.baseY + Math.sin(time * 0.6 + d.phase) * 1.5;
+                            d.mesh.rotation.y += 0.003;
+                        }
 
-                    // Jump
-                    const jump = Math.sin(time * 1.5 + d.phase) * 6;
-                    d.group.position.y = -4 + Math.max(0, jump);
-                    d.group.rotation.x = jump > 1 ? -0.5 : 0;
+                    }
                 } else {
-                    // Satellites
+                    // Satellite mode (functions view)
                     d.angle += d.speed;
                     if (d.mesh) {
                         d.mesh.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
