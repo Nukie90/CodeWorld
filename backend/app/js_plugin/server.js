@@ -7,12 +7,51 @@ const path = require('node:path');
 const os = require('node:os');
 const AdmZip = require('adm-zip');
 const { ESLint } = require("eslint");
+const globals = require('globals');
 const multer = require('multer');
 
 const app = express();
 const upload = multer({ dest: os.tmpdir() });
 
 const eslint = new ESLint({ cwd: __dirname });
+const eslintCommonJs = new ESLint({
+    cwd: __dirname,
+    overrideConfig: [
+        {
+            files: ['**/*'],
+            languageOptions: {
+                sourceType: 'commonjs',
+                globals: {
+                    ...globals.node
+                }
+            }
+        }
+    ]
+});
+
+function looksLikeCommonJs(code, filename) {
+    return (
+        /\.cjs$/i.test(filename) ||
+        /\brequire\s*\(/.test(code) ||
+        /\bmodule\.exports\b/.test(code) ||
+        /\bexports\.[A-Za-z_$]/.test(code) ||
+        /\b__dirname\b/.test(code) ||
+        /\b__filename\b/.test(code)
+    );
+}
+
+function hasCommonJsNoUndef(messages) {
+    const commonJsGlobals = new Set(['require', 'module', 'exports', '__dirname', '__filename']);
+
+    return messages.some((message) => {
+        if (message?.ruleId !== 'no-undef' || typeof message.message !== 'string') {
+            return false;
+        }
+
+        const match = message.message.match(/'([^']+)' is not defined/);
+        return match ? commonJsGlobals.has(match[1]) : false;
+    });
+}
 
 function getLintType(message) {
     if (message?.fatal) {
@@ -65,7 +104,12 @@ async function getLintResults(code, filename) {
     const safeFilename = filename;
 
     try {
-        const results = await eslint.lintText(code, { filePath: safeFilename });
+        let results = await eslint.lintText(code, { filePath: safeFilename });
+        const initialMessages = results?.[0]?.messages || [];
+
+        if (looksLikeCommonJs(code, safeFilename) && hasCommonJsNoUndef(initialMessages)) {
+            results = await eslintCommonJs.lintText(code, { filePath: safeFilename });
+        }
 
         if (results && results.length > 0) {
             const result = results[0];

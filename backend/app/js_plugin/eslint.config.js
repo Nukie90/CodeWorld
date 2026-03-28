@@ -39,10 +39,10 @@ module.exports = [
   },
 
   {
-    files: ["server.js"],
+    files: ["eslint.config.js", "**/*.config.js", "server.js"],
     languageOptions: {
+      sourceType: "commonjs",
       globals: {
-        ...globals.browser,
         ...globals.node
       }
     }
