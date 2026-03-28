@@ -3081,8 +3081,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 )}
             </div>
 
-            {/* Bottom-left UI Stack */}
-            <div className="absolute bottom-4 left-4 z-10 flex flex-col gap-4">
+            {/* Bottom-right UI Stack */}
+            <div className="absolute bottom-4 right-4 z-10 flex flex-col gap-4">
                 {/* Controls Help */}
                 <div className={`backdrop-blur-md rounded-xl shadow-lg p-4 border ${isDarkMode
                     ? 'bg-slate-800/80 border-slate-700/50'
@@ -3102,7 +3102,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         </div>
                     </div>
                 </div>
-
+            </div>
+            
+            {/* Bottom-left UI Stack */}
+            <div className="absolute bottom-4 left-4 z-10 flex flex-col gap-4">
                 {/* Legend (Terraced Map Info) */}
                 <div className={`backdrop-blur-md rounded-xl shadow-lg p-4 border ${isDarkMode
                     ? 'bg-slate-800/80 border-slate-700/50'
@@ -3143,7 +3146,6 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     </div>
                 </div>
             </div>
-
         </div>
     );
 }
