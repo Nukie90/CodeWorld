@@ -178,8 +178,7 @@ function ResultsDetailsPanel({
                                                                         {[
                                                                             { id: 'all', label: 'All', color: 'bg-teal-500' },
                                                                             { id: 'error', label: 'Errors', color: 'bg-red-500' },
-                                                                            { id: 'warning', label: 'Warnings', color: 'bg-amber-500' },
-                                                                            { id: 'convention', label: 'Convention', color: 'bg-blue-500' }
+                                                                            { id: 'warning', label: 'Warnings', color: 'bg-amber-500' }
                                                                         ].map(opt => (
                                                                             <button
                                                                                 key={opt.id}
@@ -290,12 +289,12 @@ function ResultsDetailsPanel({
                                                         </div>
                                                     ) : (
                                                         [...lintResults.lint_errors]
-                                                            .filter(error => lintFilter === 'all' || error.type === lintFilter)
+                                                            .filter(error => (lintFilter === 'all' && error.type !== 'convention') || error.type === lintFilter)
                                                             .sort((a, b) => {
                                                                 if (lintSort === 'line-asc') {
                                                                     return a.line - b.line;
                                                                 } else if (lintSort === 'severity-high') {
-                                                                    const severityMap = { fatal: 4, error: 3, warning: 2, convention: 1, info: 0 };
+                                                                    const severityMap = { fatal: 4, error: 3, warning: 2, info: 0 };
                                                                     const sevA = severityMap[getLintVisualType(a)] || 0;
                                                                     const sevB = severityMap[getLintVisualType(b)] || 0;
                                                                     if (sevA !== sevB) return sevB - sevA;
