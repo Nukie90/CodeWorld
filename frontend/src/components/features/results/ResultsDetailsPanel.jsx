@@ -1,5 +1,5 @@
 import React, { useRef, useEffect } from 'react';
-import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp, AlertTriangle, Info, CheckCircle, ExternalLink, RotateCw, OctagonAlert, Filter, ArrowUp, ArrowDown, ListFilter, X } from 'lucide-react';
+import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp, AlertTriangle, Info, CheckCircle, ExternalLink, RotateCw, OctagonAlert, Filter, ArrowUp, ArrowDown, ListFilter, X, WrapText } from 'lucide-react';
 import LintScoreGauge from './visualizations/LintScoreGauge';
 import LintErrorDistribution from './visualizations/LintErrorDistribution';
 
@@ -34,6 +34,7 @@ function ResultsDetailsPanel({
     const [activeLintError, setActiveLintError] = React.useState(null);
     const [lintFilter, setLintFilter] = React.useState('all');
     const [lintSort, setLintSort] = React.useState('line-asc');
+    const [showWrap, setShowWrap] = React.useState(false);
     const codeScrollContainerRef = useRef(null);
 
     // Reset active error when code changes
@@ -122,6 +123,18 @@ function ResultsDetailsPanel({
                             >
                                 <Hash size={14} strokeWidth={2.5} />
                                 Lines
+                            </button>
+
+                            <button
+                                onClick={() => setShowWrap(!showWrap)}
+                                className={`px-3 py-2 rounded-lg text-xs font-bold flex items-center gap-2 transition-all border ${showWrap
+                                    ? 'bg-gradient-to-r from-blue-500 to-teal-500 text-white border-transparent shadow-lg'
+                                    : `${panelBg} ${textColor} ${borderColor} hover:bg-gray-200 dark:hover:bg-gray-700 hover:text-white`
+                                    }`}
+                                title="Toggle code wrap"
+                            >
+                                <WrapText size={14} strokeWidth={2.5} />
+                                Wrap
                             </button>
 
                             <button
@@ -364,7 +377,7 @@ function ResultsDetailsPanel({
                                     ) : codeDisplayMode === 'highlighted' ? (
                                         <div className="relative">
                                             <pre
-                                                className="text-xs font-mono whitespace-pre inline-block min-w-full w-fit"
+                                                className={`text-xs font-mono ${showWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} inline-block min-w-full w-fit`}
                                                 style={{
                                                     backgroundColor: '#1e1e1e',
                                                     color: '#d4d4d4',
@@ -378,7 +391,7 @@ function ResultsDetailsPanel({
                                             >
                                                 <code style={{ color: '#d4d4d4' }}>
                                                     {selectedCode.code.split('\n').map((line, idx) => {
-                                                        const currentLine = idx + 1;
+                                                        const currentLine = (selectedCode.startLine || 1) + idx;
                                                         const lineErrors = (codeDisplayMode === 'linterSuggest' || activeLintError) ?
                                                             (lintResults?.lint_errors?.filter(e => e.line === currentLine) || []) : [];
                                                         const isTargetLine = activeLintError && currentLine === activeLintError.line;
@@ -395,6 +408,11 @@ function ResultsDetailsPanel({
                                                                 id={`line-${currentLine}`}
                                                                 className={`relative group transition-all duration-500 ${isTargetLine ? (isDarkMode ? 'bg-blue-500/10' : 'bg-blue-50/50') : lineErrors.length > 0 ? (isDarkMode ? 'bg-red-500/5' : 'bg-red-50/30') : ''}`}
                                                             >
+                                                                {showLineNumbers && (
+                                                                    <div className="absolute left-[-4rem] top-0 bottom-0 w-[3.5rem] flex items-center justify-end pr-3 text-[10px] font-medium text-gray-500/50 select-none border-r border-white/5">
+                                                                        {currentLine}
+                                                                    </div>
+                                                                )}
                                                                 {/* Column highlights for all errors on this line */}
                                                                 {lineErrors.map((err, eIdx) => (
                                                                     <div
@@ -470,16 +488,31 @@ function ResultsDetailsPanel({
                                     ) : (
                                         <div className="relative">
                                             <pre
-                                                className={`text-xs font-mono ${textColor} whitespace-pre inline-block min-w-full w-fit`}
+                                                className={`text-xs font-mono ${textColor} ${showWrap ? 'whitespace-pre-wrap' : 'whitespace-pre'} inline-block min-w-full w-fit`}
                                                 style={{
-                                                    paddingLeft: showLineNumbers ? '4rem' : '0',
+                                                    paddingLeft: showLineNumbers ? '4rem' : '1rem',
                                                     paddingTop: '1rem',
                                                     paddingBottom: '1rem',
                                                     paddingRight: '1rem',
-                                                    margin: 0
+                                                    margin: 0,
+                                                    display: 'block'
                                                 }}
                                             >
-                                                <code>{selectedCode.code}</code>
+                                                <code>
+                                                    {selectedCode.code.split('\n').map((line, idx) => {
+                                                        const currentLine = (selectedCode.startLine || 1) + idx;
+                                                        return (
+                                                            <div key={idx} className="relative group">
+                                                                {showLineNumbers && (
+                                                                    <div className={`absolute left-[-4rem] top-0 bottom-0 w-[3.5rem] flex items-center justify-end pr-3 text-[10px] font-medium ${isDarkMode ? 'text-gray-500/50 border-white/5' : 'text-gray-400/50 border-black/5'} select-none border-r`}>
+                                                                        {currentLine}
+                                                                    </div>
+                                                                )}
+                                                                <div className="relative z-10">{line || ' '}</div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </code>
                                             </pre>
                                         </div>
                                     )}
