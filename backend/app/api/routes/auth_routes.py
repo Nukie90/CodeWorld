@@ -17,7 +17,7 @@ async def github_login(request: Request):
     if not redirect_uri:
         base_url = str(request.base_url).rstrip('/')
         redirect_uri = f"{base_url}/api/auth/github/callback"
-    
+
     auth_url = (
         f"https://github.com/login/oauth/authorize"
         f"?client_id={client_id}"
