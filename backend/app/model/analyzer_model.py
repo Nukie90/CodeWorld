@@ -58,6 +58,7 @@ class FolderMetrics(BaseModel):
     total_lloc: int
     total_functions: int
     total_complexity: int
+    halstead_volume: Optional[float] = None
     maintainability_index: Optional[float] = None
     files: List[FileMetrics]
 
