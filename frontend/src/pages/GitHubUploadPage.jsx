@@ -2,8 +2,8 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGithubAuth } from '../hooks/useGithubAuth'
-import { repoService } from '../services/api'
-import { Sun, Moon } from 'lucide-react'
+import { repoService, authService } from '../services/api'
+import { Sun, Moon, Github, Star, Code, Clock, ChevronRight, ExternalLink, Heart } from 'lucide-react'
 
 function GitHubUploadPage() {
   const navigate = useNavigate()
@@ -23,6 +23,12 @@ function GitHubUploadPage() {
 
   // Default to false explicitly so it doesn't try to inherit system or previous class implicitly and break consistency
   const [isDarkMode, setIsDarkMode] = useState(false)
+  const [repos, setRepos] = useState([])
+  const [isLoadingRepos, setIsLoadingRepos] = useState(false)
+  const [repoError, setRepoError] = useState(null)
+  const [favorites, setFavorites] = useState([])
+  const [animatingFav, setAnimatingFav] = useState(null)
+  const [recentRepos, setRecentRepos] = useState([])
 
   useEffect(() => {
     if (isDarkMode) {
@@ -31,6 +37,108 @@ function GitHubUploadPage() {
       document.documentElement.classList.remove('dark')
     }
   }, [isDarkMode])
+
+  useEffect(() => {
+    const fetchRepos = async () => {
+      if (!token) {
+        setRepos([])
+        return
+      }
+
+      setIsLoadingRepos(true)
+      setRepoError(null)
+      try {
+        const response = await authService.getRepos(token)
+        setRepos(response.data)
+      } catch (err) {
+        console.error("Failed to fetch repos:", err)
+        setRepoError("Could not load repositories.")
+      } finally {
+        setIsLoadingRepos(false)
+      }
+    }
+
+    fetchRepos()
+  }, [token])
+
+  // Manage Favorites
+  useEffect(() => {
+    if (username) {
+      const saved = localStorage.getItem(`favorites_${username}`)
+      if (saved) {
+        try {
+          setFavorites(JSON.parse(saved))
+        } catch (e) {
+          console.error("Failed to parse favorites", e)
+        }
+      }
+    }
+  }, [username])
+
+  const toggleFavorite = (e, repoId) => {
+    e.stopPropagation() // Prevent selecting the repo when clicking heart
+    const isAdding = !favorites.includes(repoId)
+    const newFavorites = isAdding
+      ? [...favorites, repoId]
+      : favorites.filter(id => id !== repoId)
+
+    setFavorites(newFavorites)
+    if (username) {
+      localStorage.setItem(`favorites_${username}`, JSON.stringify(newFavorites))
+    }
+
+    if (isAdding) {
+      setAnimatingFav(repoId)
+      setTimeout(() => setAnimatingFav(null), 300)
+    }
+  }
+
+  // Manage Recent Repos
+  useEffect(() => {
+    if (username) {
+      const saved = localStorage.getItem(`recent_repos_${username}`)
+      if (saved) {
+        try {
+          setRecentRepos(JSON.parse(saved))
+        } catch (e) {
+          console.error("Failed to parse recent repos", e)
+        }
+      }
+    }
+  }, [username])
+
+  const addToRecent = (repo) => {
+    if (!username || !repo) return
+    
+    // Create a simplified repo object for storage
+    const repoSummary = {
+      id: repo.id,
+      name: repo.name,
+      full_name: repo.full_name,
+      html_url: repo.html_url,
+      description: repo.description,
+      private: repo.private,
+      language: repo.language,
+      stargazers_count: repo.stargazers_count,
+      updated_at: repo.updated_at
+    }
+
+    const newRecent = [
+      repoSummary,
+      ...recentRepos.filter(r => r.html_url !== repo.html_url)
+    ].slice(0, 6)
+
+    setRecentRepos(newRecent)
+    localStorage.setItem(`recent_repos_${username}`, JSON.stringify(newRecent))
+  }
+
+  const sortedRepos = [...repos].sort((a, b) => {
+    const aFav = favorites.includes(a.id)
+    const bFav = favorites.includes(b.id)
+    if (aFav && !bFav) return -1
+    if (!aFav && bFav) return 1
+    return 0
+  })
 
   const handleAnalyzeRepo = async () => {
     if (!repoUrl) return
@@ -60,6 +168,15 @@ function GitHubUploadPage() {
     }
 
     try {
+      // Find the repo object from the current list if possible to get full metadata for recents
+      const currentRepo = repos.find(r => r.html_url === repoUrl) || { 
+        id: repoUrl, 
+        name: repoUrl.split('/').pop(), 
+        html_url: repoUrl,
+        full_name: repoUrl.replace('https://github.com/', '')
+      }
+      addToRecent(currentRepo)
+
       const resp = await repoService.analyzeRepo({
         repo_url: repoUrl,
         token: token || null,
@@ -125,7 +242,7 @@ function GitHubUploadPage() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-6 py-12">
+      <main className="flex-1 flex items-center justify-center px-6 py-30">
         <div className="w-full max-w-4xl">
           <div className="text-center mb-8">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-3 transition-colors">
@@ -189,6 +306,140 @@ function GitHubUploadPage() {
               </div>
             )}
           </div>
+
+          {/* Recent Repositories Section */}
+          {token && recentRepos.length > 0 && (
+            <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-700 py-20">
+               <div className="flex items-center justify-between mb-4 px-2">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Clock size={20} className="text-blue-500" />
+                  Recent Access
+                </h3>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                {recentRepos.map((repo) => (
+                  <button
+                    key={`recent-${repo.html_url}`}
+                    onClick={() => {
+                      setRepoUrl(repo.html_url)
+                      window.scrollTo({ top: 0, behavior: 'smooth' })
+                    }}
+                    className="flex flex-col p-3 bg-white/60 dark:bg-gray-800/60 backdrop-blur-sm rounded-xl border border-gray-100 dark:border-gray-700 hover:border-blue-400 dark:hover:border-blue-500/50 hover:bg-white dark:hover:bg-gray-800 shadow-sm transition-all text-left group"
+                  >
+                    <div className="flex items-start justify-between mb-1">
+                      <span className="font-semibold text-sm text-gray-900 dark:text-white truncate pr-4 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
+                        {repo.name}
+                      </span>
+                      {repo.private && (
+                         <span className="text-[8px] font-bold uppercase px-1 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-md">
+                           P
+                         </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
+                      {repo.full_name}
+                    </span>
+                  </button>
+                ) )}
+              </div>
+            </div>
+          )}
+
+          {/* Repository List Section */}
+          {token && (
+            <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-700 py-30">
+              <div className="flex items-center justify-between mb-4 px-2">
+                <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
+                  <Github size={20} className="text-blue-500" />
+                  Your Repositories
+                </h3>
+                {repos.length > 0 && (
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded-full">
+                    {repos.length} repos
+                  </span>
+                )}
+              </div>
+
+              {isLoadingRepos ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-24 bg-white dark:bg-gray-800 rounded-xl animate-pulse border border-gray-100 dark:border-gray-700" />
+                  ))}
+                </div>
+              ) : repoError ? (
+                <div className="p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800/50 rounded-xl text-amber-700 dark:text-amber-400 text-sm flex items-center gap-2">
+                  <span>⚠️</span> {repoError}
+                </div>
+              ) : repos.length === 0 ? (
+                <div className="text-center py-12 bg-white/50 dark:bg-gray-800/50 backdrop-blur-sm rounded-2xl border border-dashed border-gray-300 dark:border-gray-700">
+                  <Github size={40} className="mx-auto text-gray-400 mb-3 opacity-50" />
+                  <p className="text-gray-500 dark:text-gray-400">No repositories found.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {sortedRepos.slice(0, 50).map((repo) => {
+                    const isFav = favorites.includes(repo.id)
+                    return (
+                      <button
+                        key={repo.id}
+                        onClick={() => {
+                          setRepoUrl(repo.html_url)
+                          addToRecent(repo)
+                          window.scrollTo({ top: 0, behavior: 'smooth' })
+                        }}
+                        className={`group flex flex-col p-4 bg-white dark:bg-gray-800 rounded-xl border ${isFav ? 'border-pink-300 dark:border-pink-900/50 shadow-pink-50/50 dark:shadow-none bg-pink-50/10 dark:bg-pink-900/5' : 'border-gray-100 dark:border-gray-700'} hover:border-blue-400 dark:hover:border-blue-500/50 shadow-sm hover:shadow-md transition-all text-left relative overflow-hidden`}
+                      >
+                        <div className="absolute top-0 right-0 p-2 flex items-center gap-1">
+                          <button
+                            onClick={(e) => toggleFavorite(e, repo.id)}
+                            className={`p-2 rounded-full transition-all ${isFav ? 'text-pink-500 bg-pink-50 dark:bg-pink-900/30' : 'text-gray-300 hover:text-pink-400 opacity-0 group-hover:opacity-100'} ${animatingFav === repo.id ? 'animate-heart-pop' : ''}`}
+                            title={isFav ? "Remove from favorites" : "Add to favorites"}
+                          >
+                            <Heart size={18} fill={isFav ? "currentColor" : "none"} />
+                          </button>
+                          <div className="p-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <ChevronRight size={18} className="text-blue-500" />
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 mb-1 pr-16 flex-wrap">
+                          <span className={`font-bold ${isFav ? 'text-pink-700 dark:text-pink-300' : 'text-gray-900 dark:text-white'} group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate transition-colors`}>
+                            {repo.name}
+                          </span>
+                          {repo.private && (
+                            <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-md shrink-0">
+                              Private
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-gray-500 dark:text-gray-400 mb-3 line-clamp-1 h-4">
+                          {repo.description || "No description provided"}
+                        </p>
+
+                        <div className="mt-auto flex items-center gap-3 text-[11px] font-medium text-gray-400 dark:text-gray-500">
+                          {repo.language && (
+                            <span className="flex items-center gap-1 bg-gray-50 dark:bg-gray-900 px-1.5 py-0.5 rounded">
+                              <Code size={12} />
+                              {repo.language}
+                            </span>
+                          )}
+                          <span className="flex items-center gap-1">
+                            <Star size={12} />
+                            {repo.stargazers_count}
+                          </span>
+                          <span className="flex items-center gap-1 ml-auto">
+                            <Clock size={12} />
+                            {new Date(repo.updated_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </main>
     </div>

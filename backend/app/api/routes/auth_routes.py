@@ -131,3 +131,46 @@ async def logout(token: str = Body(..., embed=True)):
         del _TOKENS[token]
         return {"status": "logged_out"}
     raise HTTPException(status_code=400, detail="Unknown token")
+
+@router.get("/auth/github/repos")
+async def get_github_repos(token: str):
+    """Fetch the authenticated user's GitHub repositories."""
+    if token not in _TOKENS:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+    async with httpx.AsyncClient() as client:
+        # Fetching user's repositories (includes private ones if token has scope)
+        # The 'scope=repo read:user' requested in github_login covers this.
+        resp = await client.get(
+            "https://api.github.com/user/repos?sort=updated&per_page=100",
+            headers={
+                "Authorization": f"Bearer {token}",
+                "Accept": "application/vnd.github+json",
+                "User-Agent": "CodeWorld-App"
+            },
+            timeout=15,
+        )
+
+    if resp.status_code != 200:
+        print(f"ERROR: GitHub API failed with status {resp.status_code}: {resp.text}")
+        raise HTTPException(status_code=resp.status_code, detail="Failed to fetch repositories from GitHub")
+
+    repos_data = resp.json()
+    
+    # Filter and format the data
+    formatted_repos = []
+    for repo in repos_data:
+        formatted_repos.append({
+            "id": repo.get("id"),
+            "name": repo.get("name"),
+            "full_name": repo.get("full_name"),
+            "html_url": repo.get("html_url"),
+            "description": repo.get("description"),
+            "language": repo.get("language"),
+            "stargazers_count": repo.get("stargazers_count"),
+            "updated_at": repo.get("updated_at"),
+            "private": repo.get("private"),
+            "owner": repo.get("owner", {}).get("login")
+        })
+
+    return formatted_repos

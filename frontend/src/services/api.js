@@ -9,6 +9,7 @@ const api = axios.create({
 export const authService = {
     login: () => api.get('/auth/github/login'),
     logout: (token) => api.post('/auth/logout', { token }),
+    getRepos: (token) => api.get('/auth/github/repos', { params: { token } }),
 };
 
 export const repoService = {
