@@ -25,9 +25,19 @@ def build_ignore_checker(root: str) -> Callable[[str], bool]:
             pass
 
     # default ignores
-    patterns.append('.git/')
-    patterns.append('.gitignore')
-    patterns.append('README.md')
+    patterns.extend([
+        '.git/', '.gitignore', 'README.md', 'LICENSE',
+        'node_modules/', 'venv/', '.env', '__pycache__/',
+        'dist/', 'build/', 'out/', 'target/',
+        '.DS_Store', 'Thumbs.db',
+        '*.jpg', '*.jpeg', '*.png', '*.gif', '*.ico', '*.svg', '*.webp',
+        '*.mp3', '*.wav', '*.ogg', '*.m4a', '*.mp4', '*.mov', '*.avi',
+        '*.zip', '*.tar', '*.gz', '*.rar', '*.7z',
+        '*.exe', '*.bin', '*.dll', '*.so', '*.dylib',
+        'package-lock.json', 'yarn.lock', 'pnpm-lock.yaml',
+        '*.txt', '*.md', '*.log', '*.csv',
+        '.github/', '*.xml', '*.yml', '*.yaml', '*.json', "*.pdf"
+    ])
 
     try:
         spec = pathspec.PathSpec.from_lines('gitwildmatch', patterns)
