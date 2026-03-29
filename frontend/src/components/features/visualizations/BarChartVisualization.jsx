@@ -152,8 +152,11 @@ function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, 
                   {file && functions.length === 0 && (
                     // Placeholder for empty files
                     <div
-                      className="w-full bg-gray-200 rounded-t"
+                      className="w-full bg-gray-200 rounded-t cursor-pointer hover:bg-gray-300 transition-colors"
                       style={{ height: '2px' }}
+                      onClick={() => {
+                        if (onFileClick) onFileClick(file);
+                      }}
                     />
                   )}
                 </div>

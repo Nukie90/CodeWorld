@@ -1531,16 +1531,18 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     mesh.castShadow = true;
                     mesh.receiveShadow = true;
 
-                    mesh.userData = {
+                    const fileObj = {
                         type: 'file',
                         name: node.data.name,
                         ...node.data.fileData,
-                        depth: node.depth, // Needed for shockwave positioning
+                        language: node.data.fileData?.language,
+                        depth: node.depth,
                         totalComplexity: complexity.toFixed(2),
                         maintainabilityIndex: node.data.maintainabilityIndex,
                         totalLoc: node.data.totalLoc,
                         numFunctions: node.data.numFunctions
                     };
+                    mesh.userData = fileObj;
 
                     scene.add(mesh);
                     interactableMeshesRef.current.push(mesh);
@@ -2891,6 +2893,12 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                         </div>
                         {hoveredObject.type === 'file' && (
                             <div className="space-y-1 text-sm text-gray-600">
+                                {hoveredObject.language && (
+                                    <div className="flex justify-between gap-4">
+                                        <span>Language:</span>
+                                        <span className="font-bold text-blue-500 uppercase tracking-tight">{hoveredObject.language}</span>
+                                    </div>
+                                )}
                                 {hoveredObject.is_unsupported ? (
                                     <div className="flex justify-between gap-4">
                                         <span>LLOC:</span>

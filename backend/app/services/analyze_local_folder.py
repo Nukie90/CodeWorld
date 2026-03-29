@@ -11,7 +11,8 @@ from app.utils.analysis_helpers import aggregate_metrics, run_adapter_batches, g
 
 def _build_unsupported_file_metrics(relative_path: str, total_loc: int, total_lloc: int, language: str) -> FileMetrics:
     return FileMetrics(
-        filename=f"{relative_path}\n({language})",
+        filename=relative_path,
+        language=language,
         total_loc=total_loc,
         total_lloc=total_lloc,
         function_count=0,
