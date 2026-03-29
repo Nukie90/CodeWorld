@@ -4,7 +4,6 @@ from app.api.routes.auth_routes import router as auth_router
 from app.api.routes.repo_routes import router as repo_router
 from app.api.routes.analyze_routes import router as analyze_router
 from app.api.routes.lint_routes import router as lint_router
-from app.api.routes.ai_routes import router as ai_router
 
 # Load environment variables from backend/.env when available (development convenience).
 try:
@@ -38,7 +37,6 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(repo_router, prefix="/api")
 app.include_router(analyze_router, prefix="/api")
 app.include_router(lint_router, prefix="/api")
-app.include_router(ai_router, prefix="/api/ai")
 
 @app.get("/")
 async def home():
@@ -51,4 +49,4 @@ async def health_check():
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000)
