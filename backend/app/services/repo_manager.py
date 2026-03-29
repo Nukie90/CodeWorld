@@ -37,6 +37,18 @@ def _repo_hash(url: str) -> str:
     return hashlib.sha256(url.encode("utf-8")).hexdigest()[:12]
 
 
+def _get_git_base() -> list[str]:
+    """Base git command that actively disables local credential helpers."""
+    return ["git", "-c", "credential.helper="]
+
+def _get_git_env() -> dict:
+    """Environment variables to ensure git fails cleanly instead of prompting."""
+    env = os.environ.copy()
+    env["GIT_TERMINAL_PROMPT"] = "0"
+    env["GIT_ASKPASS"] = "echo"
+    return env
+
+
 def _normalize_url(url: str) -> str:
     # strip trailing .git/ or trailing slash for consistent keys
     if url.endswith("/"):
@@ -98,8 +110,31 @@ def clone_repo(repo_url: str, token: Optional[str] = None, progress_callback: Op
     idx = _load_index()
 
     if url in idx and os.path.exists(idx[url]):
-        if progress_callback: progress_callback(30, "Using cached repository")
-        return idx[url]
+        # If no token provided, we MUST verify the repo is still public
+        # to prevent logged-out users from accessing cached private code.
+        is_public_verified = False
+        if not token:
+            try:
+                # Test access without token
+                subprocess.run(
+                    _get_git_base() + ["ls-remote", "--heads", url], 
+                    env=_get_git_env(),
+                    check=True, 
+                    stdout=subprocess.PIPE, 
+                    stderr=subprocess.PIPE,
+                    timeout=5 # fast fail
+                )
+                is_public_verified = True
+            except Exception:
+                # Access denied or network error - cannot allow cache usage for guest
+                raise ValueError(
+                    "This repository is private or requires a valid GitHub login. "
+                    "Please log in with GitHub and try again."
+                )
+        
+        if token or is_public_verified:
+            if progress_callback: progress_callback(30, "Using cached repository")
+            return idx[url]
 
     if progress_callback: progress_callback(5, "Initializing repository")
 
@@ -118,7 +153,7 @@ def clone_repo(repo_url: str, token: Optional[str] = None, progress_callback: Op
     # run git clone (shallow)
     try:
         if progress_callback: progress_callback(10, f"Cloning repository: {repo_name}")
-        subprocess.run(["git", "clone", clone_url, target_path], check=True)
+        subprocess.run(_get_git_base() + ["clone", clone_url, target_path], env=_get_git_env(), check=True)
         if progress_callback: progress_callback(30, "Cloning complete")
     except subprocess.CalledProcessError as exc:
         # clean up partial clone if present
@@ -139,7 +174,7 @@ def clone_repo(repo_url: str, token: Optional[str] = None, progress_callback: Op
 
 def _run_git(path: str, args: list[str]) -> str:
     """Run git command in path and return stdout (decoded). Raises CalledProcessError on failure."""
-    res = subprocess.run(["git", "-C", path] + args, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    res = subprocess.run(_get_git_base() + ["-C", path] + args, env=_get_git_env(), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return res.stdout.decode("utf-8", errors="replace")
 
 
@@ -155,7 +190,7 @@ def list_branches(repo_url: str, token: Optional[str] = None, progress_callback:
         if token and url.startswith("https://"):
             clone_url = url.replace("https://", f"https://{token}@")
 
-        res = subprocess.run(["git", "ls-remote", "--heads", clone_url], check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        res = subprocess.run(_get_git_base() + ["ls-remote", "--heads", clone_url], env=_get_git_env(), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         out = res.stdout.decode("utf-8", errors="replace")
         for line in out.splitlines():
             parts = line.split('\t')
@@ -167,7 +202,7 @@ def list_branches(repo_url: str, token: Optional[str] = None, progress_callback:
         # fallback to using cached repo if ls-remote failed
         try:
             path = clone_repo(repo_url, token=token, progress_callback=progress_callback)
-            subprocess.run(["git", "-C", path, "fetch", "--all", "--prune"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            subprocess.run(_get_git_base() + ["-C", path, "fetch", "--all", "--prune"], env=_get_git_env(), check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
             # get current branch
             try:
                 current = _run_git(path, ["rev-parse", "--abbrev-ref", "HEAD"]).strip()
@@ -211,7 +246,7 @@ def checkout_branch(repo_url: str, branch: str, token: Optional[str] = None, pro
 
     # fetch first
     try:
-        subprocess.run(["git", "-C", path, "fetch", "--all"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(_get_git_base() + ["-C", path, "fetch", "--all"], env=_get_git_env(), check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError:
         pass
 
@@ -225,7 +260,7 @@ def checkout_branch(repo_url: str, branch: str, token: Optional[str] = None, pro
         remote_branches = []
 
     if branch in local_branches:
-        subprocess.run(["git", "-C", path, "checkout", branch], check=True)
+        subprocess.run(_get_git_base() + ["-C", path, "checkout", branch], env=_get_git_env(), check=True)
     else:
         # try to find a matching remote branch
         candidate = None
@@ -240,10 +275,10 @@ def checkout_branch(repo_url: str, branch: str, token: Optional[str] = None, pro
         if candidate:
             # create/update local branch to track remote
             local_name = candidate.split('/', 1)[-1]
-            subprocess.run(["git", "-C", path, "checkout", "-B", local_name, candidate], check=True)
+            subprocess.run(_get_git_base() + ["-C", path, "checkout", "-B", local_name, candidate], env=_get_git_env(), check=True)
         else:
             # fallback: attempt to checkout branch directly (may fail)
-            subprocess.run(["git", "-C", path, "checkout", branch], check=True)
+            subprocess.run(_get_git_base() + ["-C", path, "checkout", branch], env=_get_git_env(), check=True)
 
     return path
 
@@ -256,7 +291,7 @@ def get_commit_history(repo_url: str, branch: Optional[str] = None, limit: int =
     
     # Fetch latest changes
     try:
-        subprocess.run(["git", "-C", path, "fetch", "--all"], check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        subprocess.run(_get_git_base() + ["-C", path, "fetch", "--all"], env=_get_git_env(), check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError:
         pass
     

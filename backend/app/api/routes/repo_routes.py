@@ -4,11 +4,23 @@ from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel
 from app.services import repo_manager
 from app.services.analyze_local_folder import analyze_local_folder
-from app.services.state_manager import _ANALYSIS_CACHE
+from app.services.state_manager import _ANALYSIS_CACHE, _TOKENS
 from app.utils.analysis_helpers import normalize_analysis_result
 import re as _re
 
 router = APIRouter(tags=["repo"])
+
+def verify_session(token: Optional[str]):
+    """Ensure a provided token belongs to an active session."""
+    # Treat empty string as "no token" (logged out/guest)
+    if not token or token.strip() == "":
+        return
+        
+    if token not in _TOKENS:
+        raise HTTPException(
+            status_code=401, 
+            detail="Session expired. Please log in with GitHub again."
+        )
 
 class RepoBranchRequest(BaseModel):
     repo_url: str
@@ -41,6 +53,7 @@ class CommitDetailsRequest(BaseModel):
 
 @router.get("/repo/branches")
 def repo_branches(repo_url: str, token: Optional[str] = None):
+    verify_session(token)
     try:
         branches = repo_manager.list_branches(repo_url, token=token)
         return branches
@@ -107,6 +120,7 @@ def _read_files_at_commit(local_path: str, commit_hash: str, file_list: list[str
 
 @router.post("/repo/checkout")
 def repo_checkout(payload: RepoCheckoutRequest):
+    verify_session(payload.token)
     # ---- Fast path: when branch is a commit hash, skip git checkout entirely ----
     if _is_commit_hash(payload.branch):
         # Get (or ensure) local repo exists
@@ -234,6 +248,7 @@ def repo_checkout(payload: RepoCheckoutRequest):
 @router.post("/repo/function-code")
 def get_function_code(payload: FunctionCodeRequest):
     """Retrieve the code for a specific function from a repository."""
+    verify_session(payload.token)
     try:
         if not payload.start_line:
             raise HTTPException(status_code=400, detail="Function start_line is required but was not provided")
@@ -375,6 +390,7 @@ def get_function_code(payload: FunctionCodeRequest):
 @router.post("/repo/commits")
 def get_commit_history(payload: CommitHistoryRequest):
     """Get commit history for a repository."""
+    verify_session(payload.token)
     try:
         commits = repo_manager.get_commit_history(
             payload.repo_url,
@@ -390,6 +406,7 @@ def get_commit_history(payload: CommitHistoryRequest):
 @router.post("/repo/commit-details")
 def get_commit_details(payload: CommitDetailsRequest):
     """Get detailed information about a specific commit."""
+    verify_session(payload.token)
     try:
         commit_details = repo_manager.get_commit_details(
             payload.repo_url,
@@ -409,6 +426,7 @@ class PrefetchCommitRequest(BaseModel):
 
 @router.post("/repo/prefetch-commit")
 def prefetch_commit(payload: PrefetchCommitRequest, background_tasks: BackgroundTasks):
+    verify_session(payload.token)
     if payload.commit_hash in _ANALYSIS_CACHE:
         return {"status": "cached", "commit_hash": payload.commit_hash}
 
@@ -446,6 +464,7 @@ class FileContentRequest(BaseModel):
 @router.post("/repo/file-content")
 def get_file_content(payload: FileContentRequest):
     """Get the full content of a file at a specific commit."""
+    verify_session(payload.token)
     try:
         content = repo_manager.get_file_content(
             payload.repo_url,
