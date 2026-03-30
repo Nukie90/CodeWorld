@@ -192,17 +192,42 @@ function calculateMetrics(code) {
             tokens: true
         });
 
+        const maskNonNewlineChars = (chars, start, end) => {
+            for (let i = start; i < end; i++) {
+                if (chars[i] !== '\n' && chars[i] !== '\r') {
+                    chars[i] = ' ';
+                }
+            }
+        };
+
         // Pre-compute comment-masked code once for the whole file
         let baseCleanCodeChars = code.split('');
         if (ast.comments) {
             ast.comments.forEach(c => {
-                for (let i = c.start; i < c.end; i++) {
-                    if (baseCleanCodeChars[i] !== '\n' && baseCleanCodeChars[i] !== '\r') {
-                        baseCleanCodeChars[i] = ' ';
-                    }
-                }
+                maskNonNewlineChars(baseCleanCodeChars, c.start, c.end);
             });
         }
+
+        traverse(ast, {
+            TemplateLiteral(templatePath) {
+                const { node } = templatePath;
+                if (node.start === undefined || node.end === undefined) return;
+
+                const templateSource = code.slice(node.start, node.end);
+                if (!templateSource.includes('\n')) return;
+
+                // Multiline template wrapper lines are spacing, not executable code.
+                baseCleanCodeChars[node.start] = ' ';
+                baseCleanCodeChars[node.end - 1] = ' ';
+
+                node.quasis.forEach((quasi) => {
+                    const raw = quasi.value?.raw ?? '';
+                    if (!/\S/.test(raw)) {
+                        maskNonNewlineChars(baseCleanCodeChars, quasi.start, quasi.end);
+                    }
+                });
+            }
+        });
 
         const countSLOCPath = (path, skipNested = false) => {
             const node = path.node;
@@ -224,11 +249,7 @@ function calculateMetrics(code) {
                 innerFuncs.forEach(fn => {
                     const fnStart = fn.start - node.start;
                     const fnEnd = fn.end - node.start;
-                    for (let i = fnStart; i < fnEnd; i++) {
-                        if (chars[i] !== '\n' && chars[i] !== '\r') {
-                            chars[i] = ' ';
-                        }
-                    }
+                    maskNonNewlineChars(chars, fnStart, fnEnd);
                 });
             }
             

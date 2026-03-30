@@ -45,7 +45,7 @@ export function useGithubAuth() {
     try {
       const resp = await authService.login()
       if (resp.data?.auth_url) {
-        window.location.href = resp.data.auth_url
+        window.location.assign(resp.data.auth_url)
         console.log('GitHub auth URL:', resp.data.auth_url);
 
       } else {
