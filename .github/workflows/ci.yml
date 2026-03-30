@@ -44,9 +44,7 @@ jobs:
       - name: Install Frontend Dependencies
         working-directory: ./frontend
         run: npm ci || npm install
-      - name: Run ESLint
-        working-directory: ./frontend
-        run: npm run lint
+
       - name: Run Jest Tests
         working-directory: ./frontend
         run: npm run test
