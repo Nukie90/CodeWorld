@@ -8,7 +8,6 @@ function GitGraph({ repoUrl, branch, token, activeCommitHash, onCommitClick, ext
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState(null);
-  const [selectedCommit, setSelectedCommit] = useState(null);
   const [skip, setSkip] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const COMMITS_PER_PAGE = 20;
@@ -74,10 +73,6 @@ function GitGraph({ repoUrl, branch, token, activeCommitHash, onCommitClick, ext
     }
   };
 
-  const handleCommitDoubleClick = (commit) => {
-    setSelectedCommit(commit);
-  };
-
   const formatDate = (dateString) => {
     if (!dateString) return '';
     const date = new Date(dateString);
@@ -88,10 +83,6 @@ function GitGraph({ repoUrl, branch, token, activeCommitHash, onCommitClick, ext
       hour: '2-digit',
       minute: '2-digit'
     });
-  };
-
-  const getShortHash = (hash) => {
-    return hash ? hash.substring(0, 7) : '';
   };
 
   if (loading) {

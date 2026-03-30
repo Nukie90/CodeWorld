@@ -91,7 +91,7 @@ describe('CommitDetailModal', () => {
     });
 
     it('fetches and displays full file content when "View Full File" is clicked', async () => {
-        axios.post.mockImplementation((url, _data) => {
+        axios.post.mockImplementation((url) => {
             if (url.includes('commit-details')) return Promise.resolve({ data: mockDetails });
             if (url.includes('file-content')) return Promise.resolve({ data: { content: 'FULL FILE CONTENT' } });
             return Promise.reject(new Error('Unknown URL'));

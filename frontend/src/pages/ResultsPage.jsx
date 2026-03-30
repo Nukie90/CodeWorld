@@ -1,6 +1,6 @@
 // Main Dashboard: Repository Analysis Results
 import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 import BarChartVisualization from '../components/features/visualizations/BarChartVisualization';
@@ -55,9 +55,8 @@ function normalizeAnalysisResultPayload(result) {
 }
 
 function ResultsPage() {
-  const navigate = useNavigate();
   const { state } = useLocation();
-  const { analysisResult: initialAnalysisResult, token, username } = state || {};
+  const { analysisResult: initialAnalysisResult, token } = state || {};
 
   const [analysisResult, setAnalysisResult] = useState(() => normalizeAnalysisResultPayload(initialAnalysisResult));
   const [activeTab, setActiveTab] = useState('island3D');
@@ -344,7 +343,7 @@ function ResultsPage() {
       const p = {};
       parts.forEach(({ type, value }) => p[type] = value);
       return `${p.weekday} ${p.day} ${p.month} ${p.year}`;
-    } catch (err) {
+    } catch {
       return dateString;
     }
   };

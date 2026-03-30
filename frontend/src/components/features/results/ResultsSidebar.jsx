@@ -5,7 +5,6 @@ import GitGraph from '../git_graph/GitGraph';
 function ResultsSidebar({
     isDarkMode,
     isLeftPanelOpen,
-    setIsLeftPanelOpen,
     leftPanelWidth,
     isDragging,
     startResizingLeft,
@@ -34,12 +33,10 @@ function ResultsSidebar({
     animatingCommit,
     setSelectedCommitForModal,
     animationProgress,
-    formatCommitDate,
     analysisResult,
     token,
     handleCommitClick,
     allCommits,
-    setIsBottomPanelOpen,
     currentCommitIndex
 }) {
     const [isMinimized, setIsMinimized] = useState(false);

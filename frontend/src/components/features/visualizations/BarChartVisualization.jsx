@@ -36,9 +36,6 @@ function BarChartVisualization({ individualFiles, onFunctionClick, onFileClick, 
     });
   });
 
-  const minComplexity = allComplexities.length > 0 ? Math.min(...allComplexities) : 1;
-  const maxComplexity = allComplexities.length > 0 ? Math.max(...allComplexities) : 10;
-
   // Color scale: green (low) to red (high)
   const getComplexityColor = (complexity) => {
     if (complexity === undefined || complexity === null) {

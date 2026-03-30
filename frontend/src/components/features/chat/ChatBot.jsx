@@ -8,7 +8,6 @@ const ChatBot = ({ isDarkMode, projectContext }) => {
     const [messages, setMessages] = useState([]);
     const [inputValue, setInputValue] = useState('');
     const [isLoading, setIsLoading] = useState(false);
-    const [expandedReasoning, setExpandedReasoning] = useState({});
 
     const messagesEndRef = useRef(null);
 
@@ -48,13 +47,6 @@ const ChatBot = ({ isDarkMode, projectContext }) => {
         } finally {
             setIsLoading(false);
         }
-    };
-
-    const toggleReasoning = (index) => {
-        setExpandedReasoning(prev => ({
-            ...prev,
-            [index]: !prev[index]
-        }));
     };
 
     return (

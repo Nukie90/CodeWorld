@@ -93,13 +93,6 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     isTimelinePlayingRef.current = isTimelinePlaying;
     showContributorsRef.current = showContributors;
 
-    if (!individualFiles || individualFiles.length === 0) {
-        return (
-            <div className={`flex items-center justify-center h-full ${isDarkMode ? 'text-gray-500' : 'text-gray-400'}`}>
-                No files to visualize
-            </div>
-        );
-    }
 
     const { islandSize, islandCenterX, islandCenterZ } = useMemo(() => {
         const numFiles = individualFiles?.length || 0;
@@ -126,33 +119,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         return { x, z };
     };
 
-    const pixelToAxial = (x, z) => {
-        const q = (Math.sqrt(3) / 3 * x - 1 / 3 * z) / HEX_RADIUS;
-        const r = (2 / 3 * z) / HEX_RADIUS;
-        return hexRound(q, r);
-    };
 
-    const hexRound = (q, r) => {
-        let x = q;
-        let z = r;
-        let y = -x - z;
-
-        let rx = Math.round(x);
-        let rz = Math.round(z);
-        let ry = Math.round(y);
-
-        const x_diff = Math.abs(rx - x);
-        const z_diff = Math.abs(rz - z);
-        const y_diff = Math.abs(ry - y);
-
-        if (x_diff > z_diff && x_diff > y_diff) {
-            rx = -ry - rz;
-        } else if (z_diff > y_diff) {
-            rz = -rx - ry;
-        }
-
-        return { q: rx, r: rz };
-    };
 
     // --- Organic Shape Utilities ---
     const getConvexHull = (points) => {
@@ -2765,7 +2732,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     useEffect(() => {
         if ((!isTimelinePlaying || !showContributors) && sceneRef.current) {
             // Fade out and remove all drones dynamically
-            contributorDronesRef.current.forEach((droneData, author) => {
+            contributorDronesRef.current.forEach((droneData) => {
                 const { group } = droneData;
                 gsap.to(group.scale, {
                     x: 0, y: 0, z: 0,
@@ -2807,6 +2774,11 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
     return (
         <div className="relative w-full h-full">
+            {(!individualFiles || individualFiles.length === 0) && (
+                <div className={`absolute inset-0 z-20 flex items-center justify-center ${isDarkMode ? 'text-gray-500 bg-slate-950/50' : 'text-gray-400 bg-white/60'} backdrop-blur-sm`}>
+                    No files to visualize
+                </div>
+            )}
             <div ref={mountRef} className="w-full h-full" style={{ minHeight: '55vh' }} />
 
             {rendererUnavailable && (
