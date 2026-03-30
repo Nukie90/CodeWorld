@@ -7,7 +7,7 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from app.services import repo_manager
 from app.services.analyze_local_folder import analyze_local_folder
-from app.services.state_manager import _PROGRESS, _ANALYSIS_CACHE, _TOKENS
+from app.services.state_manager import _PROGRESS, _ANALYSIS_CACHE, get_session
 from app.utils.analysis_helpers import normalize_analysis_result
 
 router = APIRouter(tags=["analyze"])
@@ -16,13 +16,15 @@ def verify_session(token: Optional[str]):
     """Ensure a provided token belongs to an active session."""
     # Treat empty string as "no token" (logged out/guest)
     if not token or token.strip() == "":
-        return
+        return None
         
-    if token not in _TOKENS:
+    session = get_session(token)
+    if not session:
         raise HTTPException(
             status_code=401, 
             detail="Session expired. Please log in with GitHub again."
         )
+    return session["github_token"]
 
 class RepoAnalyzeRequest(BaseModel):
     repo_url: str
@@ -53,8 +55,7 @@ async def analyze_progress(task_id: str):
 def analyze_repo(payload: RepoAnalyzeRequest):
     # clone (or use cached) then analyze
     repo_url = payload.repo_url
-    token = payload.token
-    verify_session(token)
+    github_token = verify_session(payload.token)
     task_id = payload.task_id or str(uuid.uuid4())
 
     def update_progress(progress: int, message: str, done: bool = False, error: Optional[str] = None):
@@ -63,7 +64,7 @@ def analyze_repo(payload: RepoAnalyzeRequest):
     update_progress(1, "Starting analysis...")
 
     try:
-        local_path = repo_manager.clone_repo(repo_url, token=token, progress_callback=update_progress)
+        local_path = repo_manager.clone_repo(repo_url, token=github_token, progress_callback=update_progress)
     except Exception as exc:
         err_msg = str(exc)
         update_progress(0, f"Failed to clone: {err_msg}", error=err_msg)

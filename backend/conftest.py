@@ -18,7 +18,7 @@ from app.model.analyzer_model import (
     FolderMetrics,
     FunctionMetric,
 )
-from app.services.state_manager import _ANALYSIS_CACHE, _PROGRESS, _TOKENS
+from app.services.state_manager import _ANALYSIS_CACHE, _PROGRESS, clear_sessions, load_sessions
 
 
 class FakeAsyncResponse:
@@ -64,15 +64,18 @@ def reset_runtime_state(monkeypatch, tmp_path):
         "http://127.0.0.1:8000/api/auth/github/callback",
     )
     monkeypatch.setenv("REPO_CACHE_DIR", str(tmp_path / "repo-cache"))
+    monkeypatch.setenv("SESSION_STORE_PATH", str(tmp_path / "sessions.json"))
+    monkeypatch.setenv("SESSION_TTL_SECONDS", "604800")
 
-    _TOKENS.clear()
+    clear_sessions()
+    load_sessions()
     _PROGRESS.clear()
     _ANALYSIS_CACHE.clear()
     auth_routes._USED_CODES.clear()
 
     yield
 
-    _TOKENS.clear()
+    clear_sessions()
     _PROGRESS.clear()
     _ANALYSIS_CACHE.clear()
     auth_routes._USED_CODES.clear()

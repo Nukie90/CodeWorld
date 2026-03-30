@@ -13,4 +13,5 @@ temp_repos/
 venv/
 
 test-results/
+
 coverage/

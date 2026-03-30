@@ -1,4 +1,5 @@
 import pytest
+from urllib.parse import parse_qs, urlparse
 
 from app.api.routes import auth_routes
 from app.services.state_manager import _TOKENS
@@ -33,10 +34,16 @@ def test_github_callback_success_redirects_and_stores_session(
     )
 
     assert response.status_code in (302, 307)
-    assert response.headers["location"] == (
-        "http://localhost:5173/?token=gho_test_token&username=codeworld-user"
-    )
-    assert _TOKENS == {"gho_test_token": "codeworld-user"}
+    redirect = urlparse(response.headers["location"])
+    params = parse_qs(redirect.query)
+    session_token = params["token"][0]
+
+    assert redirect.scheme == "http"
+    assert redirect.netloc == "localhost:5173"
+    assert params["username"] == ["codeworld-user"]
+    assert session_token in _TOKENS
+    assert _TOKENS[session_token]["github_token"] == "gho_test_token"
+    assert _TOKENS[session_token]["user"] == "codeworld-user"
 
 
 def test_github_callback_rejects_invalid_or_expired_code(

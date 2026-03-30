@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from typing import Optional
 from pydantic import BaseModel
 from app.model.analyzer_model import FileLint
+from app.services.state_manager import get_session
 
 router = APIRouter(tags=["lint"])
 
@@ -13,12 +14,21 @@ class LintRequest(BaseModel):
 @router.post("/lint/{file_name:path}", response_model=FileLint)
 async def lint_file(file_name: str, payload: LintRequest):
     from app.services import repo_manager
+    github_token = None
+    if payload.token and payload.token.strip():
+        session = get_session(payload.token)
+        if not session:
+            raise HTTPException(
+                status_code=401,
+                detail="Session expired. Please log in with GitHub again.",
+            )
+        github_token = session["github_token"]
     try:
         content = repo_manager.get_file_content(
             payload.repo_url,
             payload.commit_hash,
             file_name,
-            token=payload.token
+            token=github_token
         )
     except Exception as exc:
         raise HTTPException(status_code=500, detail=f"Failed to get file content: {str(exc)}")

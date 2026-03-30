@@ -5,7 +5,7 @@ import asyncio
 from urllib.parse import quote
 from fastapi import APIRouter, Request, HTTPException, Body
 from fastapi.responses import RedirectResponse
-from app.services.state_manager import _TOKENS
+from app.services.state_manager import create_session, delete_session, get_session
 
 router = APIRouter(tags=["auth"])
 
@@ -112,30 +112,30 @@ async def github_callback(code: str, request: Request):
         user_json = user_resp.json()
         username = user_json.get("login") or "unknown"
 
-        _TOKENS[access_token] = username
+        session_token = create_session(access_token, username)
         
         # Cache the result to handle immediate duplicate requests
         _USED_CODES[code] = {
-            "token": access_token,
+            "token": session_token,
             "user": username,
             "ts": time.time()
         }
 
-        frontend_url = f"http://localhost:5173/?token={access_token}&username={username}"
+        frontend_url = f"http://localhost:5173/?token={session_token}&username={username}"
 
         return RedirectResponse(url=frontend_url)
 
 @router.post("/auth/logout")
 async def logout(token: str = Body(..., embed=True)):
-    if token in _TOKENS:
-        del _TOKENS[token]
+    if delete_session(token):
         return {"status": "logged_out"}
     raise HTTPException(status_code=400, detail="Unknown token")
 
 @router.get("/auth/github/repos")
 async def get_github_repos(token: str):
     """Fetch the authenticated user's GitHub repositories."""
-    if token not in _TOKENS:
+    session = get_session(token)
+    if not session:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
     async with httpx.AsyncClient() as client:
@@ -144,7 +144,7 @@ async def get_github_repos(token: str):
         resp = await client.get(
             "https://api.github.com/user/repos?sort=updated&per_page=100",
             headers={
-                "Authorization": f"Bearer {token}",
+                "Authorization": f"Bearer {session['github_token']}",
                 "Accept": "application/vnd.github+json",
                 "User-Agent": "CodeWorld-App"
             },
