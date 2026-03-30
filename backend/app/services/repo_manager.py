@@ -5,6 +5,8 @@ import subprocess
 from pathlib import Path
 from typing import Optional, Callable
 
+from app.utils.ignore import build_ignore_checker
+
 
 BACKEND_DIR = Path(__file__).resolve().parent.parent.parent
 CACHE_DIR = os.environ.get("REPO_CACHE_DIR", str(BACKEND_DIR / "temp_repos"))
@@ -374,6 +376,7 @@ def get_commit_details(repo_url: str, commit_hash: str, token: Optional[str] = N
         # Get file changes details using numstat to avoid truncation
         stat_output = _run_git(path, ["show", "--numstat", "--format=", commit_hash])
         files_changed = []
+        is_ignored = build_ignore_checker(path)
         
         # Parse numstat output
         for line in stat_output.strip().split('\n'):
@@ -384,6 +387,9 @@ def get_commit_details(repo_url: str, commit_hash: str, token: Optional[str] = N
                 added = parts[0]
                 deleted = parts[1]
                 filename = parts[2]
+                
+                if is_ignored(os.path.join(path, filename)):
+                    continue
                 
                 # Handle binary files which show as - - filename
                 if added == '-': added = 0

@@ -120,8 +120,15 @@ def _incremental_analysis(
       - fresh analysis (via git object content) for changed files
       - excludes deleted files
     """
-    deleted_set = set(deleted_files or [])
-    changed_set = set(changed_files or [])
+    # Build ignore checker to filter out ignored files
+    is_ignored = build_ignore_checker(local_path)
+    
+    # Filter files before processing
+    valid_deleted = [f for f in (deleted_files or []) if not is_ignored(os.path.join(local_path, f))]
+    valid_changed = [f for f in (changed_files or []) if not is_ignored(os.path.join(local_path, f))]
+    
+    deleted_set = set(valid_deleted)
+    changed_set = set(valid_changed)
 
     file_metrics_list = _carry_over_unchanged_files(previous_analysis, changed_set, deleted_set)
 
@@ -141,7 +148,7 @@ def _incremental_analysis(
         return None
 
     grouped_files, unsupported_files = group_files_by_adapter(
-        changed_files, adapters, get_content, deleted_set
+        valid_changed, adapters, get_content, deleted_set
     )
 
     # Batch analyze files per adapter
