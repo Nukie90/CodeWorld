@@ -69,7 +69,7 @@ async function mockApplicationApis(page, { analysisFails = false } = {}) {
           function_count: 1,
           total_complexity: 2,
           total_cognitive_complexity: 2,
-          maintainability_index: 91.0,
+          maintainability_index: 91,
           functions: [
             {
               name: "formatName",
@@ -80,7 +80,7 @@ async function mockApplicationApis(page, { analysisFails = false } = {}) {
               cognitive_complexity: 1,
               cyclomatic_complexity: 1,
               total_cognitive_complexity: 1,
-              maintainability_index: 91.0,
+              maintainability_index: 91,
               max_nesting_depth: 1,
               halstead_volume: 12,
               children: [],
@@ -112,7 +112,7 @@ async function mockApplicationApis(page, { analysisFails = false } = {}) {
           function_count: 1,
           total_complexity: 2,
           total_cognitive_complexity: 3,
-          maintainability_index: 88.0,
+          maintainability_index: 88,
           functions: [
             {
               name: "refactorFlow",
@@ -123,7 +123,7 @@ async function mockApplicationApis(page, { analysisFails = false } = {}) {
               cognitive_complexity: 2,
               cyclomatic_complexity: 2,
               total_cognitive_complexity: 2,
-              maintainability_index: 88.0,
+              maintainability_index: 88,
               max_nesting_depth: 1,
               halstead_volume: 18,
               children: [],
@@ -228,6 +228,16 @@ async function mockApplicationApis(page, { analysisFails = false } = {}) {
     });
   });
 
+  await page.route("**/api/repo/file-content", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        content: "export function renderApp() {\n  return <App />;\n}\n",
+      }),
+    });
+  });
+
   await page.route("**/api/lint/src/App.jsx", async (route) => {
     await route.fulfill({
       status: 200,
@@ -309,12 +319,11 @@ test("Switch source code display mode and show lint suggestions", async ({ page 
   await page.getByRole("button", { name: /next/i }).click();
   await page.waitForURL("**/results");
   await waitForVisualizationReady(page);
+  
+  await page.getByPlaceholder("Search file name...").fill("src/App.jsx");
+  await page.getByRole("button", { name: /src\/App\.jsx/i }).click();
 
-  await page.getByRole("button", { name: /type/i }).click();
-  await page.getByRole("button", { name: /bar chart/i }).click();
-  await page.locator('div[style*="background-color"]').first().dispatchEvent("click");
-
-  await expect(page.getByText(/^renderApp$/)).toBeVisible();
+  await expect(page.getByText(/^App\.jsx$/)).toBeVisible();
   await page.getByRole("button", { name: /plain/i }).click();
   await page.getByRole("button", { name: /highlighted/i }).click();
   await page.getByRole("button", { name: /linter suggest/i }).click();

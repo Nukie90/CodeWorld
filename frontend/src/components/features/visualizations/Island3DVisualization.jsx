@@ -3,7 +3,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import * as d3 from 'd3';
 import gsap from 'gsap';
-import { Settings, Volume2, VolumeX } from 'lucide-react';
+import { Settings } from 'lucide-react';
 import FunctionTableView from './FunctionTableView';
 import { SceneDiffer } from '../../../utils/SceneDiffer';
 import { audioManager } from '../../../utils/audioManager';
@@ -23,7 +23,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const [hoveredObject, setHoveredObject] = useState(null);
     const [hoverInfoPosition, setHoverInfoPosition] = useState({ x: 0, y: 0 });
 
-    const [rebuildTrigger, setRebuildTrigger] = useState(0);
+
 
     // New Interaction State
     const [viewMode, setViewMode] = useState('island'); // 'island' | 'functions'
@@ -32,7 +32,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const [activeFileForMenu, setActiveFileForMenu] = useState(null);
 
     // Visualization Options
-    const [towerOpacity, setTowerOpacity] = useState(1.0); // 0.0 to 1.0
+    const [towerOpacity, setTowerOpacity] = useState(1); // 0 to 1
     const [showDecorations, setShowDecorations] = useState(false);
     const [showOptionsPanel, setShowOptionsPanel] = useState(false);
     const [vizStyle, setVizStyle] = useState('circular'); // 'circular' | 'honeycomb' | 'freeform'
@@ -40,7 +40,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const [searchResults, setSearchResults] = useState([]);
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [isSearchActive, setIsSearchActive] = useState(false);
-    const [isMuted, setIsMuted] = useState(audioManager.isMuted);
+
     const [rendererUnavailable, setRendererUnavailable] = useState(false);
 
     useEffect(() => {
@@ -54,11 +54,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         return () => window.removeEventListener('click', handleInteraction);
     }, []);
 
-    const handleToggleMute = () => {
-        audioManager.init(); // just in case
-        const newMutedState = audioManager.toggleMute();
-        setIsMuted(newMutedState);
-    };
+
 
 
     const keysRef = useRef({});
@@ -72,14 +68,14 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const previousFilesRef = useRef(null);
     const buildingMeshesRef = useRef(new Map()); // filename -> { mesh, cap, data }
     const directoryMeshesRef = useRef(new Map()); // path -> { mesh, ring }
-    const previousVizStyleRef = useRef(vizStyle);
+
     const sceneInitializedRef = useRef(false);
 
     // Contributor & Animation Refs
     const contributorDronesRef = useRef(new Map()); // authorName -> { group, label, color }
     const lastProcessedCommitRef = useRef(null);
     const pendingStrikeFilesRef = useRef([]); // Files changed in most recent diff
-    const laserGroupRef = useRef(null);
+
     // Refs for values needed inside useEffect without adding them as dependencies
     const animatingCommitRef = useRef(animatingCommit);
     const isTimelinePlayingRef = useRef(isTimelinePlaying);
@@ -2712,7 +2708,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         };
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rebuildTrigger, onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile, towerOpacity, showDecorations, vizStyle]);
+    }, [onFunctionClick, minComplexity, maxComplexity, isDarkMode, viewMode, focusedFile, towerOpacity, showDecorations, vizStyle]);
 
     // --- Timeline Animation Side Effect ---
     useEffect(() => {
@@ -3036,7 +3032,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             </div>
 
             {/* Search Bar - Moved to top-left to avoid overlap with the "Type" panel toggle */}
-            <div className="absolute top-6 left-20 z-[25] w-full max-w-sm px-4 flex items-center gap-3">
+            <div className="absolute top-6 left-20 z-[35] w-full max-w-sm px-4 flex items-center gap-3">
                 <div className={`relative flex-1 flex items-center backdrop-blur-xl border shadow-2xl rounded-2xl transition-all duration-300 ${isSearchFocused
                     ? 'ring-2 ring-blue-500/50 border-blue-400/50 bg-white/20 dark:bg-black/40'
                     : 'border-white/20 bg-white/10 dark:bg-black/20 hover:bg-white/15 dark:hover:bg-black/25'
@@ -3077,11 +3073,14 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 {/* Search Results Dropdown */}
 
                 {searchResults.length > 0 && isSearchFocused && (
-                    <div className="absolute top-full left-4 right-4 mt-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/20 dark:border-slate-800/50 max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-2">
+                    <div className="absolute top-full left-4 right-4 z-[40] mt-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-xl shadow-2xl border border-white/20 dark:border-slate-800/50 max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-2">
                         {searchResults.map((result, idx) => (
                             <button
                                 key={idx}
-                                onClick={() => focusOnFile(result.filename)}
+                                onClick={() => {
+                                    focusOnFile(result.filename);
+                                    if (onFileClick) onFileClick(result);
+                                }}
                                 className="w-full text-left px-4 py-3 hover:bg-blue-500/10 dark:hover:bg-blue-400/10 border-b border-gray-100/50 dark:border-slate-800/30 last:border-0 transition-colors group"
                             >
                                 <div className="text-sm font-bold text-gray-800 dark:text-gray-100 group-hover:text-blue-500 transition-colors">
