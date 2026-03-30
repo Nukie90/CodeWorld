@@ -82,7 +82,7 @@ describe('CommitDetailModal', () => {
         );
 
         await waitFor(() => {
-            const closeBtn = screen.getByRole('button', { name: '' }); // The SVG button doesn't have text
+            screen.getByRole('button', { name: '' }); // The SVG button doesn't have text
             // Need to find the button with the close icon or just use the first button in header
             const buttons = screen.getAllByRole('button');
             fireEvent.click(buttons[0]); // Header close button
@@ -91,7 +91,7 @@ describe('CommitDetailModal', () => {
     });
 
     it('fetches and displays full file content when "View Full File" is clicked', async () => {
-        axios.post.mockImplementation((url, data) => {
+        axios.post.mockImplementation((url, _data) => {
             if (url.includes('commit-details')) return Promise.resolve({ data: mockDetails });
             if (url.includes('file-content')) return Promise.resolve({ data: { content: 'FULL FILE CONTENT' } });
             return Promise.reject(new Error('Unknown URL'));
