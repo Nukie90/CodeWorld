@@ -16,6 +16,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8000:8000"
+    env_file:
+      - ./backend/.env
     environment:
       - JS_PLUGIN_URL=http://js_plugin:3001
       # Add other environment variables as needed here
