@@ -3,9 +3,11 @@ from typing import Optional, List, Tuple
 from app.model.analyzer_model import FileMetrics, FunctionMetric
 from app.utils.analysis_helpers import ensure_file_total_cognitive_complexity
 
-# Define the URL of the Node.js service
-ANALYZER_URL = "http://localhost:3001/analyze-code-stream"
-ANALYZER_BATCH_URL = "http://localhost:3001/analyze-batch-stream"
+import os
+
+JS_PLUGIN_URL = os.getenv("JS_PLUGIN_URL", "http://localhost:3001")
+ANALYZER_URL = f"{JS_PLUGIN_URL}/analyze-code-stream"
+ANALYZER_BATCH_URL = f"{JS_PLUGIN_URL}/analyze-batch-stream"
 
 # Shared persistent HTTP client to avoid connection setup overhead on every call
 _CLIENT = httpx.Client(timeout=60.0)
