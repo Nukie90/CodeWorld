@@ -1,5 +1,9 @@
 #### CodeWorld
 
+## Docker
+
+1. docker compose up --build -d
+
 ## Backend
 
 # Install ENV
