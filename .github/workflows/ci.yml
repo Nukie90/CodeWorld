@@ -15,6 +15,13 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.13"
+      - name: Use Node.js 23.x
+        uses: actions/setup-node@v4
+        with:
+          node-version: "23.x"
+      - name: Install JS Plugin Dependencies
+        working-directory: ./backend/app/js_plugin
+        run: npm ci || npm install
       - name: Install backend dependencies
         working-directory: ./backend
         run: |
