@@ -115,6 +115,37 @@ test('renders theme toggle and switches mode', () => {
 });
 ```
 
+#### Integration Test (Cross-Service)
+*Testing the bridge between FastAPI and the Node.js JS Plugin.*
+```python
+@pytest.mark.integration
+def test_fastapi_to_js_plugin_communication(js_plugin_server):
+    js_code = "function sum(a, b) { return a + b; }"
+    metrics = get_file_matrix_js(js_code, "test.js")
+    
+    assert metrics is not None
+    assert metrics.filename == "test.js"
+    assert len(metrics.functions) >= 1
+```
+
+#### System Test (End-to-End Playwright)
+*Validating the complete repository analysis flow.*
+```javascript
+test("Submit repository and view analysis results", async ({ page }) => {
+  await seedAuthenticatedSession(page);
+  await mockApplicationApis(page);
+
+  await page.goto("/");
+  await page.getByPlaceholder("Enter GitHub repository URL").fill(
+    "https://github.com/Nukie90/CodeWorld.git"
+  );
+  await page.getByRole("button", { name: /next/i }).click();
+
+  await page.waitForURL("**/results");
+  await expect(page.getByText(/showing/i)).toBeVisible();
+});
+```
+
 ### Execution & Recording
 - **Manual Execution**: Run via `npm test` or `pytest`.
 - **Reporting**: Pytest generates `coverage.xml`; Playwright generates HTML reports with video traces of failures.
@@ -141,7 +172,7 @@ While currently localized for development efficiency, the project is designed fo
 ### Execution Statistics
 | Suite | Total Tests | Passed | Failed | Pass Rate |
 | :--- | :--- | :--- | :--- | :--- |
-| Backend (Unit/Int) | 24 | 24 | 0 | 100% |
+| Backend (Unit/Int) | 31 | 31 | 0 | 100% |
 | Frontend (Unit) | 25 | 25 | 0 | 100% |
 | E2E (System) | 6 | 6 | 0 | 100% |
 
@@ -150,6 +181,7 @@ Our testing identified several critical bugs during development:
 1. **3D Re-render Loop**: E2E tests caught an issue where the 3D island re-rendered on every file selection, killing performance. *Resolution*: Implemented `React.memo` and optimized state updates.
 2. **Missing Token Handling**: Integration tests found that the API crashed when GitHub tokens expired. *Resolution*: Added robust 401 interceptors and session refresh logic.
 3. **Complexity Calculation Overflow**: Unit tests revealed that highly nested functions produced negative complexity scores in edge cases. *Resolution*: Corrected the AST visitor logic in the Python analyzer.
+4. **Babel LLOC Discrepancy**: Multi-language unit tests identified that the Node.js analyzer calculated 7 lines of code (LLOC) for triple-quoted JSX strings instead of the expected 5 due to newline wrapping. *Resolution*: Updated the LLOC counting engine to better mask non-executable template spacing.
 
 ---
 **Report compiled for Senior Project: CodeWorld**

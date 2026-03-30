@@ -2,7 +2,7 @@ module.exports = {
   rootDir: ".",
   testEnvironment: "jsdom",
   setupFilesAfterEnv: ["<rootDir>/setupTests.js"],
-  testMatch: ["<rootDir>/src/__tests__/**/*.test.jsx"],
+  testMatch: ["<rootDir>/src/__tests__/**/*.test.{js,jsx}"],
   moduleFileExtensions: ["js", "jsx", "json"],
   transform: {
     "^.+\\.[jt]sx?$": [
