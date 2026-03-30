@@ -11,3 +11,5 @@ temp_repos/
 .temp_repos/
 
 venv/
+
+test-results/

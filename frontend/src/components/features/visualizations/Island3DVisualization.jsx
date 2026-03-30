@@ -41,6 +41,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     const [isSearchFocused, setIsSearchFocused] = useState(false);
     const [isSearchActive, setIsSearchActive] = useState(false);
     const [isMuted, setIsMuted] = useState(audioManager.isMuted);
+    const [rendererUnavailable, setRendererUnavailable] = useState(false);
 
     useEffect(() => {
         const handleInteraction = () => {
@@ -103,6 +104,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             </div>
         );
     }
+
     const { islandSize, islandCenterX, islandCenterZ } = useMemo(() => {
         const numFiles = individualFiles?.length || 0;
         const size = Math.max(400, Math.sqrt(numFiles) * 35);
@@ -1214,12 +1216,19 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         // Ensure renderer exists (Created ONCE)
         let renderer = rendererRef.current;
         if (!renderer) {
-            renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true });
-            renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
-            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-            renderer.shadowMap.enabled = true;
-            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-            rendererRef.current = renderer;
+            try {
+                renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance', logarithmicDepthBuffer: true });
+                renderer.setSize(mountRef.current.clientWidth, mountRef.current.clientHeight);
+                renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+                renderer.shadowMap.enabled = true;
+                renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+                rendererRef.current = renderer;
+                setRendererUnavailable(false);
+            } catch (error) {
+                console.error('[Island3D] Failed to initialize WebGL renderer', error);
+                setRendererUnavailable(true);
+                return;
+            }
         }
 
         // Always ensure renderer's canvas is attached to DOM
@@ -2801,6 +2810,12 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
     return (
         <div className="relative w-full h-full">
             <div ref={mountRef} className="w-full h-full" style={{ minHeight: '55vh' }} />
+
+            {rendererUnavailable && (
+                <div className={`pointer-events-none absolute inset-0 z-20 flex items-center justify-center text-center px-6 backdrop-blur-sm ${isDarkMode ? 'text-gray-400 bg-slate-950/50' : 'text-gray-600 bg-white/60'}`}>
+                    3D visualization is unavailable in this environment. Use the Bar Chart view to continue exploring results.
+                </div>
+            )}
 
             {/* Back Button (Functions Mode) */}
             {viewMode === 'functions' && (
