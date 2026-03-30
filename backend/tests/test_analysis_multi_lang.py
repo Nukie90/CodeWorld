@@ -9,7 +9,7 @@ from app.utils.get_file_matrix_js import get_file_matrix_js
 @pytest.fixture(scope="module")
 def js_plugin_server():
     """Starts the JS plugin server for multi-language unit testing."""
-    backend_dir = "/Users/neztage/Documents/GitHub/CodeWorld/backend"
+    backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     process = subprocess.Popen(
         ["node", "app/js_plugin/server.js"],
         stdout=subprocess.PIPE,

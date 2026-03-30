@@ -50,3 +50,25 @@ or using nvm
 2. nvm use 23
 3. npm install
 4. npm run dev
+
+## CI/CD Pipeline
+
+This project uses **GitHub Actions** for Continuous Integration. The pipeline is defined in `.github/workflows/ci.yml`.
+
+### Automated Triggers
+The CI workflow automatically runs all test suites for:
+- **Pull Requests** targeting the `main` branch.
+- **Commits** pushed directly to the `main` branch.
+
+### Test Suites Supported
+- **Backend**: Runs `pytest` inside the Python environment.
+- **Frontend**: Runs `eslint` and Jest tests via `npm run test`.
+- **E2E**: Runs Playwright e2e checks via `npm run test:e2e`.
+
+### Blocking Merges on Test Failure
+To ensure code quality, the pipeline handles test failures by reporting a failed status check. You should configure branch protection rules in GitHub to block PR merges if these tests fail:
+1. Go to your GitHub repository -> **Settings** -> **Branches**.
+2. Click **Add branch protection rule** (or edit the rule for `main`).
+3. Check **"Require status checks to pass before merging"**.
+4. Search for and select the status checks from the pipeline (e.g., `backend-tests`, `frontend-tests`, `e2e-tests`).
+5. Save changes. This will prevent anyone from merging a PR that breaks the tests!

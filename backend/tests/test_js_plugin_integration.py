@@ -1,3 +1,4 @@
+import os
 import time
 import subprocess
 import pytest
@@ -8,7 +9,7 @@ from app.adapter.js_plugin_adapter import JSPluginAdapter
 @pytest.fixture(scope="module")
 def js_plugin_server():
     """Starts the JS plugin server before tests and stops it after."""
-    backend_dir = "/Users/neztage/Documents/GitHub/CodeWorld/backend"
+    backend_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     process = subprocess.Popen(
         ["node", "app/js_plugin/server.js"],
         stdout=subprocess.PIPE,
