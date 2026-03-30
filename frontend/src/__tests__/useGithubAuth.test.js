@@ -10,7 +10,6 @@ describe('useGithubAuth', () => {
     beforeAll(() => {
         delete window.location;
         window.location = {
-            ...originalLocation,
             assign: jest.fn(),
             search: ''
         };
