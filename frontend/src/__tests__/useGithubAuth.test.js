@@ -5,28 +5,15 @@ import { authService } from '../services/api';
 jest.mock('../services/api');
 
 describe('useGithubAuth', () => {
-    const originalLocation = window.location;
-
-    beforeAll(() => {
-        delete window.location;
-        window.location = {
-            assign: jest.fn(),
-            search: ''
-        };
-    });
-
-    afterAll(() => {
-        window.location = originalLocation;
-    });
-
     beforeEach(() => {
         localStorage.clear();
         jest.clearAllMocks();
         
         // Reset URL to base state before each test
         window.history.pushState({}, 'Test Title', '/');
-        window.location.search = '';
         
+        // Spy on navigation methods
+        jest.spyOn(window.location, 'assign').mockImplementation(() => {});
         jest.spyOn(window.history, 'replaceState');
     });
 
