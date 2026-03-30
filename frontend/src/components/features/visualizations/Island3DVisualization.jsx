@@ -3040,7 +3040,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             </div>
 
             {/* Search Bar - Moved to top-left to avoid overlap with the "Type" panel toggle */}
-            <div className="absolute top-6 left-20 z-[35] w-full max-w-sm px-4 flex items-center gap-3">
+            <div className="absolute top-6 left-20 z-[25] w-full max-w-sm px-4 flex items-center gap-3">
                 <div className={`relative flex-1 flex items-center backdrop-blur-xl border shadow-2xl rounded-2xl transition-all duration-300 ${isSearchFocused
                     ? 'ring-2 ring-blue-500/50 border-blue-400/50 bg-white/20 dark:bg-black/40'
                     : 'border-white/20 bg-white/10 dark:bg-black/20 hover:bg-white/15 dark:hover:bg-black/25'
