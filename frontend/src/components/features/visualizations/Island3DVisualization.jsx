@@ -2523,17 +2523,19 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         const onMouseClick = (event) => {
             if (!mountRef.current) return;
 
-            // Determine raycast coordinates based on lock state
+            // If pointer is locked (FPS mode), clicking should just unlock the pointer
+            // without opening any context menu. This prevents the confusing behavior
+            // where clicking "empty space" opens a file menu because the raycast from
+            // the center of the screen happens to hit a tower.
             if (isMouseLocked) {
-                // If locked, raycast from center of screen
-                mouse.x = 0;
-                mouse.y = 0;
-            } else {
-                // If ullocked, use mouse coordinates
-                const rect = mountRef.current.getBoundingClientRect();
-                mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-                mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+                document.exitPointerLock();
+                return;
             }
+
+            // Pointer is unlocked — use actual mouse coordinates for raycasting
+            const rect = mountRef.current.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
             raycaster.setFromCamera(mouse, camera);
             const intersects = raycaster.intersectObjects(interactableMeshesRef.current);
@@ -2543,34 +2545,21 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
                 if (viewMode === 'island') {
                     if (obj.userData.type === 'file') {
-                        // Open Context Menu
+                        // Open Context Menu at mouse cursor
                         setActiveFileForMenu(obj.userData);
-
-                        // Interaction handling:
-                        // If locked, we MUST ullock to let the user use the menu.
-                        // We also place the menu in the center of the screen since that's where they were looking.
-                        if (isMouseLocked) {
-                            setMenuPosition({
-                                x: window.innerWidth / 2,
-                                y: window.innerHeight / 2
-                            });
-                            document.exitPointerLock();
-                        } else {
-                            // If ullocked, place menu at mouse cursor
-                            setMenuPosition({
-                                x: event.clientX,
-                                y: event.clientY
-                            });
-                        }
+                        setMenuPosition({
+                            x: event.clientX,
+                            y: event.clientY
+                        });
+                        setHoveredObject(null);
                     }
                 } else if (viewMode === 'functions') {
                     // Future interaction for function mode
                 }
             } else {
-                // If clicked on nothing:
-                // If locked, do nothing (or remain locked)
-                // If ullocked, and we clicked background, capture mouse
-                if (!isMouseLocked) mountRef.current.requestPointerLock();
+                // Clicked on empty space — capture mouse for FPS navigation
+                setHoveredObject(null);
+                mountRef.current.requestPointerLock();
             }
         };
 
@@ -2726,6 +2715,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         }
         setMenuPosition(null);
         setActiveFileForMenu(null);
+        setHoveredObject(null);
     };
 
     // --- Cleanup Drones on Timeline Stop or Toggle Off ---
