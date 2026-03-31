@@ -1284,24 +1284,37 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         // --- Scene Construction ---
 
         // Ocean
-        const oceanGeometry = new THREE.PlaneGeometry(3000, 3000, 100, 100);
-        const oceanMaterial = new THREE.MeshStandardMaterial({
-            color: isDarkMode ? 0x020617 : 0x0891b2, // Dark Midnight vs Cyan
-            roughness: 0.1,
-            metalness: 0.8,
-            transparent: true,
-            opacity: 0.85
-        });
-        const ocean = new THREE.Mesh(oceanGeometry, oceanMaterial);
-        ocean.rotation.x = -Math.PI / 2;
-        ocean.position.y = -4; // Just below the lowest island level
-        ocean.receiveShadow = true;
-        scene.add(ocean);
-
-        const oceanVertices = oceanGeometry.attributes.position;
+        let oceanGeometry = null;
+        let oceanMaterial = null;
+        let oceanVertices = null;
         const originalPositions = [];
-        for (let i = 0; i < oceanVertices.count; i++) {
-            originalPositions.push(oceanVertices.getZ(i));
+        let ocean = null;
+
+        // Apply threshold removal for huge islands to save performance
+        const MAX_OCEAN_ISLAND_SIZE = 1500;
+        
+        if (islandSize <= MAX_OCEAN_ISLAND_SIZE) {
+            const oceanSize = Math.max(3000, islandSize * 2.5);
+            oceanGeometry = new THREE.PlaneGeometry(oceanSize, oceanSize, 100, 100);
+            oceanMaterial = new THREE.MeshStandardMaterial({
+                color: isDarkMode ? 0x020617 : 0x0891b2, // Dark Midnight vs Cyan
+                roughness: 0.1,
+                metalness: 0.8,
+                transparent: true,
+                opacity: 0.85
+            });
+            ocean = new THREE.Mesh(oceanGeometry, oceanMaterial);
+            ocean.rotation.x = -Math.PI / 2;
+            ocean.position.y = -4; // Just below the lowest island level
+            ocean.position.x = islandCenterX;
+            ocean.position.z = islandCenterZ;
+            ocean.receiveShadow = true;
+            scene.add(ocean);
+
+            oceanVertices = oceanGeometry.attributes.position;
+            for (let i = 0; i < oceanVertices.count; i++) {
+                originalPositions.push(oceanVertices.getZ(i));
+            }
         }
 
         // --- Recursive Render of Hierarchy ---
@@ -2398,7 +2411,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             animationIdRef.current = requestAnimationFrame(animate);
             time += 0.01;
 
-            if (!isTimelinePlayingRef.current) {
+            if (!isTimelinePlayingRef.current && oceanVertices) {
                 for (let i = 0; i < oceanVertices.count; i++) {
                     const z = originalPositions[i];
                     const x = oceanVertices.getX(i);
@@ -2661,8 +2674,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             // otherwise we leak memory on every prop change (e.g., toggling dark mode).
             geometriesToDisposeRef.current.forEach(g => g.dispose());
             materialsToDisposeRef.current.forEach(m => m.dispose());
-            oceanGeometry.dispose();
-            oceanMaterial.dispose();
+            if (oceanGeometry) oceanGeometry.dispose();
+            if (oceanMaterial) oceanMaterial.dispose();
         };
 
         // eslint-disable-next-line react-hooks/exhaustive-deps
