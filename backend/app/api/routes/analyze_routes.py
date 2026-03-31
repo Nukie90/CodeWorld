@@ -61,7 +61,7 @@ def analyze_repo(payload: RepoAnalyzeRequest):
     def update_progress(progress: int, message: str, done: bool = False, error: Optional[str] = None):
         _PROGRESS[task_id] = {"progress": progress, "message": message, "done": done, "error": error}
 
-    update_progress(1, "Starting analysis...")
+    update_progress(1, "Initializing...")
 
     try:
         local_path = repo_manager.clone_repo(repo_url, token=github_token, progress_callback=update_progress)
@@ -89,7 +89,7 @@ def analyze_repo(payload: RepoAnalyzeRequest):
              if current_head:
                  _ANALYSIS_CACHE[current_head] = analysis
                  
-        update_progress(100, "Analysis complete", done=True)
+        update_progress(100, "Analysis complete! ✓", done=True)
         return {"repo_url": repo_url, "folder_name": local_path, "analysis": analysis}
     except Exception as exc:
         err_msg = str(exc)

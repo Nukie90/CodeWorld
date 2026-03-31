@@ -289,16 +289,16 @@ function GitHubUploadPage() {
               <div className="space-y-4">
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Uploading...
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300 truncate mr-4">
+                      {statusMessage || 'Initializing...'}
                     </span>
-                    <span className="text-sm text-blue-600 dark:text-blue-400 font-semibold">
+                    <span className="text-sm text-blue-600 dark:text-blue-400 font-semibold shrink-0">
                       {progress}%
                     </span>
                   </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
+                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
                     <div
-                      className="bg-blue-500 h-full transition-all duration-300 ease-out"
+                      className="bg-gradient-to-r from-blue-500 to-blue-400 h-full transition-all duration-500 ease-out rounded-full"
                       style={{ width: `${progress}%` }}
                     />
                   </div>

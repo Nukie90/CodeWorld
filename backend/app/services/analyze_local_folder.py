@@ -173,13 +173,13 @@ def _full_analysis(
 ) -> FolderAnalysisResult:
     """Perform a complete analysis of a local folder."""
     if progress_callback:
-        progress_callback(35, "Scanning directory structure")
+        progress_callback(35, "Scanning files and folders...")
 
     all_files = _scan_directory(path, build_ignore_checker(path))
     num_files = len(all_files)
 
     if progress_callback:
-        progress_callback(40, f"Starting analysis of {num_files} files")
+        progress_callback(40, f"Found {num_files} files — starting code analysis...")
 
     adapters = get_adapters()
     rel_paths = [f[1] for f in all_files]
@@ -199,12 +199,13 @@ def _full_analysis(
     )
 
     if progress_callback:
-        progress_callback(45, "Batch analyzing plugin files")
+        supported_count = sum(len(files) for files in grouped_files.values())
+        progress_callback(45, f"Analyzing {supported_count} source files — this may take a while for large projects...")
 
     file_metrics_list = asyncio.run(run_adapter_batches(grouped_files))
 
     if progress_callback:
-        progress_callback(70, "Analyzing pygount fallback files")
+        progress_callback(70, f"Measuring {len(unsupported_files_with_content)} remaining files...")
 
     for rel_path, content in unsupported_files_with_content:
         abs_path = os.path.join(path, rel_path.replace('/', os.sep))
@@ -213,7 +214,7 @@ def _full_analysis(
             file_metrics_list.append(fm)
 
     if progress_callback:
-        progress_callback(95, "Aggregating metrics")
+        progress_callback(95, "Almost done — finalizing results...")
 
     folder_metrics = aggregate_metrics(file_metrics_list, os.path.basename(path))
     return FolderAnalysisResult(folder_metrics=folder_metrics, individual_files=file_metrics_list)

@@ -2,7 +2,7 @@ class AudioManager {
     constructor() {
         this.ctx = null;
         this.masterGain = null;
-        this.isMuted = false;
+        this.isMuted = true;
         this.initialized = false;
 
         // Background Music Playlist

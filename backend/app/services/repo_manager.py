@@ -138,7 +138,7 @@ def clone_repo(repo_url: str, token: Optional[str] = None, progress_callback: Op
             if progress_callback: progress_callback(30, "Using cached repository")
             return idx[url]
 
-    if progress_callback: progress_callback(5, "Initializing repository")
+    if progress_callback: progress_callback(5, "Preparing to download repository...")
 
     # determine folder name
     repo_hash = _repo_hash(url)
@@ -152,11 +152,12 @@ def clone_repo(repo_url: str, token: Optional[str] = None, progress_callback: Op
         # insert token after scheme
         clone_url = url.replace("https://", f"https://{token}@")
 
-    # run git clone (shallow)
+    # run git clone (shallow – depth 1 for speed; unshallowed on-demand when
+    # commit history is needed, see _ensure_unshallow).
     try:
-        if progress_callback: progress_callback(10, f"Cloning repository: {repo_name}")
-        subprocess.run(_get_git_base() + ["clone", clone_url, target_path], env=_get_git_env(), check=True)
-        if progress_callback: progress_callback(30, "Cloning complete")
+        if progress_callback: progress_callback(10, f"Downloading {repo_name} — this may take a moment for large projects...")
+        subprocess.run(_get_git_base() + ["clone", "--depth", "1", clone_url, target_path], env=_get_git_env(), check=True)
+        if progress_callback: progress_callback(30, "Download complete ✓")
     except subprocess.CalledProcessError as exc:
         # clean up partial clone if present
         if os.path.exists(target_path):
@@ -178,6 +179,30 @@ def _run_git(path: str, args: list[str]) -> str:
     """Run git command in path and return stdout (decoded). Raises CalledProcessError on failure."""
     res = subprocess.run(_get_git_base() + ["-C", path] + args, env=_get_git_env(), check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     return res.stdout.decode("utf-8", errors="replace")
+
+
+def _ensure_unshallow(path: str, token: Optional[str] = None, repo_url: Optional[str] = None):
+    """If the repo at *path* is a shallow clone, fetch the full history."""
+    try:
+        out = _run_git(path, ["rev-parse", "--is-shallow-repository"]).strip()
+    except Exception:
+        return  # can't tell – leave as-is
+    if out != "true":
+        return  # already has full history
+    # Build remote URL with token if needed so private repos can unshallow
+    fetch_args = ["fetch", "--unshallow"]
+    env = _get_git_env()
+    if token and repo_url:
+        url = _normalize_url(repo_url)
+        remote = url.replace("https://", f"https://{token}@") if url.startswith("https://") else url
+        fetch_args.extend([remote])
+    try:
+        subprocess.run(
+            _get_git_base() + ["-C", path] + fetch_args,
+            env=env, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        )
+    except subprocess.CalledProcessError:
+        pass  # best-effort
 
 
 def list_branches(repo_url: str, token: Optional[str] = None, progress_callback: Optional[Callable] = None) -> dict:
@@ -291,6 +316,9 @@ def get_commit_history(repo_url: str, branch: Optional[str] = None, limit: int =
     if not path or not os.path.exists(path):
         path = clone_repo(repo_url, token=token)
     
+    # Ensure full history is available (unshallow if needed)
+    _ensure_unshallow(path, token=token, repo_url=repo_url)
+
     # Fetch latest changes
     try:
         subprocess.run(_get_git_base() + ["-C", path, "fetch", "--all"], env=_get_git_env(), check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
@@ -353,6 +381,9 @@ def get_commit_details(repo_url: str, commit_hash: str, token: Optional[str] = N
     path = get_cached_path(repo_url)
     if not path or not os.path.exists(path):
         path = clone_repo(repo_url, token=token)
+    
+    # Ensure full history is available (unshallow if needed)
+    _ensure_unshallow(path, token=token, repo_url=repo_url)
     
     try:
         # Get commit info
