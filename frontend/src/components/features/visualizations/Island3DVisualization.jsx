@@ -176,43 +176,41 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         const hull = getConvexHull(points);
         if (hull.length < 3) return null;
 
-        // 3. Create Three.js Shape with Bezier smoothing
-        const shape = new THREE.Shape();
+        // 3. Create Three.js Shape by calculating explicit Cubic B-spline mathematically
+        const bSplinePoints = [];
+        const n = hull.length;
 
-        // Midpoint start
-        const pLast = hull[hull.length - 1];
-        const pFirst = hull[0];
-        const startX = (pLast.x + pFirst.x) / 2;
-        const startY = (pLast.y + pFirst.y) / 2;
+        for (let i = 0; i < n; i++) {
+            const p0 = hull[i];
+            const p1 = hull[(i + 1) % n];
+            const p2 = hull[(i + 2) % n];
+            const p3 = hull[(i + 3) % n];
 
-        shape.moveTo(startX, startY);
+            // Dynamic sampling resolution based on distance between primary control points
+            const dist = Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
+            const steps = Math.max(5, Math.ceil(dist / 5)); // Higher density for smoother edges
 
-        const bezierPoints = [];
-        for (let i = 0; i < hull.length; i++) {
-            const p1 = hull[i];
-            const p2 = hull[(i + 1) % hull.length];
-            const midX = (p1.x + p2.x) / 2;
-            const midY = (p1.y + p2.y) / 2;
+            for (let j = 0; j < steps; j++) {
+                const t = j / steps;
+                const tt = t * t;
+                const ttt = tt * t;
 
-            // Curve through hull vertex p1 to the midpoint of next edge
-            shape.quadraticCurveTo(p1.x, p1.y, midX, midY);
+                // Cubic B-spline explicit basis formula
+                const b0 = (1 - 3 * t + 3 * tt - ttt) / 6.0;
+                const b1 = (4 - 6 * tt + 3 * ttt) / 6.0;
+                const b2 = (1 + 3 * t + 3 * tt - 3 * ttt) / 6.0;
+                const b3 = ttt / 6.0;
 
-            // Generate dense sampling points for the curve to allow accurate honeycomb filling
-            const prevMidX = i === 0 ? (hull[hull.length - 1].x + hull[0].x) / 2 : (hull[i - 1].x + hull[i].x) / 2;
-            const prevMidY = i === 0 ? (hull[hull.length - 1].y + hull[0].y) / 2 : (hull[i - 1].y + hull[i].y) / 2;
+                const x = b0 * p0.x + b1 * p1.x + b2 * p2.x + b3 * p3.x;
+                const y = b0 * p0.y + b1 * p1.y + b2 * p2.y + b3 * p3.y;
 
-            // Dynamic sampling resolution based on distance
-            const dist = Math.sqrt((midX - prevMidX) ** 2 + (midY - prevMidY) ** 2);
-            const steps = Math.max(5, Math.ceil(dist / 10)); // Optimize number of steps
-
-            for (let t = 0; t <= 1; t += (1 / steps)) {
-                const x = (1 - t) * (1 - t) * prevMidX + 2 * (1 - t) * t * p1.x + t * t * midX;
-                const y = (1 - t) * (1 - t) * prevMidY + 2 * (1 - t) * t * p1.y + t * t * midY;
-                bezierPoints.push({ x, y });
+                bSplinePoints.push(new THREE.Vector2(x, y));
             }
         }
 
-        const result = { shape, hull, bezierPoints };
+        const shape = new THREE.Shape(bSplinePoints);
+
+        const result = { shape, hull, bSplinePoints };
         organicShapeCacheRef.current.set(cacheKey, result);
         return result;
     };
@@ -1914,10 +1912,10 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     const organicData = getOrganicShape(nodes, pad);
                     if (!organicData) return;
 
-                    const minX = Math.min(...organicData.bezierPoints.map(p => p.x)) - HEX_RADIUS * 2;
-                    const maxX = Math.max(...organicData.bezierPoints.map(p => p.x)) + HEX_RADIUS * 2;
-                    const minZ = Math.min(...organicData.bezierPoints.map(p => p.y)) - HEX_RADIUS * 2;
-                    const maxZ = Math.max(...organicData.bezierPoints.map(p => p.y)) + HEX_RADIUS * 2;
+                    const minX = Math.min(...organicData.bSplinePoints.map(p => p.x)) - HEX_RADIUS * 2;
+                    const maxX = Math.max(...organicData.bSplinePoints.map(p => p.x)) + HEX_RADIUS * 2;
+                    const minZ = Math.min(...organicData.bSplinePoints.map(p => p.y)) - HEX_RADIUS * 2;
+                    const maxZ = Math.max(...organicData.bSplinePoints.map(p => p.y)) + HEX_RADIUS * 2;
 
                     const qMin = Math.floor((Math.sqrt(3) / 3 * minX - 1 / 3 * maxZ) / HEX_RADIUS) - 1;
                     const qMax = Math.ceil((Math.sqrt(3) / 3 * maxX - 1 / 3 * minZ) / HEX_RADIUS) + 1;
@@ -1927,7 +1925,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     for (let q = qMin; q <= qMax; q++) {
                         for (let r = rMin; r <= rMax; r++) {
                             const pos = axialToPixel(q, r);
-                            if (isPointInShape(pos.x, pos.z, organicData.bezierPoints)) {
+                            if (isPointInShape(pos.x, pos.z, organicData.bSplinePoints)) {
                                 const key = `${q},${r}`;
                                 const existing = hexToNodeMap.get(key);
                                 // Always prioritize deeper nodes, but for depth 0, we are filling the base
