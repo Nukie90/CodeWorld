@@ -648,8 +648,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                 // This author is committing — move closer
                 d.targetRadius = MIN_ORBIT;
             } else {
-                // Nudge others outward (capped at max)
-                d.targetRadius = Math.min((d.targetRadius || d.radius) + islandSize * 0.15, MAX_ORBIT);
+                // Return to outer boundary (direction for spiral out)
+                d.targetRadius = MAX_ORBIT;
             }
         });
         // -------------------------------------------------------
@@ -2502,9 +2502,16 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             const DRONE_MIN_ORBIT = islandSize * 0.3;
             const DRONE_MAX_ORBIT = islandSize * 1.2;
             contributorDronesRef.current.forEach(d => {
-                // Smoothly lerp radius toward its target each frame
+                // Smoothly lerp or spiral radius toward its target each frame
                 if (d.targetRadius !== undefined) {
-                    d.radius += (d.targetRadius - d.radius) * 0.03;
+                    if (d.radius > d.targetRadius) {
+                        // Swooping IN: Faster lerp for responsiveness
+                        d.radius += (d.targetRadius - d.radius) * 0.03;
+                    } else {
+                        // Drifting OUT: Slow constant increment for "spiral" effect
+                        // 0.15 units per frame ≈ 9 units/sec
+                        d.radius = Math.min(d.radius + 0.15, d.targetRadius);
+                    }
                     d.radius = Math.max(DRONE_MIN_ORBIT, Math.min(DRONE_MAX_ORBIT, d.radius));
                 }
 
