@@ -170,78 +170,78 @@ function ResultsDetailsPanel({
                                             ) : lintResults ? (
                                                 <div className="space-y-4 px-2">
                                                     {/* Scrolling Header inside the content area */}
-                                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 animate-in fade-in slide-in-from-bottom-2 duration-700">
-                                                        <div className="flex flex-col gap-3">
+                                                    <div className="flex flex-col gap-6 mb-6 animate-in fade-in slide-in-from-bottom-2 duration-700">
+                                                        <div className="flex items-center justify-between">
                                                             <h4 className="text-3xl font-black bg-gradient-to-r from-teal-400 via-emerald-400 to-green-500 bg-clip-text text-transparent tracking-tighter">
                                                                 Linter Insights
                                                             </h4>
-
-                                                            <div className="flex flex-wrap items-center gap-3">
-                                                                {/* Enhanced Filter Control */}
-                                                                <div className={`group flex items-center p-1 rounded-2xl border transition-all duration-300 ${isDarkMode ? 'bg-gray-800/40 border-white/5 hover:border-teal-500/30' : 'bg-gray-100/50 border-black/5 hover:border-teal-500/30'} backdrop-blur-xl shadow-inner`}>
-                                                                    <div className="flex items-center px-2 py-1 mr-1">
-                                                                        <ListFilter size={14} className={`${isDarkMode ? 'text-gray-500 group-hover:text-teal-400' : 'text-gray-400 group-hover:text-teal-600'} transition-colors`} />
-                                                                    </div>
-                                                                    <div className="flex items-center gap-1">
-                                                                        {[
-                                                                            { id: 'all', label: 'All', color: 'bg-teal-500' },
-                                                                            { id: 'error', label: 'Errors', color: 'bg-red-500' },
-                                                                            { id: 'warning', label: 'Warnings', color: 'bg-amber-500' }
-                                                                        ].map(opt => (
-                                                                            <button
-                                                                                key={opt.id}
-                                                                                onClick={() => setLintFilter(opt.id)}
-                                                                                className={`relative px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 overflow-hidden ${lintFilter === opt.id
-                                                                                    ? 'text-white shadow-lg'
-                                                                                    : 'text-gray-500 hover:text-gray-400'
-                                                                                    }`}
-                                                                            >
-                                                                                {lintFilter === opt.id && (
-                                                                                    <div className={`absolute inset-0 ${opt.color} animate-in fade-in zoom-in-95 duration-300`} />
-                                                                                )}
-                                                                                <span className="relative z-10">{opt.label}</span>
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
-
-                                                                {/* Enhanced Sort Control */}
-                                                                <div className={`flex items-center p-1 rounded-2xl border transition-all duration-300 ${isDarkMode ? 'bg-gray-800/40 border-white/5 hover:border-blue-500/30' : 'bg-gray-100/50 border-black/5 hover:border-blue-500/30'} backdrop-blur-xl shadow-inner`}>
-                                                                    <div className="flex items-center gap-1">
-                                                                        {[
-                                                                            { id: 'line-asc', label: 'Line', icon: <ArrowUp size={12} strokeWidth={3} /> },
-                                                                            { id: 'severity-high', label: 'Severity', icon: <ArrowDown size={12} strokeWidth={3} /> }
-                                                                        ].map(opt => (
-                                                                            <button
-                                                                                key={opt.id}
-                                                                                onClick={() => setLintSort(opt.id)}
-                                                                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 ${lintSort === opt.id
-                                                                                    ? 'bg-blue-600 text-white shadow-lg'
-                                                                                    : 'text-gray-500 hover:text-gray-400'
-                                                                                    }`}
-                                                                            >
-                                                                                {opt.icon}
-                                                                                {opt.label}
-                                                                            </button>
-                                                                        ))}
-                                                                    </div>
-                                                                </div>
+                                                            
+                                                            <div className="flex items-center gap-3">
+                                                                <button
+                                                                    onClick={() => handleLintFile(selectedCode.filename, true)}
+                                                                    disabled={isLinting}
+                                                                    className={`group flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 ${isDarkMode
+                                                                        ? 'bg-gray-800/40 hover:bg-teal-500/10 border border-white/5 hover:border-teal-500/30 text-gray-400 hover:text-teal-400'
+                                                                        : 'bg-gray-100/50 hover:bg-teal-50/80 border border-black/5 hover:border-teal-500/30 text-gray-500 hover:text-teal-600'
+                                                                        } backdrop-blur-xl shadow-lg hover:shadow-teal-500/10`}
+                                                                    title="Recompute Linter"
+                                                                >
+                                                                    <RotateCw size={16} strokeWidth={2.5} className={`${isLinting ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
+                                                                    <span className="text-[12px] font-black uppercase tracking-widest">Refresh</span>
+                                                                </button>
                                                             </div>
                                                         </div>
 
-                                                        <div className="flex items-center gap-3">
-                                                            <button
-                                                                onClick={() => handleLintFile(selectedCode.filename, true)}
-                                                                disabled={isLinting}
-                                                                className={`group flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 ${isDarkMode
-                                                                    ? 'bg-gray-800/40 hover:bg-teal-500/10 border border-white/5 hover:border-teal-500/30 text-gray-400 hover:text-teal-400'
-                                                                    : 'bg-gray-100/50 hover:bg-teal-50/80 border border-black/5 hover:border-teal-500/30 text-gray-500 hover:text-teal-600'
-                                                                    } backdrop-blur-xl shadow-lg hover:shadow-teal-500/10`}
-                                                                title="Recompute Linter"
-                                                            >
-                                                                <RotateCw size={16} strokeWidth={2.5} className={`${isLinting ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
-                                                                <span className="text-[12px] font-black uppercase tracking-widest">Refresh</span>
-                                                            </button>
+                                                        <div className="flex flex-wrap items-center gap-3">
+                                                            {/* Enhanced Filter Control */}
+                                                            <div className={`group flex items-center p-1 rounded-2xl border transition-all duration-300 ${isDarkMode ? 'bg-gray-800/40 border-white/5 hover:border-teal-500/30' : 'bg-gray-100/50 border-black/5 hover:border-teal-500/30'} backdrop-blur-xl shadow-inner`}>
+                                                                <div className="flex items-center px-2 py-1 mr-1">
+                                                                    <ListFilter size={14} className={`${isDarkMode ? 'text-gray-500 group-hover:text-teal-400' : 'text-gray-400 group-hover:text-teal-600'} transition-colors`} />
+                                                                </div>
+                                                                <div className="flex items-center gap-1">
+                                                                    {[
+                                                                        { id: 'all', label: 'All', color: 'bg-teal-500' },
+                                                                        { id: 'error', label: 'Errors', color: 'bg-red-500' },
+                                                                        { id: 'warning', label: 'Warnings', color: 'bg-amber-500' }
+                                                                    ].map(opt => (
+                                                                        <button
+                                                                            key={opt.id}
+                                                                            onClick={() => setLintFilter(opt.id)}
+                                                                            className={`relative px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 overflow-hidden ${lintFilter === opt.id
+                                                                                ? 'text-white shadow-lg'
+                                                                                : 'text-gray-500 hover:text-gray-400'
+                                                                                }`}
+                                                                        >
+                                                                            {lintFilter === opt.id && (
+                                                                                <div className={`absolute inset-0 ${opt.color} animate-in fade-in zoom-in-95 duration-300`} />
+                                                                            )}
+                                                                            <span className="relative z-10">{opt.label}</span>
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+
+                                                            {/* Enhanced Sort Control */}
+                                                            <div className={`flex items-center p-1 rounded-2xl border transition-all duration-300 ${isDarkMode ? 'bg-gray-800/40 border-white/5 hover:border-blue-500/30' : 'bg-gray-100/50 border-black/5 hover:border-blue-500/30'} backdrop-blur-xl shadow-inner`}>
+                                                                <div className="flex items-center gap-1">
+                                                                    {[
+                                                                        { id: 'line-asc', label: 'Line', icon: <ArrowUp size={12} strokeWidth={3} /> },
+                                                                        { id: 'severity-high', label: 'Severity', icon: <ArrowDown size={12} strokeWidth={3} /> }
+                                                                    ].map(opt => (
+                                                                        <button
+                                                                            key={opt.id}
+                                                                            onClick={() => setLintSort(opt.id)}
+                                                                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all duration-300 ${lintSort === opt.id
+                                                                                ? 'bg-blue-600 text-white shadow-lg'
+                                                                                : 'text-gray-500 hover:text-gray-400'
+                                                                                }`}
+                                                                        >
+                                                                            {opt.icon}
+                                                                            {opt.label}
+                                                                        </button>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
                                                         </div>
                                                     </div>
 
