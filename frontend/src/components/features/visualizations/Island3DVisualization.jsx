@@ -616,6 +616,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             group,
             color,
             radius: orbitRadius,
+            targetRadius: orbitRadius, // Dynamic orbit target (adjusted per commit)
             angle: orbitAngle,
             speed: 0.002 + Math.random() * 0.003,
             baseY: baseHoverY // Store for absolute hover logic
@@ -638,6 +639,20 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         }
 
         const { group: droneGroup, color } = droneData;
+
+        // --- Dynamic Orbit: committer swoops in, others drift out ---
+        const MIN_ORBIT = islandSize * 0.3;  // never clip into towers
+        const MAX_ORBIT = islandSize * 1.2;  // never fly off screen
+        contributorDronesRef.current.forEach((d, name) => {
+            if (name === author) {
+                // This author is committing — move closer
+                d.targetRadius = MIN_ORBIT;
+            } else {
+                // Nudge others outward (capped at max)
+                d.targetRadius = Math.min((d.targetRadius || d.radius) + islandSize * 0.15, MAX_ORBIT);
+            }
+        });
+        // -------------------------------------------------------
 
         modifiedFiles.forEach(filename => {
             const building = buildingMeshesRef.current.get(filename);
@@ -2484,7 +2499,15 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             });
 
             // Contributor Drones Animation
+            const DRONE_MIN_ORBIT = islandSize * 0.3;
+            const DRONE_MAX_ORBIT = islandSize * 1.2;
             contributorDronesRef.current.forEach(d => {
+                // Smoothly lerp radius toward its target each frame
+                if (d.targetRadius !== undefined) {
+                    d.radius += (d.targetRadius - d.radius) * 0.03;
+                    d.radius = Math.max(DRONE_MIN_ORBIT, Math.min(DRONE_MAX_ORBIT, d.radius));
+                }
+
                 d.angle += d.speed;
                 d.group.position.x = islandCenterX + Math.cos(d.angle) * d.radius;
                 d.group.position.z = islandCenterZ + Math.sin(d.angle) * d.radius;
