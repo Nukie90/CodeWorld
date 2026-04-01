@@ -109,7 +109,7 @@ function GitHubUploadPage() {
 
   const addToRecent = (repo) => {
     if (!username || !repo) return
-    
+
     // Create a simplified repo object for storage
     const repoSummary = {
       id: repo.id,
@@ -169,9 +169,9 @@ function GitHubUploadPage() {
 
     try {
       // Find the repo object from the current list if possible to get full metadata for recents
-      const currentRepo = repos.find(r => r.html_url === repoUrl) || { 
-        id: repoUrl, 
-        name: repoUrl.split('/').pop(), 
+      const currentRepo = repos.find(r => r.html_url === repoUrl) || {
+        id: repoUrl,
+        name: repoUrl.split('/').pop(),
         html_url: repoUrl,
         full_name: repoUrl.replace('https://github.com/', '')
       }
@@ -242,7 +242,7 @@ function GitHubUploadPage() {
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 flex items-center justify-center px-6 py-30">
+      <main className="flex-1 flex items-center justify-center px-6 py-20">
         <div className="w-full max-w-4xl">
           <div className="text-center mb-8">
             <h2 className="text-4xl font-bold text-gray-900 dark:text-white mb-3 transition-colors">
@@ -309,8 +309,8 @@ function GitHubUploadPage() {
 
           {/* Recent Repositories Section */}
           {token && recentRepos.length > 0 && (
-            <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-700 py-20">
-               <div className="flex items-center justify-between mb-4 px-2">
+            <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-700 py-15">
+              <div className="flex items-center justify-between mb-4 px-2">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <Clock size={20} className="text-blue-500" />
                   Recent Access
@@ -331,23 +331,23 @@ function GitHubUploadPage() {
                         {repo.name}
                       </span>
                       {repo.private && (
-                         <span className="text-[8px] font-bold uppercase px-1 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-md">
-                           P
-                         </span>
+                        <span className="text-[8px] font-bold uppercase px-1 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-md">
+                          P
+                        </span>
                       )}
                     </div>
                     <span className="text-[10px] text-gray-400 dark:text-gray-500 truncate">
                       {repo.full_name}
                     </span>
                   </button>
-                ) )}
+                ))}
               </div>
             </div>
           )}
 
           {/* Repository List Section */}
           {token && (
-            <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-700 py-30">
+            <div className="mt-8 animate-in fade-in slide-in-from-bottom-4 duration-700 py-0">
               <div className="flex items-center justify-between mb-4 px-2">
                 <h3 className="text-lg font-bold text-gray-900 dark:text-white flex items-center gap-2">
                   <Github size={20} className="text-blue-500" />
