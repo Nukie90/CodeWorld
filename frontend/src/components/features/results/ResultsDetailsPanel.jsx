@@ -240,20 +240,13 @@ function ResultsDetailsPanel({
                                                                 title="Recompute Linter"
                                                             >
                                                                 <RotateCw size={16} strokeWidth={2.5} className={`${isLinting ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-700'}`} />
-                                                                <span className="text-[10px] font-black uppercase tracking-widest">Refresh</span>
+                                                                <span className="text-[12px] font-black uppercase tracking-widest">Refresh</span>
                                                             </button>
-
-                                                            <div className={`px-4 py-2 rounded-2xl flex items-center gap-2 border shadow-lg ${isDarkMode ? 'bg-emerald-500/5 border-emerald-500/20' : 'bg-emerald-50 border-emerald-100'} backdrop-blur-xl`}>
-                                                                <div className={`w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse`} />
-                                                                <span className={`text-[10px] font-black uppercase tracking-widest ${isDarkMode ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                                                                    Quality Analysis
-                                                                </span>
-                                                            </div>
                                                         </div>
                                                     </div>
 
                                                     {(lintResults.lint_score != null || isLintNotApplicable) && (
-                                                        <div className={`p-6 mb-4 rounded-[2.5rem] border shadow-2xl relative overflow-hidden transition-all hover:scale-[1.02] duration-500 ${isDarkMode ? 'bg-gray-800/40 border-white/5' : 'bg-white border-gray-100'}`}>
+                                                        <div className={`p-6 mb-4 rounded-[2.5rem] bransitshadow-2xl relative overflow-hidden transition-all hover:scale-[1.02] duration-500 ${isDarkMode ? 'bg-gray-800/40 border-white/5' : 'bg-white border-gray-100'}`}>
                                                             {/* Background Glow */}
                                                             <div className={`absolute -right-20 -top-20 w-64 h-64 blur-[100px] pointer-events-none ${hasFatalLint ? 'bg-red-500/15' : isLintNotApplicable ? 'bg-slate-500/10' : 'bg-emerald-500/10'}`} />
 
@@ -437,11 +430,10 @@ function ResultsDetailsPanel({
                                                                                 e.stopPropagation();
                                                                                 setActiveLintError(null);
                                                                             }}
-                                                                            className={`absolute top-3 right-3 p-1 rounded-full transition-all duration-200 ${
-                                                                                isDarkMode 
-                                                                                    ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-200' 
+                                                                            className={`absolute top-3 right-3 p-1 rounded-full transition-all duration-200 ${isDarkMode
+                                                                                    ? 'hover:bg-gray-700 text-gray-400 hover:text-gray-200'
                                                                                     : 'hover:bg-gray-200 text-gray-500 hover:text-gray-700'
-                                                                            }`}
+                                                                                }`}
                                                                             title="Dismiss"
                                                                         >
                                                                             <X size={14} strokeWidth={2.5} />
