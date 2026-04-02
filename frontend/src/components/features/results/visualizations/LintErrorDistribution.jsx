@@ -32,7 +32,7 @@ const LintErrorDistribution = ({ errors, isDarkMode }) => {
     };
 
     const colors = {
-        fatal: '#7f1d1d', // Dark Red/Maroon
+        fatal: '#7e22ce', // Purple
         error: '#ef4444', // Red
         warning: '#f59e0b', // Amber
     };
