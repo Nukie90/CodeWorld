@@ -44,7 +44,7 @@ async def github_callback(code: str, request: Request):
             cached = _USED_CODES[code]
             if now - cached["ts"] < 60: # Extended window
                 print(f"DEBUG: Handling duplicate request for code: {code[:8]}...")
-                frontend_url = f"http://localhost:5173/?token={cached['token']}&username={cached['user']}"
+                frontend_url = f"{os.environ.get('FRONTEND_URL', 'http://localhost:5173')}/?token={cached['token']}&username={cached['user']}"
                 return RedirectResponse(url=frontend_url)
 
         client_id = os.environ.get("GITHUB_CLIENT_ID")
@@ -121,7 +121,7 @@ async def github_callback(code: str, request: Request):
             "ts": time.time()
         }
 
-        frontend_url = f"http://localhost:5173/?token={session_token}&username={username}"
+        frontend_url = f"{os.environ.get('FRONTEND_URL', 'http://localhost:5173')}/?token={session_token}&username={username}"
 
         return RedirectResponse(url=frontend_url)
 

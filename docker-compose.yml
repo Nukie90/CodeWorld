@@ -20,6 +20,7 @@ services:
       - ./backend/.env
     environment:
       - JS_PLUGIN_URL=http://js_plugin:3001
+      - FRONTEND_URL=http://localhost:5173
       # Add other environment variables as needed here
     depends_on:
       - js_plugin
