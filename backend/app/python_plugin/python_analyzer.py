@@ -633,7 +633,7 @@ def classify_ruff_rule(rule_code: str, message: str) -> tuple[str, str]:
         return "info", "info"
     if rule_code.startswith(("BLE", "PLE", "F", "E")):
         return "error", "error"
-    if rule_code.startswith(("SIM", "PERF", "UP")):
+    if rule_code.startswith(("SIM", "PERF", "UP", "PLR")):
         return "warning", "refactor"
     if rule_code.startswith(("B", "W")):
         return "warning", "warning"
