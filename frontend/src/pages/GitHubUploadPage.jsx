@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGithubAuth } from '../hooks/useGithubAuth'
 import { repoService, authService } from '../services/api'
-import { Sun, Moon, Github, Star, Code, Clock, ChevronRight, ExternalLink, Heart } from 'lucide-react'
+import { Sun, Moon, Github, Star, Code, Clock, ChevronRight, Heart, Volume2, VolumeX } from 'lucide-react'
+import { audioManager } from '../utils/audioManager'
 
 function GitHubUploadPage() {
   const navigate = useNavigate()
@@ -20,6 +21,7 @@ function GitHubUploadPage() {
   const [repoUrl, setRepoUrl] = useState('')
   const [uploadStatus, setUploadStatus] = useState('idle')
   const [progress, setProgress] = useState(0)
+  const [isMuted, setIsMuted] = useState(audioManager.isMuted)
 
   // Default to false explicitly so it doesn't try to inherit system or previous class implicitly and break consistency
   const [isDarkMode, setIsDarkMode] = useState(false)
@@ -202,6 +204,12 @@ function GitHubUploadPage() {
     }
   }
 
+  const handleToggleMute = () => {
+    audioManager.init()
+    const newMutedState = audioManager.toggleMute()
+    setIsMuted(newMutedState)
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-white via-sky-50 to-blue-200 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex flex-col transition-colors duration-500">
       {/* Header */}
@@ -230,6 +238,13 @@ function GitHubUploadPage() {
                 Login with GitHub
               </button>
             )}
+            <button
+              onClick={handleToggleMute}
+              className="p-3 rounded-2xl bg-white/10 dark:bg-black/20 backdrop-blur-xl shadow-md transition-all text-slate-800 dark:text-white border border-white/40 dark:border-white/10 hover:scale-105 hover:bg-white/30 dark:hover:bg-black/30"
+              title={isMuted ? "Unmute Sound" : "Mute Sound"}
+            >
+              {isMuted ? <VolumeX size={22} strokeWidth={2.5} /> : <Volume2 size={22} strokeWidth={2.5} />}
+            </button>
             <button
               onClick={() => setIsDarkMode(!isDarkMode)}
               className="p-3 rounded-2xl bg-white/10 dark:bg-black/20 backdrop-blur-xl shadow-md transition-all text-slate-800 dark:text-white border border-white/40 dark:border-white/10 hover:scale-105 hover:bg-white/30 dark:hover:bg-black/30"
