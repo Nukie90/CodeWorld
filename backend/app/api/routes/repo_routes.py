@@ -84,7 +84,7 @@ def _read_files_at_commit(local_path: str, commit_hash: str, file_list: list[str
     
     try:
         proc = subprocess.Popen(
-            ["git", "-C", local_path, "cat-file", "--batch"],
+            repo_manager._get_git_base() + ["-C", local_path, "cat-file", "--batch"],
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE

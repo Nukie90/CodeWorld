@@ -41,7 +41,7 @@ def _repo_hash(url: str) -> str:
 
 def _get_git_base() -> list[str]:
     """Base git command that actively disables local credential helpers."""
-    return ["git", "-c", "credential.helper="]
+    return ["git", "-c", "credential.helper=", "-c", "safe.directory=*"]
 
 def _get_git_env() -> dict:
     """Environment variables to ensure git fails cleanly instead of prompting."""
@@ -273,6 +273,9 @@ def checkout_branch(repo_url: str, branch: str, token: Optional[str] = None, pro
 
     # fetch first
     try:
+        # A shallow clone default to tracking only the default branch. We need to tell git
+        # to fetch all branches from origin so we can actually check out other branches.
+        subprocess.run(_get_git_base() + ["-C", path, "config", "remote.origin.fetch", "+refs/heads/*:refs/remotes/origin/*"], env=_get_git_env(), check=True)
         subprocess.run(_get_git_base() + ["-C", path, "fetch", "--all"], env=_get_git_env(), check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except subprocess.CalledProcessError:
         pass

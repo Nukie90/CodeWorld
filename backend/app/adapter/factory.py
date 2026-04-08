@@ -5,7 +5,6 @@ from app.adapter.python_plugin_adapter import PythonPluginAdapter
 
 def get_adapters() -> List[AnalysisAdapter]:
     """Return a list of all available analysis adapters."""
-    # Order matters: more specific adapters first, fallback (Lizard) last.
     return [
         JSPluginAdapter(),
         PythonPluginAdapter(),
