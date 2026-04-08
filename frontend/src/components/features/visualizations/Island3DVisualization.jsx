@@ -3149,20 +3149,18 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     ? 'bg-slate-800/80 border-slate-700/50'
                     : 'bg-white/80 border-white/50'}`}>
                     <h4 className={`font-bold text-sm mb-3 flex items-center gap-2 ${isDarkMode ? 'text-gray-100' : 'text-gray-800'}`}>
-                        Terraced Map
+                        Towers Info
                     </h4>
                     <div className={`space-y-3 text-xs ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
                         <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 bg-[#f5d5a8] rounded-sm" />
-                            <span>Platform = Directory</span>
+                            <span>Height = Complexity</span>
                         </div>
                         <div className="flex items-center gap-2">
-                            <div className="w-1 h-3 bg-emerald-500 rounded-sm mx-1" />
-                            <span>Tower = File</span>
+                            <span>Width = Lines of Code</span>
                         </div>
                         <div className="flex flex-col gap-2">
                             <div className="flex items-center justify-between font-bold mb-1">
-                                <span>Maintainability</span>
+                                <span>Maintainability Color</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#ef4444' : '#ef4444' }} />
