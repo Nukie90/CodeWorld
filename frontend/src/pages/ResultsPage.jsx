@@ -342,7 +342,7 @@ function ResultsPage() {
       }).formatToParts(date);
       const p = {};
       parts.forEach(({ type, value }) => p[type] = value);
-      return `${p.weekday} ${p.day} ${p.month} ${p.year}`;
+      return `${p.weekday}, ${p.day}-${p.month}-${p.year}`;
     } catch {
       return dateString;
     }

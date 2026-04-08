@@ -51,7 +51,7 @@ function ResultsControlBar({
             {/* Commit Info - Floating Badge */}
             {isAnimating && animatingCommit && (
                 <div className="absolute top-20 left-1/2 -translate-x-1/2 z-10">
-                    <div className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-500 to-purple-600 px-6 py-3 rounded-full shadow-2xl border border-white/20 backdrop-blur-md animate-pulse">
+                    <div className="inline-flex items-center gap-3 bg-gradient-to-r from-blue-500 to-blue-400 px-6 py-3 rounded-full shadow-2xl border border-white/20 backdrop-blur-md animate-pulse">
                         <GitCommit size={18} className="text-white" />
                         <div className="flex flex-col">
                             <span className="text-sm font-bold text-white">
