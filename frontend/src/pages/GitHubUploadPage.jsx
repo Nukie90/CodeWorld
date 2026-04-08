@@ -171,7 +171,7 @@ function GitHubUploadPage() {
       // Find the repo object from the current list if possible to get full metadata for recents
       const currentRepo = repos.find(r => r.html_url === repoUrl) || {
         id: repoUrl,
-        name: repoUrl.split('/').pop(),
+        name: repoUrl.split('/').pop().replace(/\.git$/, ''),
         html_url: repoUrl,
         full_name: repoUrl.replace('https://github.com/', '')
       }
@@ -328,7 +328,7 @@ function GitHubUploadPage() {
                   >
                     <div className="flex items-start justify-between mb-1">
                       <span className="font-semibold text-sm text-gray-900 dark:text-white truncate pr-4 group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">
-                        {repo.name}
+                        {repo.name.replace(/\.git$/, '')}
                       </span>
                       {repo.private && (
                         <span className="text-[8px] font-bold uppercase px-1 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-md">
@@ -404,7 +404,7 @@ function GitHubUploadPage() {
 
                         <div className="flex items-center gap-2 mb-1 pr-16 flex-wrap">
                           <span className={`font-bold ${isFav ? 'text-pink-700 dark:text-pink-300' : 'text-gray-900 dark:text-white'} group-hover:text-blue-600 dark:group-hover:text-blue-400 truncate transition-colors`}>
-                            {repo.name}
+                            {repo.name.replace(/\.git$/, '')}
                           </span>
                           {repo.private && (
                             <span className="text-[10px] font-bold uppercase tracking-wider px-1.5 py-0.5 bg-amber-100 dark:bg-amber-900/50 text-amber-700 dark:text-amber-400 rounded-md shrink-0">
