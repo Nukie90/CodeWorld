@@ -601,9 +601,13 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         sprite.scale.set(60, 8, 1);
         group.add(sprite);
 
-        const orbitRadius = (islandSize * 0.45) + (contributorDronesRef.current.size * 30);
+        // Each new drone gets a unique orbit radius staggered by its index, and a
+        // fixed vertical lane so no two UFOs share the same (radius, Y) combination.
+        const droneIndex = contributorDronesRef.current.size;
+        const orbitRadius = (islandSize * 0.6) + (droneIndex * 35);
         const orbitAngle = Math.random() * Math.PI * 2;
-        const baseHoverY = 120 + Math.random() * 40;
+        // Stagger height by index so UFOs never overlap vertically
+        const baseHoverY = 160 + (droneIndex * 25);
         group.position.set(
             islandCenterX + Math.cos(orbitAngle) * orbitRadius,
             baseHoverY,
@@ -641,16 +645,22 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         const { group: droneGroup, color } = droneData;
 
         // --- Dynamic Orbit: committer swoops in, others drift out ---
-        const MIN_ORBIT = islandSize * 0.3;  // never clip into towers
-        const MAX_ORBIT = islandSize * 1.2;  // never fly off screen
+        // MIN_ORBIT must clear the packed tower zone (≈ 50% of islandSize).
+        // Each UFO gets its own staggered radius so they can never share the
+        // same orbit lane and crash into one another.
+        const MIN_ORBIT = islandSize * 0.55;  // safely outside the tower cluster
+        const MAX_ORBIT = islandSize * 1.2;   // never fly off screen
+        const LANE_SPACING = 30;              // units between each UFO's lane
+        let droneIdx = 0;
         contributorDronesRef.current.forEach((d, name) => {
             if (name === author) {
-                // This author is committing — move closer
-                d.targetRadius = MIN_ORBIT;
+                // Committer swoops in — unique inner lane per drone
+                d.targetRadius = MIN_ORBIT + droneIdx * LANE_SPACING;
             } else {
-                // Return to outer boundary (direction for spiral out)
-                d.targetRadius = MAX_ORBIT;
+                // Others drift outward — unique outer lane per drone
+                d.targetRadius = Math.min(MAX_ORBIT - droneIdx * LANE_SPACING, MAX_ORBIT);
             }
+            droneIdx++;
         });
         // -------------------------------------------------------
 
@@ -2499,7 +2509,8 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             });
 
             // Contributor Drones Animation
-            const DRONE_MIN_ORBIT = islandSize * 0.3;
+            // Keep clamp consistent with triggerLaserStrike's MIN_ORBIT (0.55)
+            const DRONE_MIN_ORBIT = islandSize * 0.55;
             const DRONE_MAX_ORBIT = islandSize * 1.2;
             contributorDronesRef.current.forEach(d => {
                 // Smoothly lerp or spiral radius toward its target each frame
