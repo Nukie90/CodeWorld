@@ -16,7 +16,4 @@ test-results/
 
 coverage/
 
-# Database
-*.db
-*.sqlite
-*.sqlite3
+
