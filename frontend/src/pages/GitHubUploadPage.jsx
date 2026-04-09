@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useGithubAuth } from '../hooks/useGithubAuth'
-import { repoService, authService } from '../services/api'
+import { repoService, authService, userService } from '../services/api'
 import { Sun, Moon, Github, Star, Code, Clock, ChevronRight, Heart, Volume2, VolumeX } from 'lucide-react'
 import { audioManager } from '../utils/audioManager'
 
@@ -65,78 +65,88 @@ function GitHubUploadPage() {
 
   // Manage Favorites
   useEffect(() => {
-    if (username) {
-      const saved = localStorage.getItem(`favorites_${username}`)
-      if (saved) {
-        try {
-          setFavorites(JSON.parse(saved))
-        } catch (e) {
-          console.error("Failed to parse favorites", e)
-        }
-      }
+    if (username && token) {
+      userService.getFavouriteRepos(token).then((res) => {
+        // use full_name as the identifier
+        setFavorites(res.data.map(repo => repo.repo_full_name))
+      }).catch(err => {
+        console.error("Failed to fetch favorites", err)
+      });
     }
-  }, [username])
+  }, [username, token])
 
-  const toggleFavorite = (e, repoId) => {
+  const toggleFavorite = async (e, repo) => {
     e.stopPropagation() // Prevent selecting the repo when clicking heart
-    const isAdding = !favorites.includes(repoId)
+    const repoFullName = repo.full_name || repo.name
+    const isAdding = !favorites.includes(repoFullName)
+
+    // Optimistic UI Update
     const newFavorites = isAdding
-      ? [...favorites, repoId]
-      : favorites.filter(id => id !== repoId)
+      ? [...favorites, repoFullName]
+      : favorites.filter(id => id !== repoFullName)
 
     setFavorites(newFavorites)
-    if (username) {
-      localStorage.setItem(`favorites_${username}`, JSON.stringify(newFavorites))
-    }
 
     if (isAdding) {
-      setAnimatingFav(repoId)
+      setAnimatingFav(repoFullName)
       setTimeout(() => setAnimatingFav(null), 300)
+    }
+
+    if (token) {
+      try {
+        if (isAdding) {
+          await userService.addFavouriteRepo(token, repoFullName, repo.html_url || `https://github.com/${repoFullName}`)
+        } else {
+          await userService.removeFavouriteRepo(token, repoFullName)
+        }
+      } catch (err) {
+        console.error("Failed to update favorite status", err)
+        // Optionally revert state on failure
+      }
     }
   }
 
   // Manage Recent Repos
   useEffect(() => {
-    if (username) {
-      const saved = localStorage.getItem(`recent_repos_${username}`)
-      if (saved) {
-        try {
-          setRecentRepos(JSON.parse(saved))
-        } catch (e) {
-          console.error("Failed to parse recent repos", e)
-        }
-      }
+    if (username && token) {
+      userService.getRecentRepos(token).then((res) => {
+        // The endpoint returns { repo_full_name, repo_url, accessed_at }
+        // We will map it to match the expected structure
+        setRecentRepos(res.data.map(item => ({
+             name: item.repo_full_name.split('/').pop(),
+             full_name: item.repo_full_name,
+             html_url: item.repo_url,
+             private: false // Missing this data, but we can display normally
+        })))
+      }).catch(err => {
+         console.error("Failed to fetch recent repos", err)
+      });
     }
-  }, [username])
+  }, [username, token])
 
   const addToRecent = (repo) => {
+    // With backend storing recents on checkout, we don't strictly need to do manual localStorage
+    // but we can update state optimistically
     if (!username || !repo) return
 
-    // Create a simplified repo object for storage
     const repoSummary = {
-      id: repo.id,
       name: repo.name,
-      full_name: repo.full_name,
-      html_url: repo.html_url,
-      description: repo.description,
-      private: repo.private,
-      language: repo.language,
-      stargazers_count: repo.stargazers_count,
-      updated_at: repo.updated_at
+      full_name: repo.full_name || repo.name,
+      html_url: repo.html_url || `https://github.com/${repo.full_name}`,
+      private: repo.private || false
     }
 
     const newRecent = [
       repoSummary,
-      ...recentRepos.filter(r => r.html_url !== repo.html_url)
+      ...recentRepos.filter(r => r.html_url !== repoSummary.html_url)
     ].slice(0, 6)
 
     setRecentRepos(newRecent)
-    localStorage.setItem(`recent_repos_${username}`, JSON.stringify(newRecent))
   }
 
   const sortedRepos = [...repos].sort((a, b) => {
-    const aFav = favorites.includes(a.id)
-    const bFav = favorites.includes(b.id)
+    const aFav = favorites.includes(a.full_name)
+    const bFav = favorites.includes(b.full_name)
     if (aFav && !bFav) return -1
     if (!aFav && bFav) return 1
     return 0
@@ -393,7 +403,7 @@ function GitHubUploadPage() {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   {sortedRepos.slice(0, 50).map((repo) => {
-                    const isFav = favorites.includes(repo.id)
+                    const isFav = favorites.includes(repo.full_name)
                     return (
                       <button
                         key={repo.id}
@@ -406,8 +416,8 @@ function GitHubUploadPage() {
                       >
                         <div className="absolute top-0 right-0 p-2 flex items-center gap-1">
                           <button
-                            onClick={(e) => toggleFavorite(e, repo.id)}
-                            className={`p-2 rounded-full transition-all ${isFav ? 'text-pink-500 bg-pink-50 dark:bg-pink-900/30' : 'text-gray-300 hover:text-pink-400 opacity-0 group-hover:opacity-100'} ${animatingFav === repo.id ? 'animate-heart-pop' : ''}`}
+                            onClick={(e) => toggleFavorite(e, repo)}
+                            className={`p-2 rounded-full transition-all ${isFav ? 'text-pink-500 bg-pink-50 dark:bg-pink-900/30' : 'text-gray-300 hover:text-pink-400 opacity-0 group-hover:opacity-100'} ${animatingFav === repo.full_name ? 'animate-heart-pop' : ''}`}
                             title={isFav ? "Remove from favorites" : "Add to favorites"}
                           >
                             <Heart size={18} fill={isFav ? "currentColor" : "none"} />

@@ -9,6 +9,7 @@ from app.services import repo_manager
 from app.services.analyze_local_folder import analyze_local_folder
 from app.services.state_manager import _PROGRESS, _ANALYSIS_CACHE, get_session
 from app.utils.analysis_helpers import normalize_analysis_result
+from app.db.database import upsert_recent_repo
 
 router = APIRouter(tags=["analyze"])
 
@@ -57,6 +58,17 @@ def analyze_repo(payload: RepoAnalyzeRequest):
     repo_url = payload.repo_url
     github_token = verify_session(payload.token)
     task_id = payload.task_id or str(uuid.uuid4())
+
+    if payload.token:
+        session = get_session(payload.token)
+        if session and session.get("user"):
+            repo_full_name = repo_url.replace("https://github.com/", "").replace(".git", "")
+            if repo_full_name.endswith("/"):
+                repo_full_name = repo_full_name[:-1]
+            try:
+                upsert_recent_repo(session["user"], repo_full_name, repo_url)
+            except Exception as e:
+                print(f"Error upserting recent repo: {e}")
 
     def update_progress(progress: int, message: str, done: bool = False, error: Optional[str] = None):
         _PROGRESS[task_id] = {"progress": progress, "message": message, "done": done, "error": error}

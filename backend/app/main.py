@@ -4,6 +4,9 @@ from app.api.routes.auth_routes import router as auth_router
 from app.api.routes.repo_routes import router as repo_router
 from app.api.routes.analyze_routes import router as analyze_router
 from app.api.routes.lint_routes import router as lint_router
+from app.api.routes.user_routes import router as user_router
+from contextlib import asynccontextmanager
+from app.db.database import init_db
 
 # Load environment variables from backend/.env when available (development convenience).
 try:
@@ -17,8 +20,14 @@ except Exception:
     # If python-dotenv isn't installed or .env doesn't exist, continue silently.
     print("env not loaded")
 
-app = FastAPI()
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    init_db()
+    yield
+    # Shutdown
 
+app = FastAPI(lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -37,6 +46,7 @@ app.include_router(auth_router, prefix="/api")
 app.include_router(repo_router, prefix="/api")
 app.include_router(analyze_router, prefix="/api")
 app.include_router(lint_router, prefix="/api")
+app.include_router(user_router, prefix="/api")
 
 @app.get("/")
 async def home():

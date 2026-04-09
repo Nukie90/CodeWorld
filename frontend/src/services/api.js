@@ -22,5 +22,11 @@ export const repoService = {
     analyzeRepo: (data) => api.post('/analyze/repo', data),
     lintFile: (fileName, data) => api.post(`/lint/${fileName}`, data),
 };
+export const userService = {
+    getRecentRepos: (token) => api.get('/user/repos/recent', { params: { token } }),
+    getFavouriteRepos: (token) => api.get('/user/repos/favourites', { params: { token } }),
+    addFavouriteRepo: (token, repo_full_name, repo_url) => api.post('/user/repos/favourites', { token, repo_full_name, repo_url }),
+    removeFavouriteRepo: (token, repo_full_name) => api.delete('/user/repos/favourites', { params: { token, repo_full_name } }),
+};
 
 export default api;

@@ -6,6 +6,7 @@ from app.services import repo_manager
 from app.services.analyze_local_folder import analyze_local_folder
 from app.services.state_manager import _ANALYSIS_CACHE, get_session
 from app.utils.analysis_helpers import normalize_analysis_result
+from app.db.database import upsert_recent_repo
 import re as _re
 
 router = APIRouter(tags=["repo"])
@@ -123,6 +124,18 @@ def _read_files_at_commit(local_path: str, commit_hash: str, file_list: list[str
 @router.post("/repo/checkout")
 def repo_checkout(payload: RepoCheckoutRequest):
     github_token = verify_session(payload.token)
+    if payload.token:
+        session = get_session(payload.token)
+        if session and session.get("user"):
+            repo_full_name = payload.repo_url.replace("https://github.com/", "").replace(".git", "")
+            if repo_full_name.endswith("/"):
+                # Handle trailing slashes
+                repo_full_name = repo_full_name[:-1]
+            try:
+                upsert_recent_repo(session["user"], repo_full_name, payload.repo_url)
+            except Exception as e:
+                print(f"Error upserting recent repo: {e}")
+
     # ---- Fast path: when branch is a commit hash, skip git checkout entirely ----
     if _is_commit_hash(payload.branch):
         # Get (or ensure) local repo exists
