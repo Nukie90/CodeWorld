@@ -66,7 +66,7 @@ def analyze_repo(payload: RepoAnalyzeRequest):
             if repo_full_name.endswith("/"):
                 repo_full_name = repo_full_name[:-1]
             try:
-                upsert_recent_repo(session["user"], repo_full_name, repo_url)
+                upsert_recent_repo(session["github_id"], repo_full_name, repo_url)
             except Exception as e:
                 print(f"Error upserting recent repo: {e}")
 
