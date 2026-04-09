@@ -126,13 +126,13 @@ def repo_checkout(payload: RepoCheckoutRequest):
     github_token = verify_session(payload.token)
     if payload.token:
         session = get_session(payload.token)
-        if session and session.get("user"):
+        if session and session.get("github_id"):
             repo_full_name = payload.repo_url.replace("https://github.com/", "").replace(".git", "")
             if repo_full_name.endswith("/"):
                 # Handle trailing slashes
                 repo_full_name = repo_full_name[:-1]
             try:
-                upsert_recent_repo(session["user"], repo_full_name, payload.repo_url)
+                upsert_recent_repo(session["github_id"], repo_full_name, payload.repo_url)
             except Exception as e:
                 print(f"Error upserting recent repo: {e}")
 

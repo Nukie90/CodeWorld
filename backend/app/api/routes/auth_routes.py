@@ -6,6 +6,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Request, HTTPException, Body
 from fastapi.responses import RedirectResponse
 from app.services.state_manager import create_session, delete_session, get_session
+from app.db.database import upsert_user
 
 router = APIRouter(tags=["auth"])
 
@@ -111,8 +112,13 @@ async def github_callback(code: str, request: Request):
 
         user_json = user_resp.json()
         username = user_json.get("login") or "unknown"
+        github_id = user_json.get("id")
+        
+        if not github_id:
+            raise HTTPException(status_code=500, detail="Failed to fetch GitHub user ID")
 
-        session_token = create_session(access_token, username)
+        upsert_user(github_id, username)
+        session_token = create_session(access_token, github_id)
         
         # Cache the result to handle immediate duplicate requests
         _USED_CODES[code] = {
