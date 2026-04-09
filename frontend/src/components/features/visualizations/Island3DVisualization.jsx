@@ -667,8 +667,69 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         modifiedFiles.forEach(filename => {
             const building = buildingMeshesRef.current.get(filename);
             if (!building) {
-                console.warn(`[Island3D] Building not found for file: ${filename}`);
-                return;
+                // No tower for this file — fire at island center base instead of skipping
+                console.log(`[Island3D] No tower for ${filename}, firing at island center`);
+                audioManager.playLaserSound();
+
+                const centerTarget = new THREE.Vector3(islandCenterX, 0, islandCenterZ);
+                const centerStart = new THREE.Vector3();
+                droneGroup.getWorldPosition(centerStart);
+                centerStart.y -= 2;
+
+                const centerDist = centerStart.distanceTo(centerTarget);
+                const cLaserGeo = new THREE.CylinderGeometry(0.5, 0.5, centerDist, 8);
+                const cLaserMat = new THREE.MeshBasicMaterial({
+                    color: color, transparent: true, opacity: 0.8
+                });
+                const cLaser = new THREE.Mesh(cLaserGeo, cLaserMat);
+
+                cLaser.position.copy(centerStart).add(centerTarget).multiplyScalar(0.5);
+                cLaser.lookAt(centerTarget);
+                cLaser.rotateX(Math.PI / 2);
+                scene.add(cLaser);
+
+                gsap.timeline({
+                    onUpdate: () => {
+                        if (droneGroup && cLaser) {
+                            droneGroup.updateMatrixWorld(true);
+                            const localBottom = new THREE.Vector3(0, -2, 0);
+                            localBottom.applyMatrix4(droneGroup.matrixWorld);
+                            const mid = new THREE.Vector3().copy(localBottom).add(centerTarget).multiplyScalar(0.5);
+                            cLaser.position.copy(mid);
+                            cLaser.lookAt(centerTarget);
+                            cLaser.rotateX(Math.PI / 2);
+                            const nd = localBottom.distanceTo(centerTarget);
+                            cLaser.scale.y = nd / centerDist;
+                        }
+                    }
+                })
+                    .to(cLaser.scale, { x: 2, z: 2, duration: 0.1, yoyo: true, repeat: 1 })
+                    .to(cLaser.material, {
+                        opacity: 0, duration: 0.3, onComplete: () => {
+                            scene.remove(cLaser);
+                            cLaserGeo.dispose();
+                            cLaserMat.dispose();
+                        }
+                    });
+
+                // Impact ring at island center
+                const cRingGeo = new THREE.TorusGeometry(3, 0.2, 8, 32);
+                const cRingMat = new THREE.MeshBasicMaterial({ color: color, transparent: true, opacity: 1 });
+                const cRing = new THREE.Mesh(cRingGeo, cRingMat);
+                cRing.rotation.x = Math.PI / 2;
+                cRing.position.set(islandCenterX, 0, islandCenterZ);
+                scene.add(cRing);
+
+                gsap.to(cRing.scale, { x: 5, y: 5, duration: 0.8, ease: "power2.out" });
+                gsap.to(cRing.material, {
+                    opacity: 0, duration: 0.8, ease: "power2.out", onComplete: () => {
+                        scene.remove(cRing);
+                        cRingGeo.dispose();
+                        cRingMat.dispose();
+                    }
+                });
+
+                return; // done with this file, skip the building-targeting path below
             }
 
             console.log(`[Island3D] Firing laser at ${filename}`);
