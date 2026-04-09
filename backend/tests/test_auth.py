@@ -2,7 +2,7 @@ import pytest
 from urllib.parse import parse_qs, urlparse
 
 from app.api.routes import auth_routes
-from app.services.state_manager import _TOKENS
+from app.services.state_manager import get_session
 
 pytestmark = pytest.mark.integration
 
@@ -23,7 +23,7 @@ def test_github_callback_success_redirects_and_stores_session(
             ),
             get_response=make_async_response(
                 200,
-                {"login": "codeworld-user"},
+                {"login": "codeworld-user", "id": 12345},
             ),
         ),
     )
@@ -41,9 +41,10 @@ def test_github_callback_success_redirects_and_stores_session(
     assert redirect.scheme == "http"
     assert redirect.netloc == "localhost:5173"
     assert params["username"] == ["codeworld-user"]
-    assert session_token in _TOKENS
-    assert _TOKENS[session_token]["github_token"] == "gho_test_token"
-    assert _TOKENS[session_token]["user"] == "codeworld-user"
+    session = get_session(session_token, refresh=False)
+    assert session is not None
+    assert session["github_token"] == "gho_test_token"
+    assert session["user"] == "codeworld-user"
 
 
 def test_github_callback_rejects_invalid_or_expired_code(
@@ -70,4 +71,4 @@ def test_github_callback_rejects_invalid_or_expired_code(
 
     assert response.status_code == 400
     assert response.json()["detail"] == "GitHub error: The code passed is incorrect or expired."
-    assert _TOKENS == {}
+

@@ -1,16 +1,17 @@
 import pytest
 from app.services import repo_manager
-from app.services.state_manager import _TOKENS
+
 
 @pytest.fixture
-def mock_session():
-    # Setup a mock session token
+def mock_session(monkeypatch):
     token = "test-token"
-    _TOKENS[token] = {"user": "test-user"}
+    from app.api.routes import repo_routes
+    monkeypatch.setattr(
+        repo_routes,
+        "get_session",
+        lambda t: {"user": "test-user", "github_token": "fake"} if t == token else None
+    )
     yield token
-    # Cleanup
-    if token in _TOKENS:
-        del _TOKENS[token]
 
 def test_repo_branches_requires_auth(client):
     response = client.get("/api/repo/branches?repo_url=https://github.com/test/repo")

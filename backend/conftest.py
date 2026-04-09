@@ -18,7 +18,7 @@ from app.model.analyzer_model import (
     FolderMetrics,
     FunctionMetric,
 )
-from app.services.state_manager import _ANALYSIS_CACHE, _PROGRESS, clear_sessions, load_sessions
+from app.services.state_manager import _ANALYSIS_CACHE, _PROGRESS, clear_sessions
 
 
 class FakeAsyncResponse:
@@ -68,7 +68,6 @@ def reset_runtime_state(monkeypatch, tmp_path):
     monkeypatch.setenv("SESSION_TTL_SECONDS", "604800")
 
     clear_sessions()
-    load_sessions()
     _PROGRESS.clear()
     _ANALYSIS_CACHE.clear()
     auth_routes._USED_CODES.clear()

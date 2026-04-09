@@ -2,7 +2,7 @@ import httpx
 import pytest
 
 from app.api.routes import analyze_routes, auth_routes
-from app.services.state_manager import _TOKENS
+
 
 pytestmark = pytest.mark.integration
 
@@ -12,7 +12,11 @@ def test_upstream_timeout_returns_internal_error(
     monkeypatch,
     fake_async_client_factory,
 ):
-    _TOKENS["live-token"] = "qa-user"
+    monkeypatch.setattr(
+        auth_routes,
+        "get_session",
+        lambda token: {"github_token": "qa", "user": "qa-user"} if token == "live-token" else None
+    )
 
     monkeypatch.setattr(
         auth_routes.httpx,
@@ -33,7 +37,11 @@ def test_github_api_failure_is_forwarded_to_client(
     fake_async_client_factory,
     make_async_response,
 ):
-    _TOKENS["live-token"] = "qa-user"
+    monkeypatch.setattr(
+        auth_routes,
+        "get_session",
+        lambda token: {"github_token": "qa", "user": "qa-user"} if token == "live-token" else None
+    )
 
     monkeypatch.setattr(
         auth_routes.httpx,
