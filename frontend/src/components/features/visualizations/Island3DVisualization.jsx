@@ -153,7 +153,13 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         if (nodes.length === 0) return null;
 
         // Optimization: Create a unique cache key based on nodes and padding
-        const cacheKey = nodes.length + '_' + padding + '_' + (nodes[0]?.depth || 0) + '_' + (nodes[0]?.x?.toFixed(1) || '');
+        let cacheId = "";
+        if (nodes.length <= 10) {
+            cacheId = nodes.map(n => Math.round(n.x || 0) + 'x' + Math.round(n.y || 0)).join('_');
+        } else {
+            cacheId = Math.round(nodes[0]?.x || 0) + 'x' + Math.round(nodes[0]?.y || 0) + '_' + Math.round(nodes[Math.floor(nodes.length / 2)]?.x || 0) + 'x' + Math.round(nodes[Math.floor(nodes.length / 2)]?.y || 0) + '_' + Math.round(nodes[nodes.length - 1]?.x || 0) + 'x' + Math.round(nodes[nodes.length - 1]?.y || 0);
+        }
+        const cacheKey = nodes.length + '_' + padding + '_' + cacheId;
         if (organicShapeCacheRef.current.has(cacheKey)) {
             return organicShapeCacheRef.current.get(cacheKey);
         }
@@ -176,41 +182,24 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
         const hull = getConvexHull(points);
         if (hull.length < 3) return null;
 
-        // 3. Create Three.js Shape with Bezier smoothing
+        // 3. Create Three.js Shape with smooth cubic Spline (Catmull-Rom) blending
+        // It provides a wonderfully smooth continuous rounded curve without "cutting" the convex hull corners
+        const points3d = hull.map(p => new THREE.Vector3(p.x, p.y, 0));
+        const curve = new THREE.CatmullRomCurve3(points3d, true, 'centripetal', 0.5); // centripetal ensures no self-intersecting loops, tension 0.5 is organicly round
+
+        // generate high-resolution smoothed points along the perfectly round cubic spline
+        // Base the resolution on physical arc length rather than hull vertex count to prevent sharp geometric low-poly shores over massive freeform islands
+        const arcLength = curve.getLength();
+        const numPoints = Math.max(300, Math.ceil(arcLength * 4)); // Extremely high density: 4 vertices per physical unit to guarantee perfectly cinematic smooth curves
+        const roundedPoints = curve.getPoints(numPoints);
+
         const shape = new THREE.Shape();
-
-        // Midpoint start
-        const pLast = hull[hull.length - 1];
-        const pFirst = hull[0];
-        const startX = (pLast.x + pFirst.x) / 2;
-        const startY = (pLast.y + pFirst.y) / 2;
-
-        shape.moveTo(startX, startY);
-
-        const bezierPoints = [];
-        for (let i = 0; i < hull.length; i++) {
-            const p1 = hull[i];
-            const p2 = hull[(i + 1) % hull.length];
-            const midX = (p1.x + p2.x) / 2;
-            const midY = (p1.y + p2.y) / 2;
-
-            // Curve through hull vertex p1 to the midpoint of next edge
-            shape.quadraticCurveTo(p1.x, p1.y, midX, midY);
-
-            // Generate dense sampling points for the curve to allow accurate honeycomb filling
-            const prevMidX = i === 0 ? (hull[hull.length - 1].x + hull[0].x) / 2 : (hull[i - 1].x + hull[i].x) / 2;
-            const prevMidY = i === 0 ? (hull[hull.length - 1].y + hull[0].y) / 2 : (hull[i - 1].y + hull[i].y) / 2;
-
-            // Dynamic sampling resolution based on distance
-            const dist = Math.sqrt((midX - prevMidX) ** 2 + (midY - prevMidY) ** 2);
-            const steps = Math.max(5, Math.ceil(dist / 10)); // Optimize number of steps
-
-            for (let t = 0; t <= 1; t += (1 / steps)) {
-                const x = (1 - t) * (1 - t) * prevMidX + 2 * (1 - t) * t * p1.x + t * t * midX;
-                const y = (1 - t) * (1 - t) * prevMidY + 2 * (1 - t) * t * p1.y + t * t * midY;
-                bezierPoints.push({ x, y });
-            }
+        shape.moveTo(roundedPoints[0].x, roundedPoints[0].y);
+        for (let i = 1; i < roundedPoints.length; i++) {
+            shape.lineTo(roundedPoints[i].x, roundedPoints[i].y);
         }
+
+        const bezierPoints = roundedPoints.map(p => ({ x: p.x, y: p.y }));
 
         const result = { shape, hull, bezierPoints };
         organicShapeCacheRef.current.set(cacheKey, result);
@@ -1378,7 +1367,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
         // Apply threshold removal for huge islands to save performance
         const MAX_OCEAN_ISLAND_SIZE = 1500;
-        
+
         if (islandSize <= MAX_OCEAN_ISLAND_SIZE) {
             const oceanSize = Math.max(3000, islandSize * 2.5);
             oceanGeometry = new THREE.PlaneGeometry(oceanSize, oceanSize, 100, 100);
@@ -1964,11 +1953,13 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     geometriesToDisposeRef.current.push(ringGeo);
                 };
 
-                // For root (depth 0), render all child clusters as one combined platform
+                const dynamicPadding = Math.max(3, 16 - (node.depth * 3.5));
+
+                // Always use .leaves() to shrink-wrap actual tower geometries, preventing any puffy D3 abstract circles
                 if (node.depth === 0) {
-                    renderShape(node.children, 15);
+                    renderShape(node.leaves(), 18);
                 } else {
-                    renderShape(node.children, 8);
+                    renderShape(node.leaves(), dynamicPadding);
                 }
 
                 // Recurse to children
@@ -1990,8 +1981,6 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
 
             // 1. Flatten sampling: Create a map of hexKey -> deepestNode
             const hexToNodeMap = new Map();
-            const padding = 8; // Tighter padding for directory platforms
-            const rootPadding = 15;
 
             const processNode = (node) => {
                 if (!node.children || node.children.length === 0) return;
@@ -2025,13 +2014,14 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     }
                 };
 
-                // For root (depth 0), process each child individually to preserve the organic "waist"
+                const dynamicPadding = Math.max(3, 16 - (node.depth * 3.5));
+
+                // Always use .leaves() combined with a SINGLE convex hull call (no .forEach)
+                // This eliminates inner holes while guaranteeing perfect rounded geometries
                 if (node.depth === 0) {
-                    node.children.forEach(child => {
-                        populateHexes([child], rootPadding);
-                    });
+                    populateHexes(node.leaves(), 18);
                 } else {
-                    populateHexes(node.children, padding);
+                    populateHexes(node.leaves(), dynamicPadding);
                 }
 
                 node.children.forEach(child => {
@@ -3202,7 +3192,7 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                     </div>
                 </div>
             </div>
-            
+
             {/* Bottom-left UI Stack */}
             <div className="absolute bottom-4 left-4 z-10 flex flex-col gap-4">
                 {/* Legend (Terraced Map Info) */}
