@@ -1,6 +1,9 @@
 #### CodeWorld
 <video controls src="Demo.mp4" title="Title"></video>
 
+**CodeWorld** is a comprehensive code analysis and metrics visualization platform designed to help developers understand, measure, and optimize their codebases. It provides a robust pipeline to seamlessly fetch, analyze, and visualize source code metrics directly from GitHub repositories. 
+
+By integrating specialized AST (Abstract Syntax Tree) parsing plugins for both Python and JavaScript, CodeWorld calculates vital complexity metrics such as Cognitive Complexity, Cyclomatic Complexity, Halstead Volume, and Maintainability Index. The customizable dashboard features real-time visualizations for code quality insights, issue distributions (including fatal errors), and a fully Dockerized setup ensuring a streamlined and scalable deployment.
 ## Docker
 
 1. docker compose up --build -d
