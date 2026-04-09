@@ -26,6 +26,18 @@ def init_db():
         )
     """)
     
+    # Table for user sessions
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS user_sessions (
+            session_token TEXT PRIMARY KEY,
+            github_token TEXT NOT NULL,
+            username TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            expires_at INTEGER NOT NULL,
+            is_logged_in INTEGER NOT NULL DEFAULT 1
+        )
+    """)
+    
     # Table for favourite repos
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS user_favourite_repos (
