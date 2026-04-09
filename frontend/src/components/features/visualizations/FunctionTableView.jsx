@@ -212,7 +212,7 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                         className="col-span-1 flex items-center gap-1 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"
                         onClick={() => requestSort('total_cognitive_complexity')}
                     >
-                        Total {getSortIcon('total_cognitive_complexity')}
+                        Total CogC {getSortIcon('total_cognitive_complexity')}
                     </div>
                     <div
                         className="col-span-1 flex items-center gap-1 cursor-pointer hover:text-blue-500 transition-colors justify-end text-right"

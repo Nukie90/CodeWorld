@@ -75,7 +75,7 @@ function ResultsSidebar({
 
                 <div className={`grid grid-cols-2 gap-2 mb-4 p-3 rounded-xl border ${borderColor} ${isDarkMode ? 'bg-gray-800/30' : 'bg-gray-50/50'} backdrop-blur-sm`}>
                     <div className="flex flex-col gap-1">
-                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Top Complexity:</span>
+                        <span className={`text-[10px] font-bold uppercase tracking-wider ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>Top MI:</span>
                         <div className="flex gap-1">
                             <select
                                 value={isCustomMode ? 'Custom' : topNComplexity}
