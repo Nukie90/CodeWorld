@@ -200,7 +200,7 @@ def _full_analysis(
 
     if progress_callback:
         supported_count = sum(len(files) for files in grouped_files.values())
-        progress_callback(45, f"Analyzing {supported_count} source files — this may take a while for large projects...")
+        progress_callback(45, f"Analyzing source files — this may take a while for large projects...")
 
     file_metrics_list = asyncio.run(run_adapter_batches(grouped_files))
 
