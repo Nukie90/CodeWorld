@@ -78,25 +78,25 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
         return sortConfig.direction === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />;
     };
 
-    const getComplexityColor = (complexity) => {
-        if (complexity === undefined || complexity === null) return isDarkMode ? 'text-gray-400' : 'text-gray-500';
-        if (complexity >= 20) return 'text-red-500 font-bold';
-        if (complexity >= 15) return 'text-orange-500 font-semibold';
-        if (complexity >= 10) return 'text-yellow-500 font-semibold';
-        return isDarkMode ? 'text-emerald-400' : 'text-emerald-600';
-    };
+    // const getComplexityColor = (complexity) => {
+    //     if (complexity === undefined || complexity === null) return isDarkMode ? 'text-gray-400' : 'text-gray-500';
+    //     if (complexity >= 20) return 'text-red-500 font-bold';
+    //     if (complexity >= 15) return 'text-orange-500 font-semibold';
+    //     if (complexity >= 10) return 'text-yellow-500 font-semibold';
+    //     return isDarkMode ? 'text-emerald-400' : 'text-emerald-600';
+    // };
 
     const getMaintainabilityColor = (index) => {
         if (index === undefined || index === null) return isDarkMode ? 'text-gray-400' : 'text-gray-500';
 
         if (isDarkMode) {
             if (index < 10) return 'text-red-400 font-bold';
-            if (index < 15) return 'text-pink-400 font-semibold';
+            // if (index < 15) return 'text-pink-400 font-semibold';
             if (index < 20) return 'text-purple-400 font-semibold';
             return 'text-emerald-400';
         } else {
             if (index < 10) return 'text-red-600 font-bold';
-            if (index < 15) return 'text-orange-600 font-semibold';
+            // if (index < 15) return 'text-orange-600 font-semibold';
             if (index < 20) return 'text-yellow-600 font-semibold';
             return 'text-emerald-600';
         }
@@ -275,10 +275,10 @@ const FunctionTableView = ({ file, isDarkMode, onBack, onFunctionClick, onFileCl
                                     </div>
                                     <span className="truncate" title={fn.long_name || fn.name}>{fn.name}</span>
                                 </div>
-                                <div className={`col-span-1 text-right font-mono text-xs ${getComplexityColor(fn.cognitive_complexity)}`}>
+                                <div className={`col-span-1 text-right font-mono text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                                     {fn.cognitive_complexity ?? '—'}
                                 </div>
-                                <div className={`col-span-1 text-right font-mono text-xs ${getComplexityColor(fn.cyclomatic_complexity)}`}>
+                                <div className={`col-span-1 text-right font-mono text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>
                                     {fn.cyclomatic_complexity ?? '—'}
                                 </div>
                                 <div className={`col-span-1 text-right font-mono text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-600'}`}>

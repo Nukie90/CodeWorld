@@ -317,10 +317,12 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             if (clamped < 10) {
                 // 0-9: red
                 return 0xef4444;
-            } else if (clamped < 15) {
-                // 10-14: pink
-                return 0xec4899;
-            } else if (clamped < 20) {
+            } 
+            // else if (clamped < 15) {
+            //     // 10-14: pink
+            //     return 0xec4899;
+            // } 
+            else if (clamped < 20) {
                 // 15-19: purple
                 return 0xa855f7;
             } else {
@@ -332,10 +334,12 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
             if (clamped < 10) {
                 // 0-9: bright red
                 return 0xef4444;
-            } else if (clamped < 15) {
-                // 10-14: bright orange
-                return 0xf97316;
-            } else if (clamped < 20) {
+            } 
+            // else if (clamped < 15) {
+            //     // 10-14: bright orange
+            //     return 0xf97316;
+            // } 
+            else if (clamped < 20) {
                 // 15-19: bright yellow
                 return 0xfacc15;
             } else {
@@ -3215,19 +3219,24 @@ function Island3DVisualization({ individualFiles, onFunctionClick, onFileClick, 
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#ef4444' : '#ef4444' }} />
-                                <span>0-9 (Poor)</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#ec4899' : '#f97316' }} />
-                                <span>10-14 (Moderate)</span>
+                                <span>0-9 (Low)</span>
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#a855f7' : '#facc15' }} />
-                                <span>15-19 (Good)</span>
+                                <span>10-19 (Moderate)</span>
                             </div>
+                            {/* <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#a855f7' : '#facc15' }} />
+                                <span>15-19 (Good)</span>
+                            </div> */}
+
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? '#06b6d4' : '#22c55e' }} />
-                                <span>20-100 (Excellent)</span>
+                                <span>20-100 (Good)</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: isDarkMode ? 'white' : 'grey' }} />
+                                <span>Unsupported</span>
                             </div>
                         </div>
                     </div>
