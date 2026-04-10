@@ -3,14 +3,14 @@ import { useState } from 'react';
 import { Home, Moon, Sun, GitCommit, Volume2, VolumeX } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { audioManager } from '../../../utils/audioManager';
+import { useTheme } from '../../../context/ThemeContext';
 
 function ResultsControlBar({
-    isDarkMode,
-    setIsDarkMode,
     isAnimating,
     animatingCommit,
     formatCommitDate
 }) {
+    const { isDarkMode, toggleTheme } = useTheme();
     const navigate = useNavigate();
     const textColor = isDarkMode ? 'text-white' : 'text-gray-900';
     const [isMuted, setIsMuted] = useState(audioManager.isMuted);
@@ -40,7 +40,7 @@ function ResultsControlBar({
                     <Home size={22} strokeWidth={2.5} />
                 </button>
                 <button
-                    onClick={() => setIsDarkMode(!isDarkMode)}
+                    onClick={toggleTheme}
                     className={`p-3 rounded-2xl bg-white/10 dark:bg-black/20 backdrop-blur-xl shadow-2xl hover:shadow-3xl transition-all ${textColor} border border-white/20 dark:border-white/10 hover:scale-110 hover:bg-white/20 dark:hover:bg-black/30`}
                     title="Toggle Dark/Light Mode"
                 >

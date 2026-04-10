@@ -5,6 +5,7 @@ import { useGithubAuth } from '../hooks/useGithubAuth'
 import { repoService, authService, userService } from '../services/api'
 import { Sun, Moon, Github, Star, Code, Clock, ChevronRight, Heart, Volume2, VolumeX } from 'lucide-react'
 import { audioManager } from '../utils/audioManager'
+import { useTheme } from '../context/ThemeContext'
 
 function GitHubUploadPage() {
   const navigate = useNavigate()
@@ -24,7 +25,7 @@ function GitHubUploadPage() {
   const [isMuted, setIsMuted] = useState(audioManager.isMuted)
 
   // Default to false explicitly so it doesn't try to inherit system or previous class implicitly and break consistency
-  const [isDarkMode, setIsDarkMode] = useState(false)
+  const { isDarkMode, toggleTheme } = useTheme()
   const [repos, setRepos] = useState([])
   const [isLoadingRepos, setIsLoadingRepos] = useState(false)
   const [repoError, setRepoError] = useState(null)
@@ -32,13 +33,6 @@ function GitHubUploadPage() {
   const [animatingFav, setAnimatingFav] = useState(null)
   const [recentRepos, setRecentRepos] = useState([])
 
-  useEffect(() => {
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark')
-    } else {
-      document.documentElement.classList.remove('dark')
-    }
-  }, [isDarkMode])
 
   useEffect(() => {
     const fetchRepos = async () => {
@@ -256,7 +250,7 @@ function GitHubUploadPage() {
               {isMuted ? <VolumeX size={22} strokeWidth={2.5} /> : <Volume2 size={22} strokeWidth={2.5} />}
             </button>
             <button
-              onClick={() => setIsDarkMode(!isDarkMode)}
+              onClick={toggleTheme}
               className="p-3 rounded-2xl bg-white/10 dark:bg-black/20 backdrop-blur-xl shadow-md transition-all text-slate-800 dark:text-white border border-white/40 dark:border-white/10 hover:scale-105 hover:bg-white/30 dark:hover:bg-black/30"
               title="Toggle Dark/Light Mode"
             >

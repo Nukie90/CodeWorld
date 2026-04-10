@@ -14,6 +14,8 @@ import { useRepoBranches } from '../hooks/useRepoBranches';
 import { useRepoAnimation } from '../hooks/useRepoAnimation';
 import { repoService } from '../services/api';
 
+import { useTheme } from '../context/ThemeContext';
+
 import { Code, FileText, Hash, Sparkles, Check, Copy, FileText as FileTextIcon, ChevronDown, ChevronUp } from 'lucide-react';
 
 function normalizeFunctionTotals(fn) {
@@ -60,7 +62,7 @@ function ResultsPage() {
 
   const [analysisResult, setAnalysisResult] = useState(() => normalizeAnalysisResultPayload(initialAnalysisResult));
   const [activeTab, setActiveTab] = useState('island3D');
-  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { isDarkMode } = useTheme();
 
   // Panel visibility states
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
@@ -365,8 +367,6 @@ function ResultsPage() {
   return (
     <div className={`h-screen overflow-hidden ${bgColor} ${textColor} relative`}>
       <ResultsControlBar
-        isDarkMode={isDarkMode}
-        setIsDarkMode={setIsDarkMode}
         isAnimating={isAnimating}
         animatingCommit={animatingCommit}
         formatCommitDate={formatCommitDate}
