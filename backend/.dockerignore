@@ -1,0 +1,11 @@
+venv/
+env/
+__pycache__/
+*.pyc
+.env
+temp_repos/
+app/js_plugin/node_modules/
+.git/
+.pytest_cache/
+coverage.xml
+tests/

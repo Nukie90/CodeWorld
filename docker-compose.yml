@@ -1,0 +1,41 @@
+services:
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    networks:
+      - codeworld_net
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    env_file:
+      - ./backend/.env
+    environment:
+      - JS_PLUGIN_URL=http://js_plugin:3100
+      - FRONTEND_URL=http://localhost:5173
+      # Add other environment variables as needed here
+    depends_on:
+      - js_plugin
+    networks:
+      - codeworld_net
+
+  js_plugin:
+    build:
+      context: ./backend/app/js_plugin
+      dockerfile: Dockerfile
+    ports:
+      - "3100:3100"
+    networks:
+      - codeworld_net
+
+networks:
+  codeworld_net:
+    driver: bridge

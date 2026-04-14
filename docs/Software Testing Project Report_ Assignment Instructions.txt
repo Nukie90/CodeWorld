@@ -1,0 +1,74 @@
+﻿Software Testing Project Report: Assignment Instructions
+Objective:
+For this assignment, you will work with your senior project team to document and evaluate the software testing lifecycle of your project. This report should demonstrate your ability to plan, design, automate, and execute tests while integrating them into a modern development pipeline.
+Submission Details:
+* Format: One PDF file per team
+* Length: No more than 30 pages
+Report Structure & Requirements
+Please organize your report using the following sections:
+1. Project and Requirements Overview
+* Provide a brief summary of your project’s purpose.
+* Summarize the software requirements that form the basis of your testing activities.
+2. Test Plan
+* Define your team’s overall test plan (What/When/Who)
+* Summarize how you carried out the tests in each test stage:
+   * Unit Testing: How individual components were tested.
+   * Integration Testing: How module interactions were verified.
+   * System Testing: How the complete, integrated system was evaluated against requirements.
+   * Acceptance Testing: How you validated that the software meets end-user expectations.
+* Describe any test management tools utilized
+3. Test Design and Coverage
+* Design Techniques: Explicitly state and explain the test design techniques applied.
+* Examples: Provide concrete examples of test cases or test specifications derived from these techniques.
+* Coverage: Demonstrate how well your test suites cover the software. Include traceability matrices mapping tests to requirements, and provide objective code coverage metrics (e.g., statement, branch, or path coverage).
+4. Test Implementation and Execution
+* At each stage of testing (unit/integration/system/acceptance), 
+   * Tooling: Summarize the frameworks and tools used to support the implementation of your tests.
+   * Implementation: Explain how your designed test cases were implemented. Provide examples of the implementations of your tests.
+   * Execution: Explain how your tests were executed and how the test results were recorded.
+5. CI/CD Pipeline Integration
+* Explain how your testing activities fit into your Continuous Integration/Continuous Deployment (CI/CD) pipeline (e.g., GitHub Actions, GitLab CI, Jenkins).
+* Detail the triggers for automated test runs (e.g., on pull request, on commit to main) and how the pipeline handles test failures (e.g., blocking merges).
+6. Test Results and Defect Analysis
+* Statistics: Provide clear metrics on test execution (e.g. total tests run, pass rate, fail rate).
+* Defect Analysis: Highlight specific examples of failing test cases. Explain the underlying bugs in the software that these tests successfully caught and how your team resolved them.
+________________
+
+
+Assessment Rubric
+You can adjust the point values or percentages based on your syllabus grading weights.
+Criteria
+	Excellent (100-90%)
+	Proficient (89-75%)
+	Developing (74-60%)
+	Beginning (<60%)
+	Test Plan (10%)
+	Comprehensive strategy clearly defining Unit, Integration, System, and Acceptance testing. Methodologies are well-justified.
+	Strategy covers most testing stages adequately. Minor gaps in defining how one or two stages were handled.
+	Missing major stages of testing (e.g., only covers unit testing). Explanations are vague.
+	No clear test plan. Stages of testing are not defined or misunderstood.
+	Test Design & Coverage (30%)
+	Appropriate design techniques are correctly applied and documented. Coverage metrics and traceability to requirements are clear and thorough.
+	Design techniques are identified and applied mostly correctly. Coverage is discussed but lacks concrete metrics or full traceability.
+	Minimal use of formal design techniques. Coverage is poorly documented or purely anecdotal.
+	No evidence of structured test design. Tests appear ad-hoc. Coverage is ignored.
+	Test Implementation & Execution (30%)
+	Excellent use of automation tools. Clear, logical explanation of how test cases were translated into scripts and executed.
+	Good use of tools, though some testing that could be automated remains manual. Implementation is mostly clear.
+	Automated testing is very limited. Over-reliance on manual execution. Tool usage is poorly explained.
+	No automated testing applied. Execution is entirely manual or undocumented.
+	CI/CD Integration (10%)
+	Testing is seamlessly integrated into a well-defined CI/CD pipeline. Clear rules exist for pipeline execution and failure handling.
+	Tests are integrated into a pipeline, but the configuration is basic or lacks strict gating/failure handling.
+	Attempts made to use CI/CD, but tests are not reliably automated within the pipeline or require manual triggers.
+	No CI/CD pipeline integration. Tests are only run locally by individual developers.
+	Results & Analysis (10%)
+	Detailed statistics provided. Insightful analysis of defects caught by tests and how they improved software quality.
+	Basic statistics provided. Examples of defects are given but analysis of root causes is brief.
+	Incomplete statistics. Fails to adequately explain the defects caught or their impact.
+	Missing test results or defect analysis completely.
+	Organization & Clarity (10%)
+	Report is highly organized, strictly follows the requested structure, and is professionally written with clear examples.
+	Report is generally organized and clear, with minor formatting or grammatical issues.
+	Report is disjointed, hard to follow, or missing minor sections.
+	Report lacks structure, making it incredibly difficult to assess the testing activities.
