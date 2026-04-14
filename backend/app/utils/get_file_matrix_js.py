@@ -5,7 +5,7 @@ from app.utils.analysis_helpers import ensure_file_total_cognitive_complexity
 
 import os
 
-JS_PLUGIN_URL = os.getenv("JS_PLUGIN_URL", "http://localhost:3001")
+JS_PLUGIN_URL = os.getenv("JS_PLUGIN_URL", "http://localhost:3100")
 ANALYZER_URL = f"{JS_PLUGIN_URL}/analyze-code-stream"
 ANALYZER_BATCH_URL = f"{JS_PLUGIN_URL}/analyze-batch-stream"
 

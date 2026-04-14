@@ -22,7 +22,7 @@ def js_plugin_server():
     while time.time() - start_time < 5:
         try:
             with httpx.Client() as client:
-                resp = client.get("http://localhost:3001") # Just checking if it's up
+                resp = client.get("http://localhost:3100") # Just checking if it's up
                 if resp.status_code == 404: # Express default
                     break
         except httpx.ConnectError:
@@ -76,7 +76,7 @@ async def test_js_plugin_adapter_lint_content(js_plugin_server):
     js_code = "const x = 10; console.log(x);"
     filename = "test_lint.js"
     
-    # This calls http://localhost:3001/lint-code
+    # This calls http://localhost:3100/lint-code
     lint_result = await adapter.lint_content(js_code, filename)
     
     assert lint_result is not None

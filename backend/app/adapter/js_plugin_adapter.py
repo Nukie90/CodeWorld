@@ -17,7 +17,7 @@ class JSPluginAdapter(AnalysisAdapter):
 
     async def lint_content(self, content: str, filename: str) -> Optional['FileLint']:
         from app.model.analyzer_model import FileLint
-        js_plugin_url = os.getenv("JS_PLUGIN_URL", "http://localhost:3001")
+        js_plugin_url = os.getenv("JS_PLUGIN_URL", "http://localhost:3100")
         try:
             async with httpx.AsyncClient() as client:
                 resp = await client.post(f"{js_plugin_url}/lint-code", json={"code": content, "filename": filename})

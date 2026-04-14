@@ -21,7 +21,7 @@ def js_plugin_server():
     while time.time() - start_time < 5:
         try:
             with httpx.Client() as client:
-                resp = client.get("http://localhost:3001")
+                resp = client.get("http://localhost:3100")
                 if resp.status_code == 404:
                     break
         except httpx.ConnectError:

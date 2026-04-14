@@ -12,7 +12,7 @@ const postData = JSON.stringify({
 
 const options = {
     hostname: 'localhost',
-    port: 3001,
+    port: 3100,
     path: '/analyze-code',
     method: 'POST',
     headers: {

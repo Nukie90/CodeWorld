@@ -153,10 +153,10 @@ function GitHubUploadPage() {
     setStatusMessage('Initializing analysis...')
     setProgress(0)
 
-    const taskId = crypto.randomUUID()
+    const taskId = crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).substring(2);
 
     // Connect to SSE for progress updates
-    const eventSource = new EventSource(`http://127.0.0.1:8000/api/analyze/progress/${taskId}`)
+    const eventSource = new EventSource(`http://${window.location.hostname}:8100/api/analyze/progress/${taskId}`)
 
     eventSource.onmessage = (event) => {
       const data = JSON.parse(event.data)

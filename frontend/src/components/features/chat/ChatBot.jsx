@@ -30,7 +30,7 @@ const ChatBot = ({ isDarkMode, projectContext }) => {
         setIsLoading(true);
 
         try {
-            const response = await axios.post('http://127.0.0.1:8000/api/ai/chat', {
+            const response = await axios.post(`http://${window.location.hostname}:8100/api/ai/chat`, {
                 messages: newMessages,
                 project_context: messages.length === 0 ? projectContext : null
             });

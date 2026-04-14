@@ -27,7 +27,7 @@ function GitHubCallbackPage() {
     if (code) {
       // If we have a code, redirect to backend callback
       // The backend will handle the token exchange and redirect back to frontend
-      const backendCallbackUrl = `http://127.0.0.1:8000/api/auth/github/callback?code=${code}`
+      const backendCallbackUrl = `http://${window.location.hostname}:8100/api/auth/github/callback?code=${code}`
       window.location.href = backendCallbackUrl
     } else {
       // No code, redirect home

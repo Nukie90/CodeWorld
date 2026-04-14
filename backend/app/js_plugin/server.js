@@ -1038,7 +1038,7 @@ app.post('/analyze-batch-stream', upload.array('files'), async (req, res) => {
 
 
 if (require.main === module) {
-    const PORT = process.env.PORT || 3001;
+    const PORT = process.env.PORT || 3100;
 
     app.listen(PORT)
         .on('error', (err) => {

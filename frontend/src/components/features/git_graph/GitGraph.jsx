@@ -20,7 +20,7 @@ function GitGraph({ repoUrl, branch, token, activeCommitHash, onCommitClick, ext
     }
     setError(null);
     try {
-      const resp = await axios.post('http://127.0.0.1:8000/api/repo/commits', {
+      const resp = await axios.post(`http://${window.location.hostname}:8100/api/repo/commits`, {
         repo_url: repoUrl,
         branch: branch,
         limit: COMMITS_PER_PAGE,

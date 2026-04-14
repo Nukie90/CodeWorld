@@ -24,7 +24,7 @@ function CommitDetailModal({ commit, repoUrl, token, onClose, isDarkMode }) {
         setError(null);
         setSelectedFile(null);
         try {
-            const resp = await axios.post('http://127.0.0.1:8000/api/repo/commit-details', {
+            const resp = await axios.post(`http://${window.location.hostname}:8100/api/repo/commit-details`, {
                 repo_url: repoUrl,
                 commit_hash: commit.hash,
                 token: token
@@ -54,7 +54,7 @@ function CommitDetailModal({ commit, repoUrl, token, onClose, isDarkMode }) {
         setFileContent('');
         setViewingFileContent(filename);
         try {
-            const resp = await axios.post('http://127.0.0.1:8000/api/repo/file-content', {
+            const resp = await axios.post(`http://${window.location.hostname}:8100/api/repo/file-content`, {
                 repo_url: repoUrl,
                 commit_hash: commit.hash,
                 file_path: filename,
